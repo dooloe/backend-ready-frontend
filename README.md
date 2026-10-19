@@ -14,11 +14,25 @@ Continue developing this project in the [Lovable editor](https://lovable.dev/pro
 
 ## Development
 
+The repository contains the frontend application in `frontend/`, project
+documentation in `docs/`, and a `backend/` placeholder for the future backend.
+The frontend currently uses mocked backend calls.
+
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
 git clone <this-repository-url>
 cd <repository-name>
+cd frontend
 npm i
 npm run dev
 ```
+
+Run frontend verification from the repository root:
+
+```sh
+npm --prefix frontend test
+npm --prefix frontend run build
+```
+
+Configure frontend build services to use `frontend/` as their working directory.

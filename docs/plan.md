@@ -4,7 +4,7 @@
 **Status:** MVP planning  
 **Primary goal:** Deliver a tested, working full-stack web application for virtual queue management.  
 **Stack:** React + TypeScript + Vite + Tailwind CSS + shadcn/ui; FastAPI + Python + SQLAlchemy + SQLite; REST/OpenAPI; Pytest + Vitest + Playwright.  
-**Source of truth:** This plan defines the intended MVP. Record justified deviations in `_docs/decisions.md` before implementation. Never claim an unimplemented feature is complete.
+**Source of truth:** This plan defines the intended MVP. Record justified deviations in `docs/decisions.md` before implementation. Never claim an unimplemented feature is complete.
 
 ## 1. Mission and success criteria
 
@@ -69,7 +69,7 @@ Kezek allows customers to join service queues without an account, receive a priv
 | `tickets` | `id`, `queue_id`, `sequence_number`, `ticket_number`, `access_token_hash` unique, `status`, `counter_id` nullable, `created_at`, `called_at`, `started_at`, `completed_at`, `cancelled_at`, `no_show_at`, `idempotency_key` nullable; unique (`queue_id`, `sequence_number`) and (`queue_id`, `ticket_number`) |
 | `ticket_events` | `id`, `ticket_id`, `event_type`, `actor_user_id` nullable, `occurred_at`, `metadata_json` optional |
 
-Use indexes for (`queue_id`, `status`, `sequence_number`) and ticket lookup by token hash. Prefer explicit constraints. Define deletion behavior so historical tickets are never accidentally cascade-deleted with services/users. Record relevant decisions in `_docs/decisions.md`.
+Use indexes for (`queue_id`, `status`, `sequence_number`) and ticket lookup by token hash. Prefer explicit constraints. Define deletion behavior so historical tickets are never accidentally cascade-deleted with services/users. Record relevant decisions in `docs/decisions.md`.
 
 ## 5. API contract (MVP)
 
@@ -116,7 +116,7 @@ Avoid fake buttons and hardcoded metrics. Use one shared design system with resp
 
 ### Phase 0 — Repository, planning and issue setup (P0)
 - [ ] Inspect existing repo and preserve working code; do not overwrite without reason.
-- [ ] Create `_docs/decisions.md`, `_docs/process.md`, `_docs/chat-brainstorm.md`, `AGENTS.md`, `README.md` (or update existing equivalents).
+- [ ] Create `docs/decisions.md`, `docs/process.md`, `docs/chat-brainstorm.md`, `AGENTS.md`, `README.md` (or update existing equivalents).
 - [ ] Convert phases below into appropriately sized GitHub Issues **before coding**, with `mvp` label, owner (if available), dependencies and objective acceptance criteria. Prefer 25–50 useful issues rather than fake issue inflation; split further only when it improves traceability.
 - [ ] Set up frontend/backend project structure, local `.env.example`, dependency lockfiles, lint/typecheck/test commands, and CI if practical.
 
@@ -174,7 +174,7 @@ Avoid fake buttons and hardcoded metrics. Use one shared design system with resp
 - [ ] Manually test at least one full scenario and at least three failures/edge cases.
 - [ ] Open `bug` + `user-test-bug` issues for manual discoveries, reproduce, fix and add regression tests.
 - [ ] Confirm project README includes prerequisites, setup/run/test commands, migrations, seeded credentials, screenshots/demo flow and known limitations.
-- [ ] Update `_docs/process.md` with actual agent actions, checks, outcomes and blockers.
+- [ ] Update `docs/process.md` with actual agent actions, checks, outcomes and blockers.
 - [ ] Close only issues whose acceptance criteria are verified; produce final backlog/test summary.
 
 **Exit gate:** MVP acceptance checklist passes and a clean-clone setup is reproducible.
@@ -209,7 +209,7 @@ For each substantial unit of work:
 1. Find or create its issue **before editing code**; mark it `mvp`, priority (`P0`/`P1`), area, and dependencies.
 2. Add a short issue description with **Given/When/Then** acceptance criteria and expected files/tests.
 3. Implement only the scoped change; create small reviewable commits and reference the issue number.
-4. Run the nearest applicable checks; record exact commands and results in the issue/PR or `_docs/process.md`.
+4. Run the nearest applicable checks; record exact commands and results in the issue/PR or `docs/process.md`.
 5. Verify acceptance criteria against running code. Close only after success. If blocked, keep open, label `blocked`, document cause and next action.
 6. If manually found bugs require new work, file a reproducible `user-test-bug` issue and add regression coverage.
 
@@ -255,8 +255,8 @@ SQLAlchemy + migrations + admin + analytics   │
 - [ ] Automated tests and at least one full E2E pass.
 - [ ] Staff/admin credentials are seeded for development **only** and clearly labeled as demo credentials.
 - [ ] All genuine MVP issues are closed, or remaining blockers explicitly reported (never falsely closed).
-- [ ] `_docs/decisions.md` and `_docs/process.md` reflect implementation reality.
+- [ ] `docs/decisions.md` and `docs/process.md` reflect implementation reality.
 
 ## 13. First instruction for a coding agent
 
-> Read `plan.md` completely, then inspect the repository and existing documentation. Do not rewrite working code or assume the project is empty. Identify missing MVP features and create/refine GitHub Issues with dependencies and acceptance criteria **before implementation**. Begin with Phase 0 and implement in dependency order. Preserve the API contract, enforce backend permissions, write tests for ticket concurrency/state changes, and keep `_docs/process.md` current. After each issue, run relevant checks and only close verified work. If a choice is unclear, choose the smallest safe MVP behavior, record the decision in `_docs/decisions.md`, and proceed.
+> Read `docs/plan.md` completely, then inspect the repository and existing documentation. Do not rewrite working code or assume the project is empty. Identify missing MVP features and create/refine GitHub Issues with dependencies and acceptance criteria **before implementation**. Begin with Phase 0 and implement in dependency order. Preserve the API contract, enforce backend permissions, write tests for ticket concurrency/state changes, and keep `docs/process.md` current. After each issue, run relevant checks and only close verified work. If a choice is unclear, choose the smallest safe MVP behavior, record the decision in `docs/decisions.md`, and proceed.
