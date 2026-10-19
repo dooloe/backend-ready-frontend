@@ -2,10 +2,36 @@
   "repository": "dooloe/backend-ready-frontend",
   "tasks": {
     "KEZEK-001": {
-      "status": "pending",
-      "revision": null,
-      "criteria": [],
-      "checks": []
+      "status": "verified",
+      "revision": "26b5e972ef010041d6f19406b92594bfac82a20b",
+      "criteria": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "checks": [
+        {
+          "command": "backend/.venv/bin/python -m pip --python /tmp/kezek-issue1-clean-vw7kpusu/bin/python install -r backend/requirements.txt --disable-pip-version-check --retries 0 --timeout 20 --no-cache-dir",
+          "exit_code": 0,
+          "summary": "AC-1: all 22 pinned packages installed in a second fresh environment; pip check found no broken requirements",
+          "evidence": "docs/verification-evidence/KEZEK-001.txt",
+          "sha256": "f310bbd87997efb3548a3169843f3110e5e458793dcab0e6673e611af0ee3fd5"
+        },
+        {
+          "command": "backend/.venv/bin/python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8765; curl -fL http://127.0.0.1:8765/openapi.json",
+          "exit_code": 0,
+          "summary": "AC-2: startup complete, HTTP 200 with empty paths; server shut down cleanly",
+          "evidence": "docs/verification-evidence/KEZEK-001.txt",
+          "sha256": "f310bbd87997efb3548a3169843f3110e5e458793dcab0e6673e611af0ee3fd5"
+        },
+        {
+          "command": "/tmp/kezek-issue1-clean-vw7kpusu/bin/python -m pytest backend/tests -q -p no:cacheprovider",
+          "exit_code": 0,
+          "summary": "AC-3: 1 passed, 1 non-failing Starlette deprecation warning",
+          "evidence": "docs/verification-evidence/KEZEK-001.txt",
+          "sha256": "f310bbd87997efb3548a3169843f3110e5e458793dcab0e6673e611af0ee3fd5"
+        }
+      ]
     },
     "KEZEK-002": {
       "status": "pending",

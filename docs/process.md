@@ -49,3 +49,29 @@ Status after publication: completed 0, open 48, externally blocked 0. The next
 implementation is #1 (empty FastAPI project and passing smoke test). No additional
 manual management scripts were generated or invoked. Existing unrelated changes
 in `frontend/src/routeTree.gen.ts` remain excluded from commits.
+
+## 2026-10-20 — Issue #1 implemented and verified
+
+Committed the empty FastAPI scaffold as `26b5e972ef010041d6f19406b92594bfac82a20b`.
+Added an application package, direct requirements and pinned dependency file,
+Pytest configuration, one startup/schema smoke test and backend instructions.
+The root README now links the backend setup. No frontend files were committed.
+
+AC-1: a second fresh Python 3.14.4 virtual environment installed all 22 pinned
+requirements successfully; its dependency check reported no broken requirements.
+AC-2: Uvicorn started successfully, and a real localhost request returned HTTP 200
+with the empty OpenAPI schema; the server was shut down cleanly.
+AC-3: the test against the committed source in that fresh environment passed:
+`/tmp/kezek-issue1-clean-vw7kpusu/bin/python -m pytest backend/tests -q -p no:cacheprovider`
+returned exit 0, 1 passed, 1 non-failing Starlette/httpx deprecation warning.
+Exact commands/results are saved in `docs/verification-evidence/KEZEK-001.txt`.
+
+Environment notes: system Python lacked pip/ensurepip, and sudo could not request
+a password without a terminal. Used the official pip bootstrap in the ignored
+backend virtual environment instead; no system package was installed. Package
+installation failed inside the sandbox and succeeded with approved outside-sandbox
+execution. The sandbox TestClient run stalled and was interrupted (exit 130);
+the approved outside-sandbox runs passed. No GitHub authentication was attempted.
+
+Issue #1 is verified locally; GitHub closure is deferred until the commits are
+successfully pushed. All other 47 issues remain incomplete and open.
