@@ -1,0 +1,1202 @@
+openapi: 3.0.3
+info:
+  title: Kezek — Current Frontend Backend Contract
+  version: 0.1.0
+  description: Derived from frontend/src/lib/api/http.ts, types.ts and mock.ts. This documents the current
+    client, not the future API in docs/plan.md or a claim that a backend is implemented. VITE_API_BASE_URL
+    is an origin/base prefix; mapped paths already include /api. All request/response JSON uses camelCase.
+    Protected calls use opaque bearer tokens, not cookies; role requirements come from mock.ts because
+    TypeScript alone cannot specify authorization. The mock checks roles but does not establish organization/counter-assignment
+    authorization. No query parameters, pagination, idempotency header, organization routes, logout/current-user
+    endpoint or separate assignment endpoint is sent by this client. Successful JSON responses are documented
+    as 200; the adapter accepts any 2xx with the stated body, so 201 is compatible for creation. Empty
+    DELETE success must be 204. Error envelopes and status descriptions are inferred from mock ApiError
+    behavior and http.ts error parsing; they are not an implemented server guarantee. All nullable response
+    properties are required keys with null values allowed.
+servers:
+- url: http://localhost:8000
+  description: Example VITE_API_BASE_URL; replace with the configured backend base URL.
+tags:
+- name: Customer
+- name: Auth
+- name: Staff
+- name: Admin
+security:
+- BearerAuth: []
+paths:
+  /api/services:
+    get:
+      operationId: listServices
+      tags:
+      - Customer
+      summary: List services
+      description: Public catalog; the existing mock includes both open and closed services.
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security: []
+  /api/tickets:
+    post:
+      operationId: joinQueue
+      tags:
+      - Customer
+      summary: Join a service queue
+      description: Public operation. Returns the issued ticket and its ID. The current request has no
+        idempotency key, organization ID or queue ID.
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinQueueRequest'
+  /api/tickets/{id}:
+    get:
+      operationId: getTicket
+      tags:
+      - Customer
+      summary: Read a ticket
+      description: Public in the current client and mock. Lookup is by ticket ID; no bearer login or separate
+        ticket-access token is required. This describes existing behavior, not the future private-token
+        MVP design.
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/id'
+  /api/tickets/{id}/cancel:
+    post:
+      operationId: cancelTicket
+      tags:
+      - Customer
+      summary: Cancel a waiting ticket
+      description: Public ID-based cancellation. No request body. Only waiting tickets can be cancelled;
+        finishedAt is set on success.
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/id'
+  /api/auth/login:
+    post:
+      operationId: login
+      tags:
+      - Auth
+      summary: Authenticate staff or admin
+      description: 'Public credential exchange. Returns token and user; subsequent protected calls send
+        Authorization: Bearer <token>. There are no logout or current-user HTTP operations in this client.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+  /api/counters:
+    get:
+      operationId: listCounters
+      tags:
+      - Staff
+      summary: List counters
+      description: 'The current mock returns all counters after its staff/admin role check.
+
+        Requires an authenticated staff or admin user.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Counter'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - staff
+      - admin
+  /api/counters/{counterId}/queue:
+    get:
+      operationId: getQueue
+      tags:
+      - Staff
+      summary: Read a counter queue
+      description: 'No request body. Includes the counter''s current ticket and waiting tickets for its
+        supported serviceIds.
+
+        Requires an authenticated staff or admin user.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - $ref: '#/components/parameters/counterId'
+  /api/counters/{counterId}/call-next:
+    post:
+      operationId: callNext
+      tags:
+      - Staff
+      summary: Call the next waiting ticket
+      description: 'No request body. Assigns the oldest eligible waiting ticket to this active idle counter
+        and returns its view. Returns HTTP 200 with literal JSON null when empty, not an empty response.
+        Inactive or busy counters produce 409. The backend must perform selection and assignment atomically.
+
+        Requires an authenticated staff or admin user.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NullableTicketView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - $ref: '#/components/parameters/counterId'
+  /api/tickets/{id}/start:
+    post:
+      operationId: startService
+      tags:
+      - Staff
+      summary: Start service for a called ticket
+      description: 'No request body. Current mock permits called -> serving and sets servedAt.
+
+        Requires an authenticated staff or admin user.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - $ref: '#/components/parameters/id'
+  /api/tickets/{id}/complete:
+    post:
+      operationId: completeTicket
+      tags:
+      - Staff
+      summary: Complete a called or serving ticket
+      description: 'No request body. Current mock permits both called -> completed and serving -> completed,
+        setting finishedAt. The planned stricter lifecycle is not imposed by the present client contract.
+
+        Requires an authenticated staff or admin user.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - $ref: '#/components/parameters/id'
+  /api/tickets/{id}/no-show:
+    post:
+      operationId: markNoShow
+      tags:
+      - Staff
+      summary: Mark a called ticket as no-show
+      description: 'No request body. Current mock permits called -> no_show and sets finishedAt.
+
+        Requires an authenticated staff or admin user.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - $ref: '#/components/parameters/id'
+  /api/admin/services:
+    post:
+      operationId: createService
+      tags:
+      - Admin
+      summary: Create a service
+      description: 'Every Service field other than id is supplied in the JSON body.
+
+        Requires an authenticated admin.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceCreate'
+  /api/admin/services/{serviceId}:
+    patch:
+      operationId: updateService
+      tags:
+      - Admin
+      summary: Update a service
+      description: 'All mutable Service fields are optional; id comes from the path.
+
+        Requires an authenticated admin.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
+      parameters:
+      - $ref: '#/components/parameters/serviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceUpdate'
+    delete:
+      operationId: deleteService
+      tags:
+      - Admin
+      summary: Delete a service
+      description: 'No request body or response body. The current mock also removes the service ID from
+        counter serviceIds and treats a missing service as a successful no-op.
+
+        Requires an authenticated admin.'
+      responses:
+        '204':
+          description: Deleted successfully. No response body; required for empty successful responses
+            because the HTTP client skips JSON decoding only for 204.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
+      parameters:
+      - $ref: '#/components/parameters/serviceId'
+  /api/admin/counters:
+    post:
+      operationId: createCounter
+      tags:
+      - Admin
+      summary: Create a counter
+      description: 'Every Counter field other than id is required, including nullable staffId. Assignments
+        and service associations are carried directly in the counter body.
+
+        Requires an authenticated admin.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Counter'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CounterCreate'
+  /api/admin/counters/{counterId}:
+    patch:
+      operationId: updateCounter
+      tags:
+      - Admin
+      summary: Update a counter
+      description: 'All mutable Counter fields are optional. staffId null explicitly removes the staff
+        assignment.
+
+        Requires an authenticated admin.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Counter'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
+      parameters:
+      - $ref: '#/components/parameters/counterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CounterUpdate'
+    delete:
+      operationId: deleteCounter
+      tags:
+      - Admin
+      summary: Delete a counter
+      description: 'No request body or response body. Missing counters are a successful no-op in the current
+        mock.
+
+        Requires an authenticated admin.'
+      responses:
+        '204':
+          description: Deleted successfully. No response body; required for empty successful responses
+            because the HTTP client skips JSON decoding only for 204.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
+      parameters:
+      - $ref: '#/components/parameters/counterId'
+  /api/admin/staff:
+    get:
+      operationId: listStaff
+      tags:
+      - Admin
+      summary: List staff and admin users
+      description: 'Returns identities for both roles, excluding passwords.
+
+        Requires an authenticated admin.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
+    post:
+      operationId: createStaff
+      tags:
+      - Admin
+      summary: Create a staff or admin user
+      description: 'All StaffUser fields other than id plus password are required. Duplicate username
+        produces 409.
+
+        Requires an authenticated admin.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffCreate'
+  /api/admin/stats:
+    get:
+      operationId: getStats
+      tags:
+      - Admin
+      summary: Read dashboard statistics
+      description: 'No request body or query parameters. Returns the exact dashboard shape expected by
+        the current frontend, including per-service and hourly results.
+
+        Requires an authenticated admin.'
+      responses:
+        '200':
+          description: Success; JSON body required. The client also accepts another successful 2xx status
+            with this same JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Use the LoginResponse token in Authorization: Bearer <token>. Required roles are recorded
+        per operation with x-required-roles.'
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      description: Ticket ID used by customer lookup/cancellation and staff state transitions. The current
+        client does not send a separate private ticket token.
+      schema:
+        type: string
+    counterId:
+      name: counterId
+      in: path
+      required: true
+      description: Counter ID.
+      schema:
+        type: string
+    serviceId:
+      name: serviceId
+      in: path
+      required: true
+      description: Service ID.
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Missing/invalid bearer token, or invalid login credentials.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: Authenticated user does not have the required role.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Requested service, counter or ticket does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Conflict:
+      description: Current state does not permit the operation, or the username already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ValidationError:
+      description: Request validation failed. Use a string detail for direct frontend display.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    UnexpectedError:
+      description: Unexpected HTTP failure. The client displays detail or falls back to statusText.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+  schemas:
+    Role:
+      type: string
+      enum:
+      - staff
+      - admin
+    TicketStatus:
+      type: string
+      enum:
+      - waiting
+      - called
+      - serving
+      - completed
+      - cancelled
+      - no_show
+    Service:
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - prefix
+      - isOpen
+      - avgServiceMinutes
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        prefix:
+          type: string
+          description: Human-readable ticket prefix, for example A.
+        isOpen:
+          type: boolean
+        avgServiceMinutes:
+          type: number
+          description: Typical service duration in minutes.
+    ServiceCreate:
+      type: object
+      required:
+      - name
+      - description
+      - prefix
+      - isOpen
+      - avgServiceMinutes
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        prefix:
+          type: string
+          description: Human-readable ticket prefix, for example A.
+        isOpen:
+          type: boolean
+        avgServiceMinutes:
+          type: number
+          description: Typical service duration in minutes.
+      description: Omit<Service, "id">. Every property is required.
+    ServiceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        prefix:
+          type: string
+          description: Human-readable ticket prefix, for example A.
+        isOpen:
+          type: boolean
+        avgServiceMinutes:
+          type: number
+          description: Typical service duration in minutes.
+      description: Partial<Omit<Service, "id">>. Any subset, including an empty object, is representable
+        by the client.
+    Counter:
+      type: object
+      required:
+      - id
+      - name
+      - serviceIds
+      - isActive
+      - staffId
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        serviceIds:
+          type: array
+          items:
+            type: string
+        isActive:
+          type: boolean
+        staffId:
+          type: string
+          nullable: true
+          description: Assigned staff user ID, or null when unassigned.
+    CounterCreate:
+      type: object
+      required:
+      - name
+      - serviceIds
+      - isActive
+      - staffId
+      properties:
+        name:
+          type: string
+        serviceIds:
+          type: array
+          items:
+            type: string
+        isActive:
+          type: boolean
+        staffId:
+          type: string
+          nullable: true
+          description: Assigned staff user ID, or null when unassigned.
+      description: Omit<Counter, "id">. staffId must be present, but may be null.
+    CounterUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        serviceIds:
+          type: array
+          items:
+            type: string
+        isActive:
+          type: boolean
+        staffId:
+          type: string
+          nullable: true
+          description: Assigned staff user ID, or null when unassigned.
+      description: Partial<Omit<Counter, "id">>. Omitted fields are unchanged; explicit staffId null unassigns
+        the counter.
+    StaffUser:
+      type: object
+      required:
+      - id
+      - name
+      - username
+      - role
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        username:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+      description: Public staff/admin identity. Contains no password.
+    StaffCreate:
+      type: object
+      required:
+      - name
+      - username
+      - role
+      - password
+      properties:
+        name:
+          type: string
+        username:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        password:
+          type: string
+          writeOnly: true
+      description: 'Omit<StaffUser, "id"> & { password: string }. The frontend supports creating either
+        role.'
+    Ticket:
+      type: object
+      required:
+      - id
+      - code
+      - serviceId
+      - customerName
+      - status
+      - createdAt
+      - calledAt
+      - servedAt
+      - finishedAt
+      - counterId
+      properties:
+        id:
+          type: string
+          description: Opaque ticket ID used directly in customer URLs by the current frontend.
+        code:
+          type: string
+          example: A-001
+        serviceId:
+          type: string
+        customerName:
+          type: string
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        createdAt:
+          type: string
+          format: date-time
+        calledAt:
+          type: string
+          format: date-time
+          nullable: true
+        servedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Time service started; the current wire field is servedAt, not startedAt.
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Time completed, cancelled or marked no-show.
+        counterId:
+          type: string
+          nullable: true
+      description: Base ticket interface from types.ts. All properties, including nullable properties,
+        must be present.
+    TicketView:
+      type: object
+      required:
+      - id
+      - code
+      - serviceId
+      - customerName
+      - status
+      - createdAt
+      - calledAt
+      - servedAt
+      - finishedAt
+      - counterId
+      - serviceName
+      - counterName
+      - position
+      - estimatedWaitMinutes
+      properties:
+        id:
+          type: string
+          description: Opaque ticket ID used directly in customer URLs by the current frontend.
+        code:
+          type: string
+          example: A-001
+        serviceId:
+          type: string
+        customerName:
+          type: string
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        createdAt:
+          type: string
+          format: date-time
+        calledAt:
+          type: string
+          format: date-time
+          nullable: true
+        servedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Time service started; the current wire field is servedAt, not startedAt.
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Time completed, cancelled or marked no-show.
+        counterId:
+          type: string
+          nullable: true
+        serviceName:
+          type: string
+        counterName:
+          type: string
+          nullable: true
+        position:
+          type: number
+          nullable: true
+          description: One-based waiting position, null outside waiting state.
+        estimatedWaitMinutes:
+          type: number
+          nullable: true
+          description: Estimated minutes; null if no eligible active counters, or outside waiting state
+            in the current mock.
+      description: Ticket plus service/counter names and position/estimate. This is the JSON returned
+        by customer and staff ticket operations.
+    NullableTicketView:
+      type: object
+      required:
+      - id
+      - code
+      - serviceId
+      - customerName
+      - status
+      - createdAt
+      - calledAt
+      - servedAt
+      - finishedAt
+      - counterId
+      - serviceName
+      - counterName
+      - position
+      - estimatedWaitMinutes
+      properties:
+        id:
+          type: string
+          description: Opaque ticket ID used directly in customer URLs by the current frontend.
+        code:
+          type: string
+          example: A-001
+        serviceId:
+          type: string
+        customerName:
+          type: string
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        createdAt:
+          type: string
+          format: date-time
+        calledAt:
+          type: string
+          format: date-time
+          nullable: true
+        servedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Time service started; the current wire field is servedAt, not startedAt.
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Time completed, cancelled or marked no-show.
+        counterId:
+          type: string
+          nullable: true
+        serviceName:
+          type: string
+        counterName:
+          type: string
+          nullable: true
+        position:
+          type: number
+          nullable: true
+          description: One-based waiting position, null outside waiting state.
+        estimatedWaitMinutes:
+          type: number
+          nullable: true
+          description: Estimated minutes; null if no eligible active counters, or outside waiting state
+            in the current mock.
+      nullable: true
+      description: A TicketView object, or JSON null. Used when call-next finds no waiting ticket. Nullable
+        is on an explicit object schema for OpenAPI 3.0 compatibility.
+    JoinQueueRequest:
+      type: object
+      required:
+      - serviceId
+      - customerName
+      properties:
+        serviceId:
+          type: string
+        customerName:
+          type: string
+          minLength: 1
+          description: Trimmed by the current mock; whitespace-only names are rejected.
+    LoginRequest:
+      type: object
+      required:
+      - username
+      - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+    LoginResponse:
+      type: object
+      required:
+      - token
+      - user
+      properties:
+        token:
+          type: string
+          description: Bearer access token; no JWT format is assumed.
+        user:
+          $ref: '#/components/schemas/StaffUser'
+    QueueView:
+      type: object
+      required:
+      - current
+      - waiting
+      properties:
+        current:
+          $ref: '#/components/schemas/NullableTicketView'
+        waiting:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketView'
+      description: Current called/serving ticket, or null, and waiting tickets for the counter's supported
+        services in FIFO order.
+    ServiceStats:
+      type: object
+      required:
+      - serviceId
+      - serviceName
+      - total
+      - waiting
+      - completed
+      - noShows
+      - cancelled
+      - avgWaitMinutes
+      properties:
+        serviceId:
+          type: string
+        serviceName:
+          type: string
+        total:
+          type: number
+        waiting:
+          type: number
+        completed:
+          type: number
+        noShows:
+          type: number
+        cancelled:
+          type: number
+        avgWaitMinutes:
+          type: number
+          nullable: true
+          description: Mean createdAt-to-calledAt wait, in minutes; null without called tickets.
+    HourlyStats:
+      type: object
+      required:
+      - hour
+      - count
+      properties:
+        hour:
+          type: number
+          description: Hour of day, 0 through 23 in the current mock.
+        count:
+          type: number
+    Stats:
+      type: object
+      required:
+      - totalToday
+      - waitingNow
+      - completedToday
+      - avgWaitMinutes
+      - byService
+      - byHour
+      properties:
+        totalToday:
+          type: number
+          description: Tickets created today.
+        waitingNow:
+          type: number
+          description: All currently waiting tickets, including tickets not created today in the mock.
+        completedToday:
+          type: number
+          description: Tickets created today whose status is completed in the current mock.
+        avgWaitMinutes:
+          type: number
+          nullable: true
+          description: Mean wait for today's tickets having calledAt, regardless of final status; null
+            without samples.
+        byService:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceStats'
+        byHour:
+          type: array
+          items:
+            $ref: '#/components/schemas/HourlyStats'
+      description: Current frontend analytics shape. The mock uses browser-local dates and returns 24
+        hourly buckets. No organization/timezone filters or service-duration metric are sent by this client.
+    ApiError:
+      type: object
+      required:
+      - detail
+      properties:
+        detail:
+          type: string
+          description: User-facing message read by http.ts.
+      description: Frontend-compatible proposed error envelope. The adapter uses JSON detail if present,
+        otherwise HTTP statusText; it does not require code/message/details. The mock throws ApiError
+        objects rather than emitting HTTP bodies.

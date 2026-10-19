@@ -92,3 +92,28 @@ completed 1, open 47, blocked 0. Issue #2 (frontend verification commands) is th
 next task in backlog order. All unimplemented requirements remain open. The
 unrelated generated route change and previously prepared manual scripts are
 excluded from these commits; no new manual issue scripts were generated.
+
+## 2026-10-20 — Issue #49: document the current frontend contract
+
+Read `frontend/src/lib/api/http.ts`, `types.ts`, `index.ts`, `mock.ts` and session
+handling. Created root `openapi.yaml` for the current client: 17 paths, 20 operations,
+21 schemas, exact camelCase fields, required/nullable properties, seven JSON request
+bodies, two no-content DELETE responses and nullable call-next/current-ticket views.
+Authorization is inferred from mock role checks: five public operations, six
+staff/admin operations and nine admin-only operations using bearer tokens. The
+contract explicitly identifies inferred success/error conventions and current
+ID-based ticket access; it does not substitute future cookie/private-token API
+requirements or claim the backend is implemented.
+
+Verified using `python3 /tmp/kezek-validate-current-openapi.py` (exit 0): official
+OpenAPI 3.0 schema validation; all local references resolve; all 20 operation IDs,
+methods and normalized paths match the HTTP adapter; all eight TypeScript response
+interfaces and required/nullable fields match; create/update inputs, authentication
+and empty/null success shapes match. Validation used system PyYAML/jsonschema and
+the official OpenAPI schema downloaded to `/tmp`; no project dependency changed.
+`git diff --check` passed. The temporary validation program is not a new repository
+test or an issue-management script.
+
+Existing user deletions of AGENTS.md, README.md and the backend were observed before
+this task and left untouched. Commit only the contract and this process record.
+Future planned API/migration issues #5, #6, #7 and #32 remain open.
