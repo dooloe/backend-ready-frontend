@@ -27,3 +27,18 @@ no additional manual scripts are generated. Record actual issue numbers and reta
 all incomplete issues open. Task-specific verification and scoped commits govern
 direct closure; unrelated pre-existing working-tree changes are not committed or
 claimed as verified. Push normal commits only, preserving Lovable history.
+
+## 2026-10-20 — Current-client in-memory backend (#50)
+
+The user explicitly requested the current `openapi.yaml` contract with an in-memory
+store, seeded data, hashed passwords, bearer tokens and routers/models/store/auth
+modules. This supersedes SQLite, organizations and cookie sessions for this scoped
+implementation; their separate backlog issues remain open. The locally deleted
+root contract was read from Git without restoring unrelated deletions.
+
+Use one process-local RLock around full queue mutations, salted scrypt password
+hashes (N=32768, r=8, p=1), opaque eight-hour tokens with hash-only storage and
+UTC analytics boundaries because the current contract carries no timezone.
+Preserve current public ticket-ID access and called-to-completed behavior. The
+server validates counter references and positive service durations; clients get
+string `detail` errors. Runtime and test dependencies are pinned separately.

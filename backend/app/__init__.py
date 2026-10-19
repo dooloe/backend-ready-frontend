@@ -1,1 +1,1 @@
-"""Kezek backend application package."""
+"""In-memory backend for the current Kezek frontend."""

@@ -117,3 +117,35 @@ test or an issue-management script.
 Existing user deletions of AGENTS.md, README.md and the backend were observed before
 this task and left untouched. Commit only the contract and this process record.
 Future planned API/migration issues #5, #6, #7 and #32 remain open.
+
+## 2026-10-20 — Issue #50: seeded in-memory backend
+
+Implemented all 20 current-client operations in `backend/app/routers/` with typed
+wire models, an isolated seeded MemoryStore and separate authentication helpers.
+Default data includes services, counters, demo users and waiting/completed/cancelled
+tickets. Passwords use salted scrypt; bearer tokens expire after eight hours and
+only their hashes are retained. Queue mutations are locked across threads.
+
+Validation:
+- `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider`
+  ran outside the sandbox: 57 passed, 1 non-failing Starlette/httpx deprecation
+  warning, exit 0. Tests validate all endpoint successes against the OpenAPI
+  schemas, generated operation/security coverage, every protected endpoint's
+  access rules, session expiry, password salting, state rules, CRUD, input errors,
+  real UTC analytics, CORS, parallel joins/calls and cancellation races.
+- The first run had 55 passes and one test failure: the next-day analytics test
+  reused an intentionally expired eight-hour token. Renewed that test session;
+  the final run above passed. No failed check is counted as completion evidence.
+- `backend/.venv/bin/python -m pip check`: no broken requirements, exit 0.
+- `python3 -m compileall -q backend/app backend/tests`: exit 0.
+- Real Uvicorn HTTP smoke on port 8766 verified the service catalog, anonymous
+  denial, demo bearer login, seeded statistics, queue and new ticket creation.
+  The temporary server was then shut down cleanly.
+- `git diff --check`: exit 0.
+
+The old empty-schema smoke test was updated for the now-functional default app.
+Contract tests read a present root YAML file, an explicit KEZEK_OPENAPI_PATH, or
+HEAD's committed contract when the local file is deleted. No frontend files,
+root README/AGENTS deletions or deleted backend/.gitkeep were staged for this task.
+No SQLite persistence, organization isolation, future cookie/private-ticket-token
+migration or full browser MVP completion is claimed by this in-memory issue.

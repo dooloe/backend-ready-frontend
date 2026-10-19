@@ -1,6 +1,3 @@
-# Direct dependencies for the development scaffold (GitHub issue #1).
-# Install the resolved requirements.txt for reproducible setup.
+# Runtime dependencies. Install requirements.txt for the tested pinned versions.
 fastapi>=0.115,<1
 uvicorn>=0.30,<1
-pytest>=8,<10
-httpx>=0.27,<1
