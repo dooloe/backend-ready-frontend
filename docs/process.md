@@ -75,3 +75,20 @@ the approved outside-sandbox runs passed. No GitHub authentication was attempted
 
 Issue #1 is verified locally; GitHub closure is deferred until the commits are
 successfully pushed. All other 47 issues remain incomplete and open.
+
+## 2026-10-20 — Pushed implementation and closed verified issue #1
+
+A normal `git push origin main` failed because the saved credential helper pointed
+to the deleted `/tmp/gh_2.102.0_linux_amd64/bin/gh`. Retried with the approved
+command-local override:
+`git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push origin main`.
+It succeeded, publishing commits through `85fb170` without changing saved
+credentials or Git configuration and without rewriting history.
+
+Posted acceptance evidence directly on issue #1, then closed it as completed:
+https://github.com/dooloe/backend-ready-frontend/issues/1#issuecomment-6276967105
+Only #1 was closed. A fresh `gh issue list --state all --label mvp` confirmed
+completed 1, open 47, blocked 0. Issue #2 (frontend verification commands) is the
+next task in backlog order. All unimplemented requirements remain open. The
+unrelated generated route change and previously prepared manual scripts are
+excluded from these commits; no new manual issue scripts were generated.

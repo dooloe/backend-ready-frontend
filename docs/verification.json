@@ -31,7 +31,9 @@
           "evidence": "docs/verification-evidence/KEZEK-001.txt",
           "sha256": "f310bbd87997efb3548a3169843f3110e5e458793dcab0e6673e611af0ee3fd5"
         }
-      ]
+      ],
+      "github_state": "closed",
+      "issue_number": 1
     },
     "KEZEK-002": {
       "status": "pending",
