@@ -149,3 +149,33 @@ HEAD's committed contract when the local file is deleted. No frontend files,
 root README/AGENTS deletions or deleted backend/.gitkeep were staged for this task.
 No SQLite persistence, organization isolation, future cookie/private-ticket-token
 migration or full browser MVP completion is claimed by this in-memory issue.
+
+## 2026-10-20 — Issue #51: local execution Makefile
+
+Added a root Makefile with help, combined dev/run, separate backend/frontend,
+installation, test and frontend-build targets. Combined execution injects the real
+API URL, configures CORS for the selected frontend port and uses strict frontend
+ports. It isolates each service's reload workers in a process group and cleans
+both groups on interruption or service exit. No repository restructuring or
+frontend implementation changes were made.
+
+Verification:
+- `make help`: exit 0; documented commands are discoverable.
+- `make -n install dev backend frontend test build`: exit 0; reviewed environment
+  setup, dependency installation, server, test and build command expansion.
+  Dependency reinstalls and full application tests were not repeated for these
+  command wrappers; their implementations and dependency files are unchanged.
+- Approved `make dev BACKEND_PORT=18765 FRONTEND_PORT=15173` started both services.
+  Real HTTP requests confirmed the seeded API catalog and frontend HTTP 200.
+  The transformed frontend API module contained the real custom-port API URL,
+  and CORS preflight accepted the custom frontend origin.
+- Ctrl+C stopped both service process groups (expected exit 130); socket checks
+  confirmed both temporary ports closed.
+- `make dev NPM=false BACKEND_PORT=18766 FRONTEND_PORT=15174` intentionally failed
+  frontend startup (expected make exit 2). Both temporary ports were then closed,
+  verifying failure cleanup without disturbing other local servers.
+- `make -n dev BACKEND_PORT=8001 FRONTEND_PORT=5174`: exit 0, correct API/CORS URLs.
+- `git diff --check`: exit 0.
+
+Updated backend/README.md with the combined setup and launch commands. Existing
+root README, AGENTS, openapi.yaml and backend/.gitkeep deletions remain untouched.

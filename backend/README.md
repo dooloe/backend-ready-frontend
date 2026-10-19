@@ -7,6 +7,13 @@ records and sessions. Run one Uvicorn worker so every request shares the store.
 
 ## Install, test and start
 
+For the combined application, run `make install` once from the repository root,
+then `make dev`. Open <http://127.0.0.1:5173>; Ctrl+C stops both services.
+`make help` lists separate server, test and build commands. To use other ports,
+run `make dev BACKEND_PORT=8001 FRONTEND_PORT=5174`; the API URL and allowed
+frontend origins follow those settings automatically. The combined command
+requires Bash and `setsid`, both available on typical Linux/WSL installations.
+
 Use Python 3.12+ with pip/venv support. From the repository root:
 
 ```bash
