@@ -10,7 +10,7 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? null : JSON.stringify(body),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
