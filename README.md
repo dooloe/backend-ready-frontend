@@ -36,3 +36,12 @@ npm --prefix frontend run build
 ```
 
 Configure frontend build services to use `frontend/` as their working directory.
+
+## MVP backlog and GitHub issues
+
+See [the task backlog](_docs/tasks.md), [the GitHub issues](https://github.com/dooloe/backend-ready-frontend/issues?q=label%3Amvp)
+and [the direct issue workflow](docs/issue-automation.md).
+
+GitHub issue management uses approved outside-sandbox `gh` commands. Actual issue
+numbers are recorded in `docs/issue-map.json`; verified implementation and check
+results are recorded in `docs/process.md` and `docs/verification.json`.

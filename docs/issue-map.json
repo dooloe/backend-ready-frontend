@@ -1,0 +1,197 @@
+{
+  "repository": "dooloe/backend-ready-frontend",
+  "issues": {
+    "KEZEK-001": {
+      "number": 1,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/1"
+    },
+    "KEZEK-002": {
+      "number": 2,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/2"
+    },
+    "KEZEK-003": {
+      "number": 3,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/3"
+    },
+    "KEZEK-004": {
+      "number": 4,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/4"
+    },
+    "KEZEK-005": {
+      "number": 5,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/5"
+    },
+    "KEZEK-006": {
+      "number": 6,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/6"
+    },
+    "KEZEK-007": {
+      "number": 7,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/7"
+    },
+    "KEZEK-008": {
+      "number": 8,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/8"
+    },
+    "KEZEK-009": {
+      "number": 9,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/9"
+    },
+    "KEZEK-010": {
+      "number": 10,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/10"
+    },
+    "KEZEK-011": {
+      "number": 11,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/11"
+    },
+    "KEZEK-012": {
+      "number": 12,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/12"
+    },
+    "KEZEK-013": {
+      "number": 13,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/13"
+    },
+    "KEZEK-014": {
+      "number": 14,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/14"
+    },
+    "KEZEK-015": {
+      "number": 15,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/15"
+    },
+    "KEZEK-016": {
+      "number": 16,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/16"
+    },
+    "KEZEK-017": {
+      "number": 17,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/17"
+    },
+    "KEZEK-018": {
+      "number": 18,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/18"
+    },
+    "KEZEK-019": {
+      "number": 19,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/19"
+    },
+    "KEZEK-020": {
+      "number": 20,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/20"
+    },
+    "KEZEK-021": {
+      "number": 21,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/21"
+    },
+    "KEZEK-022": {
+      "number": 22,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/22"
+    },
+    "KEZEK-023": {
+      "number": 23,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/23"
+    },
+    "KEZEK-024": {
+      "number": 24,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/24"
+    },
+    "KEZEK-025": {
+      "number": 25,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/25"
+    },
+    "KEZEK-026": {
+      "number": 26,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/26"
+    },
+    "KEZEK-027": {
+      "number": 27,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/27"
+    },
+    "KEZEK-028": {
+      "number": 28,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/28"
+    },
+    "KEZEK-029": {
+      "number": 29,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/29"
+    },
+    "KEZEK-030": {
+      "number": 30,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/30"
+    },
+    "KEZEK-031": {
+      "number": 31,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/31"
+    },
+    "KEZEK-032": {
+      "number": 32,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/32"
+    },
+    "KEZEK-033": {
+      "number": 33,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/33"
+    },
+    "KEZEK-034": {
+      "number": 34,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/34"
+    },
+    "KEZEK-035": {
+      "number": 35,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/35"
+    },
+    "KEZEK-036": {
+      "number": 36,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/36"
+    },
+    "KEZEK-037": {
+      "number": 37,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/37"
+    },
+    "KEZEK-038": {
+      "number": 38,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/38"
+    },
+    "KEZEK-039": {
+      "number": 39,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/39"
+    },
+    "KEZEK-040": {
+      "number": 40,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/40"
+    },
+    "KEZEK-041": {
+      "number": 41,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/41"
+    },
+    "KEZEK-042": {
+      "number": 42,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/42"
+    },
+    "KEZEK-043": {
+      "number": 43,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/43"
+    },
+    "KEZEK-044": {
+      "number": 44,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/44"
+    },
+    "KEZEK-045": {
+      "number": 45,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/45"
+    },
+    "KEZEK-046": {
+      "number": 46,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/46"
+    },
+    "KEZEK-047": {
+      "number": 47,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/47"
+    },
+    "KEZEK-048": {
+      "number": 48,
+      "url": "https://github.com/dooloe/backend-ready-frontend/issues/48"
+    }
+  }
+}

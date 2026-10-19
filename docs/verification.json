@@ -1,0 +1,293 @@
+{
+  "repository": "dooloe/backend-ready-frontend",
+  "tasks": {
+    "KEZEK-001": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-002": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-003": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-004": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-005": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-006": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-007": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-008": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-009": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-010": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-011": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-012": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-013": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-014": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-015": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-016": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-017": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-018": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-019": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-020": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-021": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-022": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-023": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-024": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-025": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-026": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-027": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-028": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-029": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-030": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-031": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-032": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-033": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-034": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-035": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-036": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-037": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-038": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-039": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-040": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-041": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-042": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-043": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-044": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-045": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-046": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-047": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    },
+    "KEZEK-048": {
+      "status": "pending",
+      "revision": null,
+      "criteria": [],
+      "checks": []
+    }
+  }
+}

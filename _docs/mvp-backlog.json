@@ -1,0 +1,1547 @@
+{
+  "schema_version": 1,
+  "repository": "dooloe/backend-ready-frontend",
+  "tasks": [
+    {
+      "id": "KEZEK-001",
+      "number": 1,
+      "title": "1. Set up an empty project with a passing test",
+      "goal": "Establish a minimal runnable backend with one passing automated test.",
+      "description": "Initialize the empty `backend/` directory as a Python/FastAPI project with dependency configuration, an application entry point and a Pytest smoke test that imports or starts the application. Keep this task free of product features and preserve the existing React application; document and run the exact setup and test commands.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [],
+      "expected_files": [
+        "backend/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "A fresh Python environment can install the declared backend dependencies"
+        },
+        {
+          "id": "AC-2",
+          "text": "The empty FastAPI application starts without product features or frontend changes"
+        },
+        {
+          "id": "AC-3",
+          "text": "The documented Pytest smoke command exits successfully"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-002",
+      "number": 2,
+      "title": "2. Establish frontend verification commands",
+      "goal": "Make the existing frontend build and test reproducibly.",
+      "description": "Inspect the existing React/TypeScript/TanStack application and preserve its screens while standardizing installation, lint, typecheck, build and Vitest commands in `frontend/package.json`. Verify the existing application can render under its test setup and record any existing failures separately from new changes.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [],
+      "expected_files": [
+        "frontend/package.json",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "A locked frontend install succeeds"
+        },
+        {
+          "id": "AC-2",
+          "text": "Documented lint, strict typecheck, build and Vitest commands exist and run"
+        },
+        {
+          "id": "AC-3",
+          "text": "Existing route and mock tests remain intact and failures are recorded"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-003",
+      "number": 3,
+      "title": "3. Document project workflow and decisions",
+      "goal": "Give contributors a reliable implementation and verification workflow.",
+      "description": "Create or update `docs/decisions.md`, `docs/process.md`, `docs/chat-brainstorm.md`, `README.md` and `AGENTS.md` without discarding existing guidance. Record the selected SQLite/FastAPI stack, retention of TanStack routing, issue workflow and how to record actual commands and outcomes; review links and paths for consistency.",
+      "priority": "P0",
+      "area": "docs",
+      "dependencies": [],
+      "expected_files": [
+        "docs/",
+        "README.md",
+        "AGENTS.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Workflow documents describe issue-first implementation and verified closure"
+        },
+        {
+          "id": "AC-2",
+          "text": "The TanStack routing deviation and selected stack are recorded"
+        },
+        {
+          "id": "AC-3",
+          "text": "Contributor commands and relative documentation links resolve"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-004",
+      "number": 4,
+      "title": "4. Resolve ticket issuance and retry semantics",
+      "goal": "Define recoverable anonymous ticket issuance without storing raw ticket tokens.",
+      "description": "Document the exact join request, queue-scoped idempotency key behavior and private-token lifecycle, including duplicate requests, simultaneous retries and a lost creation response. Resolve how the customer can recover access while retaining hash-only token storage and avoiding another issued ticket; record any necessary product deviation and concrete request/response examples before coding issuance.",
+      "priority": "P0",
+      "area": "contract",
+      "dependencies": [],
+      "expected_files": [
+        "docs/decisions.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Join request examples define queue-scoped idempotency and private-token ownership"
+        },
+        {
+          "id": "AC-2",
+          "text": "Lost-response recovery does not create a second ticket or store raw access tokens"
+        },
+        {
+          "id": "AC-3",
+          "text": "Simultaneous retry and key-reuse behavior is explicitly specified"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-005",
+      "number": 5,
+      "title": "5. Define the public API contract",
+      "goal": "Specify anonymous organization, service, queue and ticket operations.",
+      "description": "Using the issuance decision, write the public section of `openapi.yml` for organization and service directories, queue summaries, join, private ticket read and cancellation under `/api`. Include schemas, token access rules, status casing, null wait estimates, idempotency behavior and examples for closed queues, invalid tokens, validation errors and conflicts; reconcile these with the current `frontend/src/lib/api` contract.",
+      "priority": "P0",
+      "area": "contract",
+      "dependencies": [
+        "KEZEK-004"
+      ],
+      "expected_files": [
+        "openapi.yml",
+        "frontend/src/lib/api/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Public operations have request, response and structured error schemas"
+        },
+        {
+          "id": "AC-2",
+          "text": "Closed queues, invalid tokens, duplicate joins and null estimates have examples"
+        },
+        {
+          "id": "AC-3",
+          "text": "Schemas reconcile anonymous access and organization-scoped directories with the existing client"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-006",
+      "number": 6,
+      "title": "6. Define the authentication and staff API contract",
+      "goal": "Specify cookie authentication and counter-authorized ticket actions.",
+      "description": "Extend `openapi.yml` with login, logout, current identity, CSRF handling, assigned queue listing, call-next, start, complete and no-show operations. Define counter selection, session expiry, empty queues, structured errors and organization/assignment rules, including `401`, `403` and `409` examples; document the migration from the current bearer-token frontend contract.",
+      "priority": "P0",
+      "area": "contract",
+      "dependencies": [],
+      "expected_files": [
+        "openapi.yml",
+        "docs/decisions.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Login, logout, current identity and CSRF exchange are specified"
+        },
+        {
+          "id": "AC-2",
+          "text": "Staff operations define counter authorization, empty queues and lifecycle conflicts"
+        },
+        {
+          "id": "AC-3",
+          "text": "Cookie settings and 401/403/409 response examples are documented"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-007",
+      "number": 7,
+      "title": "7. Define the administration API contract",
+      "goal": "Specify all administrator configuration and reporting operations.",
+      "description": "Extend `openapi.yml` with service and counter management, counter-service associations, staff creation/editing, staff assignments, manual daily queue opening/closing and date-filtered analytics. Define organization scoping, deactivation instead of destructive history deletion, schedule validation and concrete mutation paths; validate the full OpenAPI document and record metric definitions.",
+      "priority": "P0",
+      "area": "contract",
+      "dependencies": [],
+      "expected_files": [
+        "openapi.yml",
+        "docs/decisions.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Admin operations cover services, counters, staff, associations, assignments and queue closure"
+        },
+        {
+          "id": "AC-2",
+          "text": "Analytics define local date filters, wait durations and service durations"
+        },
+        {
+          "id": "AC-3",
+          "text": "The entire OpenAPI document validates with examples for rejected configuration changes"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-008",
+      "number": 8,
+      "title": "8. Define page contracts and shared UI states",
+      "goal": "Make each required screen implementable against agreed API examples.",
+      "description": "Document customer directory, private ticket, login, staff dashboard and admin configuration routes using the existing TanStack router. Map each screen to API operations and specify loading, empty, validation, authorization, refresh-failure and success states, including mobile layouts and the removal of customer-name inputs.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-005",
+        "KEZEK-006",
+        "KEZEK-007"
+      ],
+      "expected_files": [
+        "docs/",
+        "frontend/src/routes/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Each required page maps to named contract operations"
+        },
+        {
+          "id": "AC-2",
+          "text": "Loading, empty, validation, unauthorized and refresh-error states are defined"
+        },
+        {
+          "id": "AC-3",
+          "text": "Mobile behavior, private-token routes and removal of customer-name inputs are specified"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-009",
+      "number": 9,
+      "title": "9. Add backend configuration and safe error responses",
+      "goal": "Provide a configurable FastAPI foundation with predictable errors.",
+      "description": "With the backend scaffold and API contracts available, add environment-backed settings, non-secret `.env.example`, router registration and a consistent `code`, `message`, `details` error envelope. Test configuration validation and representative validation/conflict responses, keeping secrets and database files out of source control.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-001",
+        "KEZEK-005",
+        "KEZEK-006",
+        "KEZEK-007"
+      ],
+      "expected_files": [
+        "backend/app/core/",
+        "backend/app/routers/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Environment settings validate required secrets without exposing them"
+        },
+        {
+          "id": "AC-2",
+          "text": "Validation, conflict and unexpected errors use safe contracted envelopes"
+        },
+        {
+          "id": "AC-3",
+          "text": "The app starts with documented non-secret example configuration"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-010",
+      "number": 10,
+      "title": "10. Configure SQLite sessions and migrations",
+      "goal": "Establish isolated, migration-managed database access.",
+      "description": "Using the backend foundation, configure SQLAlchemy request sessions, Alembic, foreign keys, WAL, a bounded busy timeout and service-owned transaction boundaries. Add temporary file-backed test databases and verify connection settings, rollback behavior and migration startup without touching the development database.",
+      "priority": "P0",
+      "area": "database",
+      "dependencies": [
+        "KEZEK-009"
+      ],
+      "expected_files": [
+        "backend/app/core/",
+        "backend/migrations/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Every SQLite connection enables foreign keys and the configured busy timeout"
+        },
+        {
+          "id": "AC-2",
+          "text": "File-backed tests exercise WAL, transaction rollback and isolated sessions"
+        },
+        {
+          "id": "AC-3",
+          "text": "Alembic can initialize a fresh test database without using development data"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-011",
+      "number": 11,
+      "title": "11. Add organization and configuration models",
+      "goal": "Persist organizations, users, services, counters and assignments.",
+      "description": "Using the SQLite foundation, add SQLAlchemy models and an Alembic migration for organizations, users, services, counters, counter-service links and staff assignments with the fields in `docs/plan.md`. Test uniqueness, foreign keys and historical-data-preserving deletion rules; identify cross-organization checks that services must enforce.",
+      "priority": "P0",
+      "area": "database",
+      "dependencies": [
+        "KEZEK-010"
+      ],
+      "expected_files": [
+        "backend/app/models/",
+        "backend/migrations/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Organizations, users, services, counters and association tables match required fields"
+        },
+        {
+          "id": "AC-2",
+          "text": "Uniqueness and foreign key violations are covered by database tests"
+        },
+        {
+          "id": "AC-3",
+          "text": "Deletion behavior preserves history and cross-organization service checks are identified"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-012",
+      "number": 12,
+      "title": "12. Add queue, ticket, event and session models",
+      "goal": "Persist queue activity and authentication with database constraints.",
+      "description": "Extend the migrated schema with daily queues, tickets, ticket events and hashed server-session records, following the agreed issuance contract. Test unique service/date queues, daily ticket numbering, token hashes, queue-scoped idempotency keys and at most one `CALLED` or `SERVING` ticket per counter, including rollback on constraint failures.",
+      "priority": "P0",
+      "area": "database",
+      "dependencies": [
+        "KEZEK-004",
+        "KEZEK-011"
+      ],
+      "expected_files": [
+        "backend/app/models/",
+        "backend/migrations/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Daily queues, tickets, events and hashed sessions migrate successfully"
+        },
+        {
+          "id": "AC-2",
+          "text": "Duplicate daily numbers, token hashes and scoped idempotency keys are rejected"
+        },
+        {
+          "id": "AC-3",
+          "text": "A database constraint prevents two called/serving tickets at one counter"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-013",
+      "number": 13,
+      "title": "13. Add deterministic development seed data",
+      "goal": "Make a fresh database usable for local testing.",
+      "description": "With all schema migrations available, provide a repeatable seed command for an `Asia/Almaty` organization, example services, counters, assignments and Argon2id-hashed demo admin/staff accounts. Document development-only credentials and verify rerunning the seed does not duplicate configuration or destroy existing tickets.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-012"
+      ],
+      "expected_files": [
+        "backend/app/",
+        "backend/tests/",
+        "README.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Seed produces the documented organization, services, counters and assignments"
+        },
+        {
+          "id": "AC-2",
+          "text": "Demo passwords are Argon2id hashes and credentials are labeled development-only"
+        },
+        {
+          "id": "AC-3",
+          "text": "A second seed run neither duplicates configuration nor removes tickets"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-014",
+      "number": 14,
+      "title": "14. Implement login and server-managed sessions",
+      "goal": "Authenticate active staff and admins using secure cookies.",
+      "description": "Using persisted users and sessions plus the authentication contract, implement Argon2id password verification, opaque session issuance, expiry and current-identity lookup. Test valid and invalid credentials, inactive users, expired sessions and HttpOnly/SameSite cookie settings, enabling Secure cookies under HTTPS without logging credentials.",
+      "priority": "P0",
+      "area": "auth",
+      "dependencies": [
+        "KEZEK-006",
+        "KEZEK-012"
+      ],
+      "expected_files": [
+        "backend/app/services/",
+        "backend/app/routers/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Valid active users receive an opaque session and correct current identity"
+        },
+        {
+          "id": "AC-2",
+          "text": "Invalid credentials, inactive users and expired sessions are denied"
+        },
+        {
+          "id": "AC-3",
+          "text": "Database session tokens are hashed and cookies have the contracted security attributes"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-015",
+      "number": 15,
+      "title": "15. Add CSRF protection, logout and browser connectivity",
+      "goal": "Make cookie-authenticated browser mutations safe and usable.",
+      "description": "With login implemented, add the contracted CSRF mechanism, logout invalidation and same-origin development API proxying, with explicit credentialed CORS only if separate origins are required. Test rejected missing/invalid CSRF tokens, successful authenticated mutations, logout revocation and allowed/disallowed origins.",
+      "priority": "P0",
+      "area": "auth",
+      "dependencies": [
+        "KEZEK-014"
+      ],
+      "expected_files": [
+        "backend/app/",
+        "frontend/vite.config.ts",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Cookie-authenticated mutations reject missing or invalid CSRF proof"
+        },
+        {
+          "id": "AC-2",
+          "text": "Logout invalidates the session and subsequent requests are denied"
+        },
+        {
+          "id": "AC-3",
+          "text": "Same-origin proxying works and any cross-origin requests use an explicit credentialed allowlist"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-016",
+      "number": 16,
+      "title": "16. Implement reusable authorization checks",
+      "goal": "Enforce roles, organization ownership and counter assignments on the backend.",
+      "description": "Using current-identity lookup and persisted configuration, add service-level checks for active staff/admin users, organization-scoped records and authorized active counters. Test anonymous access, wrong roles, another organization's records, inactive assignments and forged counter IDs; apply these checks as each protected endpoint is introduced.",
+      "priority": "P0",
+      "area": "auth",
+      "dependencies": [
+        "KEZEK-014",
+        "KEZEK-011"
+      ],
+      "expected_files": [
+        "backend/app/services/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Anonymous and wrong-role access return the contracted denial"
+        },
+        {
+          "id": "AC-2",
+          "text": "Cross-organization resources cannot be read or mutated through protected operations"
+        },
+        {
+          "id": "AC-3",
+          "text": "Inactive or unassigned counters are rejected by service-level checks"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-017",
+      "number": 17,
+      "title": "17. Implement organization-local queue scheduling",
+      "goal": "Determine the correct daily queue and whether joining is allowed.",
+      "description": "Using service and daily-queue models, implement UTC-to-IANA-timezone date selection, simple daily opening hours, inactive-service handling and manual-closure precedence. Ensure daily queues can be created safely on demand and test midnight boundaries, opening/closing edges and simultaneous first access; document the supported behavior for overnight schedules.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-012"
+      ],
+      "expected_files": [
+        "backend/app/services/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Queue date and opening hours use the organization IANA timezone"
+        },
+        {
+          "id": "AC-2",
+          "text": "Opening/closing boundaries, midnight and manual closure have deterministic tests"
+        },
+        {
+          "id": "AC-3",
+          "text": "Concurrent first access creates only one daily queue and overnight behavior is documented"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-018",
+      "number": 18,
+      "title": "18. Implement public organization and service directories",
+      "goal": "Let anonymous customers discover services and current queue availability.",
+      "description": "With scheduling available, implement `GET /api/organizations` and `GET /api/organizations/{org_id}/services` using the public contract. Return active services, current daily queue identifiers and availability without private ticket data, and test unknown organizations, empty catalogs and closed services.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-005",
+        "KEZEK-017"
+      ],
+      "expected_files": [
+        "backend/app/routers/",
+        "backend/app/services/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Public organizations and active service catalogs match contract schemas"
+        },
+        {
+          "id": "AC-2",
+          "text": "Service entries expose current queue IDs and authoritative availability"
+        },
+        {
+          "id": "AC-3",
+          "text": "Unknown organizations, empty catalogs and closed services have tests without private data"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-019",
+      "number": 19,
+      "title": "19. Implement transactional ticket issuance",
+      "goal": "Create one private, sequentially numbered ticket per logical join.",
+      "description": "Using the issuance decision, queue scheduling and migrated ticket schema, implement `POST /api/queues/{queue_id}/tickets` with an appropriate SQLite write reservation before mutable reads. Atomically validate availability, resolve idempotency, allocate the sequence, hash the access token, insert the ticket and append its event; test duplicates, lost-response recovery, closed queues and rollback.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-004",
+        "KEZEK-005",
+        "KEZEK-012",
+        "KEZEK-017"
+      ],
+      "expected_files": [
+        "backend/app/services/",
+        "backend/app/repositories/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "A join atomically saves its daily number, token hash and event"
+        },
+        {
+          "id": "AC-2",
+          "text": "Same-key retries and lost-response recovery follow the agreed contract"
+        },
+        {
+          "id": "AC-3",
+          "text": "Closed-queue rejection and rollback leave no ticket or sequence collision"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-020",
+      "number": 20,
+      "title": "20. Implement private ticket lookup and wait estimates",
+      "goal": "Return authoritative ticket status, people ahead and an honest wait estimate.",
+      "description": "With persisted tickets and the public contract, implement `GET /api/tickets/{token}` using hashed-token lookup and FIFO waiting-position queries. Calculate estimates from waiting tickets ahead, typical duration and eligible active counters, returning `null` when unavailable; test invalid tokens, every lifecycle state and position changes without exposing internal IDs as access credentials.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-005",
+        "KEZEK-019"
+      ],
+      "expected_files": [
+        "backend/app/services/",
+        "backend/app/routers/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Only a valid private token can retrieve the customer ticket view"
+        },
+        {
+          "id": "AC-2",
+          "text": "People ahead change correctly when earlier waiting tickets leave the queue"
+        },
+        {
+          "id": "AC-3",
+          "text": "Wait is estimated from eligible counters and duration data or is explicitly null"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-021",
+      "number": 21,
+      "title": "21. Implement anonymous ticket cancellation",
+      "goal": "Allow token holders to cancel only waiting tickets.",
+      "description": "Using private token lookup and transaction support, implement `POST /api/tickets/{token}/cancel` with atomic state validation, cancellation timestamp and event insertion. Test successful cancellation, invalid tokens, repeated cancellation and cancellation racing with call-next, ensuring a ticket cannot be both cancelled and called.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-019",
+        "KEZEK-020"
+      ],
+      "expected_files": [
+        "backend/app/services/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "A waiting token-holder ticket can be cancelled with timestamp and event"
+        },
+        {
+          "id": "AC-2",
+          "text": "Called, serving and terminal tickets cannot be cancelled"
+        },
+        {
+          "id": "AC-3",
+          "text": "Cancellation racing with call-next cannot leave contradictory state"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-022",
+      "number": 22,
+      "title": "22. Implement public aggregate queue status",
+      "goal": "Expose current queue summaries without private ticket data.",
+      "description": "With daily queues and tickets available, implement `GET /api/queues/{queue_id}/status` according to the public contract, including open/closed state and relevant aggregate counts. Test unknown queues and changes after join, cancel and completion, and assert responses contain no access tokens, customer information or staff-only details.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-005",
+        "KEZEK-019"
+      ],
+      "expected_files": [
+        "backend/app/routers/",
+        "backend/app/repositories/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Queue summaries expose correct contracted availability and aggregate counts"
+        },
+        {
+          "id": "AC-2",
+          "text": "Unknown queue IDs return the contracted error"
+        },
+        {
+          "id": "AC-3",
+          "text": "Responses exclude private tokens, credentials and staff-only data"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-023",
+      "number": 23,
+      "title": "23. Implement staff queue discovery",
+      "goal": "Show staff only the queues and counters they can operate.",
+      "description": "Using session authorization and counter-service assignments, implement `GET /api/staff/queues` with authorized counters, eligible service queues and current counter tickets. Test multiple services per counter, multiple assignments, inactive configuration, empty results and cross-organization isolation.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-006",
+        "KEZEK-016",
+        "KEZEK-017"
+      ],
+      "expected_files": [
+        "backend/app/services/",
+        "backend/app/routers/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Staff receive only queues eligible for their active assigned counters"
+        },
+        {
+          "id": "AC-2",
+          "text": "Multiple services and assignments produce correct current-ticket data"
+        },
+        {
+          "id": "AC-3",
+          "text": "Inactive configuration, empty assignments and cross-organization attempts have tests"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-024",
+      "number": 24,
+      "title": "24. Implement atomic call-next",
+      "goal": "Assign the oldest waiting ticket to one authorized idle counter.",
+      "description": "With staff authorization and transactional ticket models, implement `POST /api/staff/queues/{queue_id}/call-next` using a SQLite write reservation before checking the counter and selecting a ticket. Atomically set `CALLED`, the counter and timestamp plus its event; test FIFO, empty queues, busy counters, closed queues with outstanding tickets and unauthorized counter/service combinations.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-019",
+        "KEZEK-023"
+      ],
+      "expected_files": [
+        "backend/app/services/",
+        "backend/app/repositories/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "An idle authorized counter receives the oldest waiting ticket and an event atomically"
+        },
+        {
+          "id": "AC-2",
+          "text": "Busy counters, unsupported services and unauthorized counters are rejected"
+        },
+        {
+          "id": "AC-3",
+          "text": "Empty queues are handled and closed queues still allow existing work to proceed"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-025",
+      "number": 25,
+      "title": "25. Implement start, complete and no-show actions",
+      "goal": "Enforce the staff ticket lifecycle with timestamps and audit events.",
+      "description": "Using the staff API contract and authorization checks, implement `CALLED -> SERVING`, `SERVING -> COMPLETED` and `CALLED -> NO_SHOW` as atomic service operations. Test every invalid transition, wrong-counter actions and cross-organization access, confirming completion/no-show releases counter capacity and records the correct timestamp and actor.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-024"
+      ],
+      "expected_files": [
+        "backend/app/services/",
+        "backend/app/routers/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Only called-to-serving, serving-to-completed and called-to-no-show staff transitions succeed"
+        },
+        {
+          "id": "AC-2",
+          "text": "Successful transitions persist actor, event and the appropriate timestamp"
+        },
+        {
+          "id": "AC-3",
+          "text": "Wrong-counter and cross-organization actions fail and terminal actions free counter capacity"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-026",
+      "number": 26,
+      "title": "26. Verify queue concurrency and lock contention",
+      "goal": "Prove parallel requests cannot duplicate numbers or counter assignments.",
+      "description": "With join, cancellation and staff mutations available, add parallel API tests against temporary file-backed SQLite databases using independent sessions and the actual transaction configuration. Cover concurrent joins and same-key retries, competing counters, two calls at one counter, cancellation races and bounded lock contention; fix failures and document the supported single-worker demo setup.",
+      "priority": "P0",
+      "area": "tests",
+      "dependencies": [
+        "KEZEK-019",
+        "KEZEK-021",
+        "KEZEK-024",
+        "KEZEK-025"
+      ],
+      "expected_files": [
+        "backend/tests/",
+        "docs/process.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Parallel distinct joins and same-key retries preserve numbering and idempotency"
+        },
+        {
+          "id": "AC-2",
+          "text": "Competing counters and simultaneous same-counter calls never double-assign"
+        },
+        {
+          "id": "AC-3",
+          "text": "Cancellation races and lock contention are tested with independent file-backed database sessions"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-027",
+      "number": 27,
+      "title": "27. Implement admin service management",
+      "goal": "Let organization admins configure services and schedules.",
+      "description": "Using the administration contract and authorization layer, implement service list/create/update operations for names, prefixes, durations, opening hours and activation. Test validation, organization isolation and deactivation without deleting history, and define behavior when changing a prefix or schedule for a service with an existing daily queue.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-007",
+        "KEZEK-016",
+        "KEZEK-017"
+      ],
+      "expected_files": [
+        "backend/app/routers/",
+        "backend/app/services/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Organization admins can list, create and update valid services and schedules"
+        },
+        {
+          "id": "AC-2",
+          "text": "Invalid duration, schedule, role and organization requests are rejected"
+        },
+        {
+          "id": "AC-3",
+          "text": "Deactivation preserves history and prefix/schedule changes for existing daily queues have defined tests"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-028",
+      "number": 28,
+      "title": "28. Implement admin counter and service associations",
+      "goal": "Let organization admins configure counters and the services they support.",
+      "description": "Using the administration contract, implement counter list/create/update and counter-service association operations with same-organization validation. Test duplicate links, unsupported services, deactivation and changes while a counter has a called/serving ticket, preserving the ability to finish existing work safely.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-007",
+        "KEZEK-016",
+        "KEZEK-011",
+        "KEZEK-025"
+      ],
+      "expected_files": [
+        "backend/app/routers/",
+        "backend/app/services/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Admins can maintain counters and their supported service links"
+        },
+        {
+          "id": "AC-2",
+          "text": "Duplicate and cross-organization associations are rejected"
+        },
+        {
+          "id": "AC-3",
+          "text": "Activation and association changes cannot strand an active counter ticket"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-029",
+      "number": 29,
+      "title": "29. Implement admin staff and assignment management",
+      "goal": "Let organization admins maintain staff access to counters.",
+      "description": "Using user/session models and the administration contract, implement staff listing, creation, supported edits and assignment creation/removal without exposing password hashes. Test password hashing, duplicate identities, inactive users, cross-organization links and assignment changes during active service, including the agreed session-revocation behavior.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-007",
+        "KEZEK-016",
+        "KEZEK-014",
+        "KEZEK-025"
+      ],
+      "expected_files": [
+        "backend/app/routers/",
+        "backend/app/services/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Admins can create and edit staff and maintain same-organization assignments"
+        },
+        {
+          "id": "AC-2",
+          "text": "Passwords are hashed and never included in read responses"
+        },
+        {
+          "id": "AC-3",
+          "text": "Duplicate identities, deactivation, session revocation and active-service reassignment are tested"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-030",
+      "number": 30,
+      "title": "30. Implement manual daily queue opening and closing",
+      "goal": "Make queue availability controls authoritative on the backend.",
+      "description": "Using queue scheduling and admin authorization, implement the contracted operation for changing a daily queue's manual open/closed state. Test organization ownership, interaction with service hours, rejected joins after closure and continued viewing and staff processing of existing tickets.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-007",
+        "KEZEK-016",
+        "KEZEK-017",
+        "KEZEK-024"
+      ],
+      "expected_files": [
+        "backend/app/routers/",
+        "backend/app/services/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Authorized admins can persist a daily manual open/closed setting"
+        },
+        {
+          "id": "AC-2",
+          "text": "Opening cannot bypass configured service-hour restrictions"
+        },
+        {
+          "id": "AC-3",
+          "text": "Closing rejects new joins while private lookup and existing staff work remain available"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-031",
+      "number": 31,
+      "title": "31. Implement date-filtered operational analytics",
+      "goal": "Calculate dashboard metrics from stored queue activity.",
+      "description": "Using persisted ticket timestamps and the analytics contract, implement organization-scoped issued, waiting and completed counts, mean completed-ticket wait, mean service duration and per-service totals. Test organization-local date boundaries, empty datasets, incomplete tickets and known timestamp fixtures so all averages and filters have verifiable meanings.",
+      "priority": "P0",
+      "area": "backend",
+      "dependencies": [
+        "KEZEK-007",
+        "KEZEK-016",
+        "KEZEK-025"
+      ],
+      "expected_files": [
+        "backend/app/repositories/",
+        "backend/app/routers/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Stored timestamps produce issued/waiting/completed counts and per-service totals"
+        },
+        {
+          "id": "AC-2",
+          "text": "Mean completed-ticket wait and service duration match fixed timestamp fixtures"
+        },
+        {
+          "id": "AC-3",
+          "text": "Empty data, organization isolation and local-date filter boundaries have tests"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-032",
+      "number": 32,
+      "title": "32. Align the frontend API facade with the real contract",
+      "goal": "Give every screen one typed, cookie-aware backend interface.",
+      "description": "With the agreed OpenAPI document and authentication flow available, update `frontend/src/lib/api/types.ts`, `http.ts` and the exported facade for all required operations, credentials, CSRF and structured errors. Preserve compatible screen behavior through focused adapter changes, isolate deterministic mocks for UI work and test representative HTTP failures, aborts and private-token requests.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-005",
+        "KEZEK-006",
+        "KEZEK-007",
+        "KEZEK-015"
+      ],
+      "expected_files": [
+        "frontend/src/lib/api/",
+        "frontend/src/lib/session.ts"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "All required operations have typed methods matching the agreed OpenAPI contract"
+        },
+        {
+          "id": "AC-2",
+          "text": "HTTP calls send session credentials and CSRF proof and parse structured errors"
+        },
+        {
+          "id": "AC-3",
+          "text": "Mocks are isolated and tests cover aborts, network failures and token-bearing requests"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-033",
+      "number": 33,
+      "title": "33. Integrate the customer service directory",
+      "goal": "Display real organizations, services and join availability.",
+      "description": "Using the API facade and public directory endpoints, adapt the existing customer landing page to organization selection, queue summaries and timezone-labeled service hours. Add focused component tests for open/closed services, empty organizations, loading and retryable errors, with all calls going through the central facade.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-008",
+        "KEZEK-018",
+        "KEZEK-022",
+        "KEZEK-032"
+      ],
+      "expected_files": [
+        "frontend/src/routes/index.tsx",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Customers can select organizations and see real active service queues"
+        },
+        {
+          "id": "AC-2",
+          "text": "Availability and displayed service hours reflect backend data and organization timezone"
+        },
+        {
+          "id": "AC-3",
+          "text": "Component tests cover loading, empty, closed and retryable error states"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-034",
+      "number": 34,
+      "title": "34. Integrate the customer join flow",
+      "goal": "Issue an anonymous ticket and navigate to its private link.",
+      "description": "Using the real issuance endpoint and typed client, remove customer-name collection, submit the contracted idempotency data and navigate to `/ticket/:token` after a successful join. Prevent rapid repeat submissions and test closed-queue errors, uncertain/lost responses and recovery according to the issuance decision without creating another logical ticket.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-019",
+        "KEZEK-032",
+        "KEZEK-033"
+      ],
+      "expected_files": [
+        "frontend/src/routes/index.tsx",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Join sends no customer name and navigates to the returned private token route"
+        },
+        {
+          "id": "AC-2",
+          "text": "Pending joins suppress rapid repeat submissions"
+        },
+        {
+          "id": "AC-3",
+          "text": "Uncertain responses and closed queues recover without creating another logical ticket"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-035",
+      "number": 35,
+      "title": "35. Integrate ticket viewing, polling and cancellation",
+      "goal": "Keep the private ticket page accurate throughout its lifecycle.",
+      "description": "Using ticket read/cancel endpoints and the API facade, adapt the existing ticket route to token authorization, all six states, people ahead and estimated/unavailable wait text. Add five-second polling with abort cleanup, terminal-state stopping, last-refresh feedback and cancellation confirmation; test invalid links, recovery from network errors and rejected late cancellation.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-020",
+        "KEZEK-021",
+        "KEZEK-032",
+        "KEZEK-034"
+      ],
+      "expected_files": [
+        "frontend/src/routes/ticket.$id.tsx",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "All six ticket states and estimated/unavailable wait are rendered correctly"
+        },
+        {
+          "id": "AC-2",
+          "text": "Five-second polling stops on terminal states and aborts obsolete requests"
+        },
+        {
+          "id": "AC-3",
+          "text": "Cancellation confirmation, invalid links, last-refresh feedback and network recovery have tests"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-036",
+      "number": 36,
+      "title": "36. Integrate login, logout and protected navigation",
+      "goal": "Give staff and admins session-aware access to their screens.",
+      "description": "Using the cookie-aware API client, replace bearer-token assumptions with login, current-user restoration, logout and CSRF handling in the existing login flow and TanStack route guards. Test failed login, reload, expiry, role-based navigation and logout, ensuring unauthorized screens do not expose cached protected data.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-014",
+        "KEZEK-015",
+        "KEZEK-032"
+      ],
+      "expected_files": [
+        "frontend/src/lib/session.ts",
+        "frontend/src/routes/login.tsx",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Cookie session identity survives reload without bearer-token storage"
+        },
+        {
+          "id": "AC-2",
+          "text": "Login, logout, expiry and role-based navigation are tested"
+        },
+        {
+          "id": "AC-3",
+          "text": "Logout and access denial clear protected cached data"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-037",
+      "number": 37,
+      "title": "37. Integrate the staff dashboard",
+      "goal": "Let assigned staff operate real queues and current tickets.",
+      "description": "Using staff endpoints and authenticated navigation, adapt the dashboard to counter/service selection, queue refresh and call-next/start/complete/no-show actions. Show only valid actions for the current state and handle empty queues, busy-counter conflicts, expired sessions and stale data, with component tests for successful updates and rejected mutations.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-023",
+        "KEZEK-024",
+        "KEZEK-025",
+        "KEZEK-032",
+        "KEZEK-036"
+      ],
+      "expected_files": [
+        "frontend/src/routes/staff.tsx",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Staff can select only authorized counters and eligible service queues"
+        },
+        {
+          "id": "AC-2",
+          "text": "Call/start/complete/no-show update the dashboard with only valid state actions"
+        },
+        {
+          "id": "AC-3",
+          "text": "Tests cover successful refresh, busy conflicts, empty queues, expiry and rejected mutations"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-038",
+      "number": 38,
+      "title": "38. Integrate admin service and queue controls",
+      "goal": "Let admins edit services and daily queue availability through real APIs.",
+      "description": "Using admin service and manual queue endpoints, implement or adapt `/admin/services` with validated create/edit forms, activation, schedule inputs and authoritative queue open/close controls. Test successful saves, field errors, closure outside service hours and failed mutations without misleading local toggles, displaying times in the organization's timezone.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-027",
+        "KEZEK-030",
+        "KEZEK-032",
+        "KEZEK-036"
+      ],
+      "expected_files": [
+        "frontend/src/routes/",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Admin service forms persist activation, duration, schedule and other contracted fields"
+        },
+        {
+          "id": "AC-2",
+          "text": "Manual queue controls reflect server responses and service-hour constraints"
+        },
+        {
+          "id": "AC-3",
+          "text": "Validation failures and rejected saves do not appear successful"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-039",
+      "number": 39,
+      "title": "39. Integrate admin counter configuration",
+      "goal": "Let admins maintain counters and supported services.",
+      "description": "Using counter and association endpoints, implement or adapt `/admin/counters` with counter create/edit, activation and service-link controls. Test empty configuration, same-organization service selection, rejected active-counter changes and failed saves, keeping loading and validation states accessible.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-028",
+        "KEZEK-032",
+        "KEZEK-036"
+      ],
+      "expected_files": [
+        "frontend/src/routes/",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Admin counter forms persist counter configuration and service associations"
+        },
+        {
+          "id": "AC-2",
+          "text": "Only same-organization services are offered and backend failures remain visible"
+        },
+        {
+          "id": "AC-3",
+          "text": "Tests cover empty configuration, invalid inputs and changes affecting active tickets"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-040",
+      "number": 40,
+      "title": "40. Integrate admin staff configuration",
+      "goal": "Let admins create staff and manage counter assignments.",
+      "description": "Using staff and assignment endpoints, implement or adapt `/admin/staff` with staff forms, activation and assignment creation/removal. Test field validation, duplicate identities, empty assignment lists and rejected changes during active service; never display or retain submitted passwords after the operation.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-029",
+        "KEZEK-032",
+        "KEZEK-036"
+      ],
+      "expected_files": [
+        "frontend/src/routes/",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Admins can create/edit staff and add/remove counter assignments"
+        },
+        {
+          "id": "AC-2",
+          "text": "Submitted passwords are cleared and not exposed after save"
+        },
+        {
+          "id": "AC-3",
+          "text": "Tests cover duplicate identities, empty assignments, invalid inputs and rejected active-work changes"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-041",
+      "number": 41,
+      "title": "41. Integrate real admin analytics",
+      "goal": "Replace placeholder metrics with date-filtered backend results.",
+      "description": "Using the analytics endpoint, adapt `/admin` cards and basic tables/charts to issued, waiting, completed, mean wait, mean service duration and per-service counts. Test date changes, empty results, unavailable averages and request failures, and remove hardcoded values or controls without a backend operation.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-031",
+        "KEZEK-032",
+        "KEZEK-036"
+      ],
+      "expected_files": [
+        "frontend/src/routes/admin.tsx",
+        "frontend/src/test/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Dashboard counts and duration metrics come from the real analytics endpoint"
+        },
+        {
+          "id": "AC-2",
+          "text": "Date filters and per-service results update together"
+        },
+        {
+          "id": "AC-3",
+          "text": "Empty data, null averages and network errors render without fabricated metrics"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-042",
+      "number": 42,
+      "title": "42. Add token privacy and basic abuse protection",
+      "goal": "Prevent accidental credential disclosure and bound abusive requests.",
+      "description": "With auth and ticket endpoints available, redact token-bearing paths and credentials from application/server logs, set suitable referrer policy for private ticket pages and configure practical login/join rate limits. Test that captured logs contain no raw tokens or passwords and that throttled requests return the contracted safe error without issuing extra tickets.",
+      "priority": "P0",
+      "area": "security",
+      "dependencies": [
+        "KEZEK-015",
+        "KEZEK-019",
+        "KEZEK-020"
+      ],
+      "expected_files": [
+        "backend/app/",
+        "frontend/src/routes/",
+        "backend/tests/"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Application and server logs do not contain raw ticket/session tokens or passwords"
+        },
+        {
+          "id": "AC-2",
+          "text": "Private ticket pages use a suitable referrer policy"
+        },
+        {
+          "id": "AC-3",
+          "text": "Login and join rate limits return safe errors without creating unintended sessions or tickets"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-043",
+      "number": 43,
+      "title": "43. Verify migrations and persistence across restart",
+      "goal": "Prove a fresh install and restarted backend retain valid data.",
+      "description": "With all models and endpoints implemented, run migrations and seed on a fresh temporary database, create tickets and configuration, then restart the application against that same file. Verify ticket access, numbering, events, configuration and analytics survive, and test foreign keys and history preservation after configuration deactivation.",
+      "priority": "P0",
+      "area": "tests",
+      "dependencies": [
+        "KEZEK-013",
+        "KEZEK-025",
+        "KEZEK-027",
+        "KEZEK-028",
+        "KEZEK-029",
+        "KEZEK-031"
+      ],
+      "expected_files": [
+        "backend/tests/",
+        "docs/process.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Fresh migrations and repeated seed succeed on an isolated database"
+        },
+        {
+          "id": "AC-2",
+          "text": "After application restart ticket access, numbering, configuration and events persist"
+        },
+        {
+          "id": "AC-3",
+          "text": "Analytics and historical records survive configuration deactivation"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-044",
+      "number": 44,
+      "title": "44. Add customer and staff browser workflows",
+      "goal": "Verify real customer-to-staff interactions in the browser.",
+      "description": "With customer and staff screens integrated, configure Playwright to start both applications against an isolated migrated and seeded SQLite database with mocks disabled. Add scenarios for join/call/start/complete and join/cancel, asserting the customer sees updated status and cancelled tickets cannot be called.",
+      "priority": "P0",
+      "area": "tests",
+      "dependencies": [
+        "KEZEK-013",
+        "KEZEK-035",
+        "KEZEK-037"
+      ],
+      "expected_files": [
+        "frontend/",
+        "docs/process.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Playwright uses real applications and an isolated migrated/seeded SQLite database"
+        },
+        {
+          "id": "AC-2",
+          "text": "Customer join through staff call/start/complete ends in a visible completed ticket"
+        },
+        {
+          "id": "AC-3",
+          "text": "Cancelled customer tickets are never called by staff"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-045",
+      "number": 45,
+      "title": "45. Add admin and access-control browser workflows",
+      "goal": "Verify configuration and unauthorized access end to end.",
+      "description": "Using the isolated real-backend Playwright setup, test an admin creating a service and counter, assigning staff and that staff seeing the assigned queue. Add anonymous protected-route access, wrong-role access, expired sessions and invalid private-ticket links, verifying browser feedback and backend denials.",
+      "priority": "P0",
+      "area": "tests",
+      "dependencies": [
+        "KEZEK-038",
+        "KEZEK-039",
+        "KEZEK-040",
+        "KEZEK-044"
+      ],
+      "expected_files": [
+        "frontend/",
+        "docs/process.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Admin browser flow creates service/counter/assignment visible to the assigned staff"
+        },
+        {
+          "id": "AC-2",
+          "text": "Anonymous, wrong-role and expired-session requests are denied in UI and API"
+        },
+        {
+          "id": "AC-3",
+          "text": "Invalid private-ticket links show safe recoverable feedback"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-046",
+      "number": 46,
+      "title": "46. Review responsive and accessible interaction states",
+      "goal": "Make required workflows usable on mobile and with a keyboard.",
+      "description": "With required screens integrated, review customer, login, staff and admin workflows for keyboard focus, labels, contrast, dialog behavior and mobile layout. Fix a bounded set of discovered UI defects and verify loading, empty, network-error and conflict states, filing additional session-sized issues for any remaining defects.",
+      "priority": "P0",
+      "area": "frontend",
+      "dependencies": [
+        "KEZEK-035",
+        "KEZEK-036",
+        "KEZEK-037",
+        "KEZEK-038",
+        "KEZEK-039",
+        "KEZEK-040",
+        "KEZEK-041"
+      ],
+      "expected_files": [
+        "frontend/src/",
+        "docs/process.md"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Required screens are usable on mobile and with keyboard-only navigation"
+        },
+        {
+          "id": "AC-2",
+          "text": "Labels, focus, dialog behavior and contrast are reviewed and defects recorded"
+        },
+        {
+          "id": "AC-3",
+          "text": "Loading, empty, error and conflict states are manually verified or have focused regression tests"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-047",
+      "number": 47,
+      "title": "47. Add continuous integration and API consistency checks",
+      "goal": "Run the required verification automatically on repository changes.",
+      "description": "Using established local commands and browser fixtures, configure CI to install locked dependencies and run frontend lint/typecheck/build/tests, backend checks/tests, fresh migrations and required Playwright workflows against isolated databases. Add a check that the documented OpenAPI contract matches the implemented schema and fix only pipeline/configuration failures within this task, recording product failures as focused issues.",
+      "priority": "P0",
+      "area": "ci",
+      "dependencies": [
+        "KEZEK-002",
+        "KEZEK-026",
+        "KEZEK-043",
+        "KEZEK-044",
+        "KEZEK-045"
+      ],
+      "expected_files": [
+        ".github/workflows/",
+        "frontend/package.json",
+        "backend/",
+        "openapi.yml"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "CI installs locked dependencies and runs documented frontend/backend checks"
+        },
+        {
+          "id": "AC-2",
+          "text": "Fresh migrations and required real-backend browser workflows run in isolated databases"
+        },
+        {
+          "id": "AC-3",
+          "text": "A failing OpenAPI consistency check blocks unnoticed contract drift"
+        }
+      ]
+    },
+    {
+      "id": "KEZEK-048",
+      "number": 48,
+      "title": "48. Verify clean setup and complete delivery documentation",
+      "goal": "Make the MVP reproducible and report completion from evidence.",
+      "description": "Using the integrated application, test a clean install, migrations, seed, startup and one full manual workflow plus at least three failure cases, then update `README.md`, environment examples, demo instructions/screenshots and known limitations. Record exact results in `docs/process.md`, reconcile `docs/decisions.md` and issue acceptance criteria, and file reproducible `bug`/`user-test-bug` issues for unresolved findings rather than claiming the MVP complete.",
+      "priority": "P0",
+      "area": "docs",
+      "dependencies": [
+        "KEZEK-003",
+        "KEZEK-026",
+        "KEZEK-041",
+        "KEZEK-042",
+        "KEZEK-043",
+        "KEZEK-044",
+        "KEZEK-045",
+        "KEZEK-046",
+        "KEZEK-047"
+      ],
+      "expected_files": [
+        "README.md",
+        "docs/",
+        ".env.example"
+      ],
+      "acceptance": [
+        {
+          "id": "AC-1",
+          "text": "Clean install, migration, seed, startup and a complete manual workflow are verified"
+        },
+        {
+          "id": "AC-2",
+          "text": "At least three failure cases and all required check outcomes are recorded"
+        },
+        {
+          "id": "AC-3",
+          "text": "Documentation and issue status reflect unresolved bugs and actual acceptance evidence"
+        }
+      ]
+    }
+  ]
+}
