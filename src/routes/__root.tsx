@@ -12,6 +12,9 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Toaster } from "@/components/ui/sonner";
+import { setSession, useSession } from "@/lib/session";
+import { usingMock } from "@/lib/api";
 
 function NotFoundComponent() {
   return (
@@ -78,21 +81,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Kezek — Virtual Queue" },
+      { name: "description", content: "Join queues remotely and track your place in real time." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
       {
         rel: "stylesheet",
-        href: appCss,
+        href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap",
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
   shellComponent: RootShell,
@@ -109,9 +110,48 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <Toaster />
         <Scripts />
       </body>
     </html>
+  );
+}
+
+function Nav() {
+  const session = useSession();
+  const linkCls = "text-sm text-muted-foreground hover:text-foreground";
+  const active = { className: "text-sm font-semibold text-foreground" };
+  return (
+    <header className="border-b bg-card/60 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
+        <Link to="/" className="font-display text-xl font-bold text-primary">
+          kezek<span className="text-accent">.</span>
+        </Link>
+        <nav className="flex flex-1 gap-5">
+          <Link to="/" className={linkCls} activeProps={active} activeOptions={{ exact: true }}>
+            Join a queue
+          </Link>
+          <Link to="/staff" className={linkCls} activeProps={active}>
+            Staff
+          </Link>
+          {session?.user.role === "admin" && (
+            <Link to="/admin" className={linkCls} activeProps={active}>
+              Admin
+            </Link>
+          )}
+        </nav>
+        {usingMock && <span className="status-pill">Mock API</span>}
+        {session ? (
+          <button className={linkCls} onClick={() => setSession(null)}>
+            Sign out ({session.user.name})
+          </button>
+        ) : (
+          <Link to="/login" className={linkCls}>
+            Staff sign in
+          </Link>
+        )}
+      </div>
+    </header>
   );
 }
 
@@ -120,8 +160,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <Nav />
+      <main className="mx-auto max-w-6xl px-4 py-10">
+        <Outlet />
+      </main>
     </QueryClientProvider>
   );
 }
