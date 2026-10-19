@@ -1,0 +1,1 @@
+"""Kezek backend application package."""

@@ -15,8 +15,12 @@ Continue developing this project in the [Lovable editor](https://lovable.dev/pro
 ## Development
 
 The repository contains the frontend application in `frontend/`, project
-documentation in `docs/`, and a `backend/` placeholder for the future backend.
+documentation in `docs/`, and the initial FastAPI scaffold in `backend/`.
 The frontend currently uses mocked backend calls.
+
+For backend setup, its passing smoke test and Uvicorn startup commands, see
+[backend/README.md](backend/README.md). Queue features and authentication are
+still pending in the MVP backlog.
 
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
