@@ -3,10 +3,12 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi.testclient import TestClient
 import jsonschema
 import pytest
+from sqlalchemy import func, select
 
 from app.auth import hash_password, token_hash, verify_password
 from app.main import create_app
-from app.store import MemoryStore
+from app.store import DatabaseStore
+from app.orm import ServiceRow, SessionRow, TicketRow, UserRow
 
 
 STAFF_ENDPOINTS = [
@@ -128,9 +130,10 @@ def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock
     assert set(result) == {"token", "user"}
     assert set(result["user"]) == {"id", "name", "username", "role"}
     assert len(result["token"]) >= 40
-    assert result["token"] not in store.sessions
-    assert token_hash(result["token"]) in store.sessions
-    record = store.users["stf-admin"]
+    with store.db.session() as session:
+        assert session.get(SessionRow, result["token"]) is None
+        assert session.get(SessionRow, token_hash(result["token"])) is not None
+        record = session.get(UserRow, "stf-admin")
     assert record.password_hash.startswith("scrypt$")
     assert verify_password("admin123", record.password_hash)
     assert not verify_password("wrong", record.password_hash)
@@ -138,7 +141,8 @@ def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock
     assert client.get("/api/counters", headers=headers).status_code == 200
     clock.advance(hours=8)
     assert client.get("/api/counters", headers=headers).status_code == 401
-    assert token_hash(result["token"]) not in store.sessions
+    with store.db.session() as session:
+        assert session.get(SessionRow, token_hash(result["token"])) is None
 
 
 def test_password_hashes_are_salted():
@@ -148,8 +152,8 @@ def test_password_hashes_are_salted():
     assert not verify_password("same-password", "not-a-password-hash")
 
 
-def test_seeded_demo_is_useful_and_stores_are_isolated(clock):
-    store = MemoryStore(clock=clock)
+def test_seeded_demo_is_useful_and_stores_are_isolated(clock, tmp_path):
+    store = DatabaseStore(f"sqlite:///{tmp_path / 'seed.db'}", clock=clock)
     with TestClient(create_app(store)) as client:
         services = client.get("/api/services").json()
         assert len(services) == 3
@@ -161,10 +165,13 @@ def test_seeded_demo_is_useful_and_stores_are_isolated(clock):
         assert stats["waitingNow"] == 2
         assert stats["completedToday"] == 1
         assert stats["avgWaitMinutes"] == 4
-    another = MemoryStore(seed_tickets=False, clock=clock)
+    another = DatabaseStore(f"sqlite:///{tmp_path / 'separate.db'}", seed_tickets=False, clock=clock)
     with TestClient(create_app(another)) as client:
         assert client.get("/api/counters", headers=headers).status_code == 401
-    assert not another.tickets
+    with another.db.session() as session:
+        assert session.scalar(select(func.count()).select_from(TicketRow)) == 0
+    store.close()
+    another.close()
 
 
 def test_ticket_positions_estimates_and_full_lifecycle(client, staff, clock):
@@ -279,7 +286,9 @@ def test_validation_has_string_detail_and_does_not_issue_ticket(client, store, a
                  {"serviceId": "svc-reg", "customerName": None}]:
         response = client.post("/api/tickets", json=body)
         assert response.status_code == 422 and isinstance(response.json()["detail"], str)
-    assert not store.tickets and not store.sequences
+    with store.db.session() as session:
+        assert session.scalar(select(func.count()).select_from(TicketRow)) == 0
+        assert all(value == 0 for value in session.scalars(select(ServiceRow.next_sequence)))
     assert client.post("/api/tickets", json={"serviceId": "missing", "customerName": "A"}).status_code == 404
     assert client.post("/api/admin/counters", headers=admin, json={"name": "N", "serviceIds": [], "isActive": True}).status_code == 422
     response = client.post("/api/auth/login", content="{", headers={"Content-Type": "application/json"})

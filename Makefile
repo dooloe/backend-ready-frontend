@@ -11,6 +11,9 @@ BACKEND_PORT ?= 8000
 FRONTEND_PORT ?= 5173
 API_URL ?= http://127.0.0.1:$(BACKEND_PORT)
 CORS_ORIGINS ?= http://localhost:$(FRONTEND_PORT),http://127.0.0.1:$(FRONTEND_PORT)
+DATABASE_URL ?= sqlite:///$(abspath backend/data/kezek.db)
+SEED_DEMO_DATA ?= true
+export DATABASE_URL SEED_DEMO_DATA
 
 BACKEND_COMMAND = env CORS_ORIGINS="$(CORS_ORIGINS)" "$(BACKEND_PYTHON)" -m uvicorn app.main:app --app-dir backend --host "$(HOST)" --port "$(BACKEND_PORT)" --reload
 FRONTEND_COMMAND = env VITE_API_BASE_URL="$(API_URL)" $(NPM) --prefix frontend run dev -- --host "$(HOST)" --port "$(FRONTEND_PORT)" --strictPort
@@ -28,7 +31,8 @@ help:
 	  'make test-frontend  Run frontend tests only' \
 	  'make build          Build the frontend' \
 	  '' \
-	  'Example: make dev BACKEND_PORT=8001 FRONTEND_PORT=5174'
+	  'Example: make dev BACKEND_PORT=8001 FRONTEND_PORT=5174' \
+	  'Database: set DATABASE_URL (default: backend/data/kezek.db SQLite file)'
 
 install: install-backend install-frontend
 

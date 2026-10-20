@@ -3,10 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from ..models import JoinQueueRequest, Service, TicketView
-from ..store import MemoryStore, get_store
+from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api", tags=["Customer"])
-Store = Annotated[MemoryStore, Depends(get_store)]
+Store = Annotated[DatabaseStore, Depends(get_store)]
 
 
 @router.get("/services", response_model=list[Service], operation_id="listServices")

@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends
 
 from ..auth import require_staff
 from ..models import Counter, QueueView, TicketView
-from ..store import MemoryStore, get_store
+from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api", tags=["Staff"], dependencies=[Depends(require_staff)])
-Store = Annotated[MemoryStore, Depends(get_store)]
+Store = Annotated[DatabaseStore, Depends(get_store)]
 roles = {"x-required-roles": ["staff", "admin"]}
 
 

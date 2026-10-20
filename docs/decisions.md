@@ -42,3 +42,19 @@ UTC analytics boundaries because the current contract carries no timezone.
 Preserve current public ticket-ID access and called-to-completed behavior. The
 server validates counter references and positive service durations; clients get
 string `detail` errors. Runtime and test dependencies are pinned separately.
+
+## 2026-10-20 — SQLAlchemy persistence for the current contract
+
+The user's latest instruction replaces the temporary in-memory implementation
+with a DATABASE_URL-configured SQLAlchemy database, defaulting to a persistent
+SQLite file. Preserve the current frontend contract and hashed bearer-session
+behavior. Persist all configuration, relationships, ticket numbers, lifecycle
+state, timestamps and credentials; initialize demo data once without resetting
+subsequent edits or deletions.
+
+Use portable SQLAlchemy models/types and transactional store methods. Isolate
+SQLite engine options and writer serialization in the database adapter; use a
+transactional singleton row lock on row-locking engines for the same operation
+ordering. PostgreSQL is a future integration, so compilation/portability checks
+must not be described as a tested live PostgreSQL deployment. The first schema
+is created for the new database; future schema evolution requires migrations.

@@ -179,3 +179,50 @@ Verification:
 
 Updated backend/README.md with the combined setup and launch commands. Existing
 root README, AGENTS, openapi.yaml and backend/.gitkeep deletions remain untouched.
+
+## 2026-10-20 — Issue #52: SQLAlchemy persistence and DATABASE_URL
+
+Replaced MemoryStore with DatabaseStore while preserving the current frontend's
+20 operations and response shapes. Added portable relational ORM models for
+users, hashed sessions, services, counters, service associations, tickets and
+active counter claims. A singleton initialization/transaction row records first
+setup. Ticket sequences, state, timestamps and credentials persist in the DB.
+Services/counters use tombstones so deletion hides them without breaking ticket
+history or allowing seed resurrection.
+
+DATABASE_URL defaults to the absolute backend/data/kezek.db SQLite path and is
+exported by the Makefile. Connections open only at app startup. SEED_DEMO_DATA
+controls first-time demo provisioning; initialization is recorded even when
+seeding is disabled. Added backend/.env.example and ignored local SQLite files.
+Database-specific engine setup, UTC conversion and write synchronization are
+separated from routers and public wire models. Schema creation is initial setup,
+not a migration mechanism; future schema changes still require migrations.
+
+Validation results:
+- Initial API regression run on temporary SQLite files: 57 passed, exit 0.
+- New DB-specific run initially had 14 passes and one failure: the contention
+  check exposed SQLAlchemy's lazy Session.begin(), which did not reserve a writer
+  on context entry without a query. The adapter now explicitly opens that
+  connection on entering a SQLite write context. Re-run: 15 passed, exit 0.
+- Final `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider`
+  outside the sandbox: 72 passed, 1 unchanged/non-failing Starlette/httpx
+  deprecation warning, exit 0 (57.72 seconds).
+- Tests cover application/engine restart persistence across all data categories,
+  preserved credentials/tokens and sequences, environment-selected database files,
+  lazy connections, seed idempotency and disabled provisioning, transactional
+  rollback, foreign keys/uniqueness, UTC/expiry round trips and bounded contention.
+- Spawned independent OS processes verified unique numbering and competing/same-
+  counter calls using the same SQLite file. This does not rely on a process-local
+  Python lock. In-memory SQLite URL handling was also checked separately.
+- PostgreSQL DDL compilation passed without a live driver/server. No live
+  PostgreSQL support is claimed; adding its driver and integration tests remains
+  future work. SQLite-specific pragmas/BEGIN behavior stay in app/database.py.
+- Test fixtures override environment settings and use temporary DB files; the
+  development database directory was not created during the suite.
+- Runtime/dev dependency closures pinned with SQLAlchemy 2.1.5; pip check reported
+  no broken requirements. compileall and git diff --check passed. make help and
+  custom DATABASE_URL command expansion passed.
+
+Unrelated root README/AGENTS/openapi.yaml and backend/.gitkeep deletions remain
+untouched and excluded from this implementation. No cookie/private-ticket or
+organization API migration is claimed; broader migration backlog issues stay open.

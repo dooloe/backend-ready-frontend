@@ -1,7 +1,5 @@
 """Salted scrypt passwords and opaque bearer sessions; no plaintext secrets stored."""
 
-from dataclasses import dataclass
-from datetime import datetime
 import hashlib
 import hmac
 import secrets
@@ -37,18 +35,6 @@ def verify_password(password: str, encoded: str) -> bool:
 
 def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
-
-
-@dataclass(frozen=True)
-class UserRecord:
-    user: StaffUser
-    password_hash: str
-
-
-@dataclass(frozen=True)
-class Session:
-    user_id: str
-    expires_at: datetime
 
 
 bearer = HTTPBearer(auto_error=False, scheme_name="BearerAuth")

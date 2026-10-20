@@ -9,7 +9,7 @@ import pytest
 import yaml
 
 from app.main import create_app
-from app.store import MemoryStore
+from app.store import DatabaseStore
 
 
 @dataclass
@@ -28,9 +28,21 @@ def clock():
     return Clock()
 
 
+@pytest.fixture(autouse=True)
+def isolated_application_environment(monkeypatch, tmp_path):
+    # Never inherit a developer/production database or unrelated CORS/seed settings.
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'default-test.db'}")
+    monkeypatch.setenv("SEED_DEMO_DATA", "true")
+    monkeypatch.setenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+
+
 @pytest.fixture
-def store(clock):
-    return MemoryStore(seed_tickets=False, clock=clock)
+def store(clock, tmp_path):
+    store = DatabaseStore(f"sqlite:///{tmp_path / 'api.db'}", seed_tickets=False, clock=clock)
+    try:
+        yield store
+    finally:
+        store.close()
 
 
 @pytest.fixture

@@ -1,9 +1,10 @@
-# Kezek in-memory backend
+# Kezek database backend
 
 Implements the current frontend's 20 operations from repository-root
 `openapi.yaml`, using FastAPI with modules for `routers`, `models`, `store` and
-`auth`. This is a single-process demo: restarting the application resets all
-records and sessions. Run one Uvicorn worker so every request shares the store.
+`auth`. SQLAlchemy stores configuration, users, hashed sessions, ticket numbers
+and lifecycle state in a database. The default SQLite file is
+`backend/data/kezek.db`; data survives server restarts and automatic reloads.
 
 ## Install, test and start
 
@@ -25,6 +26,48 @@ backend/.venv/bin/python -m uvicorn app.main:app --app-dir backend --reload
 
 For runtime dependencies alone, install `backend/requirements.txt`. The `.in`
 files declare direct dependencies; the `.txt` files pin the tested resolution.
+
+## Database configuration
+
+`DATABASE_URL` selects the SQLAlchemy connection. Without an override, direct
+Uvicorn startup and the Makefile both use an absolute path to
+`backend/data/kezek.db`, so the default file does not move with the working
+directory. Its parent directory is created on first startup.
+
+```bash
+# Persist to another SQLite file (relative paths resolve from the working directory).
+DATABASE_URL=sqlite:///backend/data/another.db make dev
+
+# Command-line Make overrides work too.
+make backend DATABASE_URL=sqlite:////absolute/path/kezek.db
+```
+
+`backend/.env.example` documents settings. Export them in the terminal; the
+template is not automatically loaded. Do not put real connection credentials
+in tracked files. Local SQLite databases and journal files are ignored by Git.
+
+New databases get the initial schema automatically. This initialization does
+not alter existing tables; future schema changes require migrations. An
+in-memory server's transient data is not imported into the new database.
+
+Demo data is inserted only during the database's first initialization. Later
+startups preserve user edits, deleted services/counters, tickets, password hashes
+and unexpired sessions. `SEED_DEMO_DATA=false` skips demo provisioning for a fresh,
+externally provisioned database; changing it later does not reseed or reset data.
+
+The ORM models, normalized relationships, UTC timestamp type and store queries
+use portable SQLAlchemy constructs. Driver configuration and SQLite-specific
+pragmas/locking are isolated in `app/database.py`. A future PostgreSQL setup can
+use a URL such as `postgresql+psycopg://user:password@host/database` after adding
+its driver and running integration tests. PostgreSQL schema compilation is
+checked, but a live PostgreSQL server is not yet supported by verified tests.
+
+SQLite mutations use a write reservation before mutable reads, with a bounded
+10-second lock wait. Other row-locking engines use a transactional singleton
+row lock for the same strict ordering. Database constraints protect usernames,
+service ticket sequences and active counter assignments. SQLite concurrency is
+verified across independent processes; high-throughput deployment tuning is
+separate work.
 
 API documentation: <http://127.0.0.1:8000/docs>. Generated schema:
 <http://127.0.0.1:8000/openapi.json>.
@@ -48,10 +91,11 @@ the frontend already adds that prefix. Restart Vite if its environment changes.
 These are development-only credentials. The seed includes three services (one
 closed), two counters, waiting tickets, a completed ticket and a cancelled ticket
 so both queues and analytics have sample data. Ticket numbers continue after the
-seeded numbers. Tests use separate app/store instances and an injected clock.
+seeded numbers. Tests use isolated temporary SQLite files and an injected clock;
+they never use the configured development database.
 
 Passwords use salted scrypt hashes. Login returns a random bearer token with an
-eight-hour lifetime; only its SHA-256 digest is retained in the store. Staff and
+eight-hour lifetime; only its SHA-256 digest is retained in the database. Staff and
 admin may use staff endpoints; admin configuration and statistics require admin.
 Customer service listing, join, ticket lookup and cancellation remain public as
 specified by the current frontend contract. No cookie session is used.
@@ -77,8 +121,9 @@ specified by the current frontend contract. No cookie session is used.
   Waiting counts include older waiting tickets; averages include tickets with a
   `calledAt` value, matching the current client's metric definitions.
 
-The older SQLite/organization/private-ticket-token/cookie-session plan is separate
-work; this task implements the explicitly requested current-client in-memory API.
+The organization/private-ticket-token/cookie-session migration plan is separate
+work; this backend preserves the current frontend contract while adding database
+persistence.
 
 The contract tests normally read `openapi.yaml`. If it is locally deleted they
 read `HEAD:openapi.yaml` from Git without restoring it. You may alternatively set

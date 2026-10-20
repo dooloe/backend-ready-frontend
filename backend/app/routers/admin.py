@@ -7,10 +7,10 @@ from ..models import (
     Counter, CounterCreate, CounterUpdate, Service, ServiceCreate, ServiceUpdate,
     StaffCreate, StaffUser, Stats,
 )
-from ..store import MemoryStore, get_store
+from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"], dependencies=[Depends(require_admin)])
-Store = Annotated[MemoryStore, Depends(get_store)]
+Store = Annotated[DatabaseStore, Depends(get_store)]
 roles = {"x-required-roles": ["admin"]}
 
 
