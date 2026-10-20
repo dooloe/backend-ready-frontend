@@ -270,3 +270,10 @@ were already deleted locally. Asked whether these deletions were intentional;
 preserved them while awaiting clarification. The backend contract tests use
 HEAD:openapi.yaml as documented, so passing tests do not mean the local root
 contract file or make dev command is present. No development database was used.
+
+Issue #2 closure: committed and pushed d3d84550adce3caf506ddf5fc250f07827e0879b;
+posted acceptance evidence and closed #2 directly through approved GitHub CLI.
+A fresh GitHub issue listing confirmed 52 total: 6 closed (#1, #2, #49–#52),
+46 open (#3–#48). docs/issue-audit.md records the decision and outstanding gap
+for every issue; docs/verification.json records #2 evidence and actual closure.
+All unrelated local deletions remain uncommitted.
