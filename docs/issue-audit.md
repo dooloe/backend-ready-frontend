@@ -7,6 +7,9 @@ organization/private-ticket/cookie-session backlog is broader than the later
 current-client implementation issues #49–#52; overlapping functionality does not
 meet every original criterion.
 
+Remote status refreshed after Issue #9 was closed: **39 open, 13 closed, 52 total**.
+Closed issues are #1–#9 and #49–#52.
+
 ## Verification
 
 | Check | Actual result |

@@ -421,6 +421,9 @@ Verification:
   `npm --prefix frontend run build` completed client, SSR and Nitro builds.
 - `git diff --check` — exit 0.
 
-The issue was closed only after the implementation and its tests were committed
-and pushed. Existing organization/private-token/cookie-session requirements and
-live PostgreSQL support remain open work in their separate issues.
+Issue #9 was closed through approved GitHub CLI only after commit
+`d052512906e7f2b7f9c44fe2d7f1dd39e1bddee3` and its tests were pushed. A short
+closing comment records the acceptance evidence. The refreshed remote backlog is
+39 open and 13 closed issues (52 total). Existing organization/private-token/
+cookie-session requirements and live PostgreSQL support remain open in their
+separate issues.

@@ -121,7 +121,7 @@
     },
     "KEZEK-009": {
       "status": "verified",
-      "revision": null,
+      "revision": "d052512906e7f2b7f9c44fe2d7f1dd39e1bddee3",
       "criteria": [
         "AC-1",
         "AC-2",
@@ -153,7 +153,7 @@
           "evidence": "working tree"
         }
       ],
-      "github_state": "open",
+      "github_state": "closed",
       "issue_number": 9
     },
     "KEZEK-010": {
@@ -457,13 +457,13 @@
       6,
       7,
       8,
+      9,
       49,
       50,
       51,
       52
     ],
     "open_issue_numbers": [
-      9,
       10,
       11,
       12,
@@ -511,7 +511,8 @@
       5,
       6,
       7,
-      8
+      8,
+      9
     ],
     "method": "Approved direct GitHub CLI; all acceptance criteria required for completion"
   }
