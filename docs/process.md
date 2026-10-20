@@ -372,3 +372,18 @@ PATCH schemas. Removed those fields (properties stay optional, minProperties=1).
 Re-run of backend/.venv/bin/python -m pytest backend/tests/test_mvp_contract.py -q
 -p no:cacheprovider passed 33 tests, one existing warning. #5 and #6 closure
 confirmed, running count 42 open / 10 closed before #7. No runtime feature claimed.
+
+## 2026-10-20 — #8 page/state contracts
+
+Added page-contracts.md for all eight required customer/ticket/login/staff/admin
+screens, mapping each to planned OpenAPI operation IDs. Defined common loading,
+empty, validation, unauthorized, stale-refresh, conflict and confirmed-success
+states; five-second terminal-aware polling, request aborts, private-token routes,
+name-free join/recovery, cookie expiry/cache clearing, active-work restrictions,
+accessible dialogs, mobile layout and keyboard behavior are explicit.
+
+AC-1 all eight page mappings reference 29 existing named contract operations;
+AC-2 shared and page-specific states are defined; AC-3 mobile, private-route and
+customer-name removal rules are specified. One-off YAML/Markdown check confirmed
+all eight Operations rows resolve to declared IDs and every relative link exists.
+This is a design issue, so no browser execution or UI implementation is claimed.
