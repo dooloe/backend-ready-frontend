@@ -327,7 +327,7 @@ paths:
                 $ref: '#/components/schemas/SessionIdentity'
           headers:
             Set-Cookie:
-              schema: &id010
+              schema: &id011
                 type: string
               description: kezek_session=<opaque>; Path=/api; HttpOnly; SameSite=Lax;
                 Max-Age=28800; Secure when HTTPS. Development HTTP may omit Secure
@@ -889,15 +889,1117 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CounterAction'
+  /api/admin/services:
+    get:
+      operationId: listAdminServices
+      summary: listAdminServices
+      description: List actor organization records, including inactive records for
+        configuration. Never include password or session hashes.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+    post:
+      operationId: createAdminServices
+      summary: createAdminServices
+      description: 'Infer organization from authenticated admin; never accept organization
+        override. Reject references to another organization. Save atomically. Require
+        opensAt < closesAt: overnight/equal schedules are unsupported and rejected.
+        Prefix changes affect future daily queues only; freeze number prefix per existing
+        queue. Schedule changes affect availability immediately without hiding outstanding
+        work. Reject deactivation while active work exists.'
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Resource not found
+                    details: null
+        '409':
+          description: Configuration change conflicts with active work
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                active_work:
+                  value:
+                    code: ACTIVE_WORK
+                    message: Configuration change conflicts with active work
+                    details: null
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid configuration
+                    details: null
+                invalidSchedule:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Opening time must precede closing time
+                    details:
+                      fields:
+                      - opensAt
+                      - closesAt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceCreate'
+  /api/admin/services/{serviceId}:
+    patch:
+      operationId: updateAdminServices
+      summary: updateAdminServices
+      description: 'Same-organization admin only. Omitted fields remain unchanged;
+        empty patch/nulls on required fields reject. Deactivation preserves historical
+        tickets; no destructive deletion. Incompatible changes during called/serving
+        work return 409. Require opensAt < closesAt: overnight/equal schedules are
+        unsupported and rejected. Prefix changes affect future daily queues only;
+        freeze number prefix per existing queue. Schedule changes affect availability
+        immediately without hiding outstanding work. Reject deactivation while active
+        work exists.'
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Resource not found
+                    details: null
+        '409':
+          description: Configuration change conflicts with active work
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                active_work:
+                  value:
+                    code: ACTIVE_WORK
+                    message: Configuration change conflicts with active work
+                    details: null
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid configuration
+                    details: null
+                invalidSchedule:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Opening time must precede closing time
+                    details:
+                      fields:
+                      - opensAt
+                      - closesAt
+      parameters:
+      - name: serviceId
+        in: path
+        required: true
+        schema: &id007
+          type: string
+          minLength: 1
+          maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServicePatch'
+  /api/admin/counters:
+    get:
+      operationId: listAdminCounters
+      summary: listAdminCounters
+      description: List actor organization records, including inactive records for
+        configuration. Never include password or session hashes.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Counter'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+    post:
+      operationId: createAdminCounters
+      summary: createAdminCounters
+      description: Infer organization from authenticated admin; never accept organization
+        override. Reject references to another organization. Save atomically. serviceIds
+        must be unique, existing and same-organization. Reject deactivation/removing
+        the current ticket service while an active claim exists. Empty associations
+        are allowed for setup; cannot call without a supported service.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Counter'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Resource not found
+                    details: null
+        '409':
+          description: Configuration change conflicts with active work
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                active_work:
+                  value:
+                    code: ACTIVE_WORK
+                    message: Configuration change conflicts with active work
+                    details: null
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid configuration
+                    details: null
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CounterCreate'
+  /api/admin/counters/{counterId}:
+    patch:
+      operationId: updateAdminCounters
+      summary: updateAdminCounters
+      description: Same-organization admin only. Omitted fields remain unchanged;
+        empty patch/nulls on required fields reject. Deactivation preserves historical
+        tickets; no destructive deletion. Incompatible changes during called/serving
+        work return 409. serviceIds must be unique, existing and same-organization.
+        Reject deactivation/removing the current ticket service while an active claim
+        exists. Empty associations are allowed for setup; cannot call without a supported
+        service.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Counter'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Resource not found
+                    details: null
+        '409':
+          description: Configuration change conflicts with active work
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                active_work:
+                  value:
+                    code: ACTIVE_WORK
+                    message: Configuration change conflicts with active work
+                    details: null
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid configuration
+                    details: null
+      parameters:
+      - name: counterId
+        in: path
+        required: true
+        schema: *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CounterPatch'
+  /api/admin/staff:
+    get:
+      operationId: listAdminStaff
+      summary: listAdminStaff
+      description: List actor organization records, including inactive records for
+        configuration. Never include password or session hashes.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Identity'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+    post:
+      operationId: createAdminStaff
+      summary: createAdminStaff
+      description: Infer organization from authenticated admin; never accept organization
+        override. Reject references to another organization. Save atomically. Store
+        Argon2id password hash only; username/email uniqueness is global. Deactivation
+        or password changes revoke sessions. Reject deactivation/reassignment while
+        the user owns active work and prevent removal/demotion of the last active
+        organization admin.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Resource not found
+                    details: null
+        '409':
+          description: Configuration change conflicts with active work
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                active_work:
+                  value:
+                    code: ACTIVE_WORK
+                    message: Configuration change conflicts with active work
+                    details: null
+                duplicateIdentity:
+                  value:
+                    code: IDENTITY_CONFLICT
+                    message: Username or email already exists
+                    details: null
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid configuration
+                    details: null
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffCreate'
+  /api/admin/staff/{userId}:
+    patch:
+      operationId: updateAdminStaff
+      summary: updateAdminStaff
+      description: Same-organization admin only. Omitted fields remain unchanged;
+        empty patch/nulls on required fields reject. Deactivation preserves historical
+        tickets; no destructive deletion. Incompatible changes during called/serving
+        work return 409. Store Argon2id password hash only; username/email uniqueness
+        is global. Deactivation or password changes revoke sessions. Reject deactivation/reassignment
+        while the user owns active work and prevent removal/demotion of the last active
+        organization admin.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Resource not found
+                    details: null
+        '409':
+          description: Configuration change conflicts with active work
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                active_work:
+                  value:
+                    code: ACTIVE_WORK
+                    message: Configuration change conflicts with active work
+                    details: null
+                duplicateIdentity:
+                  value:
+                    code: IDENTITY_CONFLICT
+                    message: Username or email already exists
+                    details: null
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid configuration
+                    details: null
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffPatch'
+  /api/admin/staff-assignments:
+    get:
+      operationId: listStaffAssignments
+      summary: listStaffAssignments
+      description: Only actor organization assignments; composite identity is userId/counterId.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Assignment'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+    post:
+      operationId: createStaffAssignment
+      summary: createStaffAssignment
+      description: Require active same-organization staff and counter. Duplicate pair
+        is 409 ASSIGNMENT_EXISTS. During active work reject changes that would replace
+        its authorized operator; otherwise a staff member may serve multiple counters
+        and counters may have multiple assigned staff.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Resource not found
+                    details: null
+        '409':
+          description: Configuration change conflicts with active work
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                active_work:
+                  value:
+                    code: ACTIVE_WORK
+                    message: Configuration change conflicts with active work
+                    details: null
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid configuration
+                    details: null
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Assignment'
+  /api/admin/staff-assignments/{userId}/{counterId}:
+    delete:
+      operationId: removeStaffAssignment
+      summary: removeStaffAssignment
+      description: Explicit composite-key deletion. Reject cross-organization pair;
+        missing pair is 404. Reject removal while this user/counter has active work.
+        No history deletion.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '204':
+          description: Deleted; no body
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Resource not found
+                    details: null
+        '409':
+          description: Configuration change conflicts with active work
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                active_work:
+                  value:
+                    code: ACTIVE_WORK
+                    message: Configuration change conflicts with active work
+                    details: null
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid configuration
+                    details: null
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: *id007
+      - name: counterId
+        in: path
+        required: true
+        schema: *id007
+  /api/admin/queues/{queueId}:
+    patch:
+      operationId: setQueueOverride
+      summary: setQueueOverride
+      description: Persist the daily manual gate in its organization. Effective open
+        = service active AND within organization-local hours AND manual isOpen. Setting
+        true cannot bypass hours or reopen a past date. Setting false rejects new
+        joins; private views and assigned staff transitions continue. Unknown queue
+        is 404.
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueSummary'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Resource not found
+                    details: null
+        '409':
+          description: Configuration change conflicts with active work
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                active_work:
+                  value:
+                    code: ACTIVE_WORK
+                    message: Configuration change conflicts with active work
+                    details: null
+                outsideHours:
+                  value:
+                    code: QUEUE_CLOSED
+                    message: Cannot open outside service hours or business date
+                    details: null
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid configuration
+                    details: null
+      parameters:
+      - name: queueId
+        in: path
+        required: true
+        schema: *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueueOverride'
+  /api/admin/analytics:
+    get:
+      operationId: getAnalytics
+      summary: getAnalytics
+      description: 'Same-organization issued-date cohort. Optional paired dateFrom/dateTo
+        inclusive in organization IANA timezone, default both today; at most 31 local
+        dates, dateFrom <= dateTo. Convert local midnight boundaries to UTC before
+        filtering createdAt; include inactive services with history. Issued=count
+        cohort, waiting/current waiting status, completed/current completed status.
+        For completed cohort only: mean wait=(calledAt-createdAt), mean service=(completedAt-startedAt),
+        minutes rounded to 1 decimal; null without valid samples. byService and byDay
+        use identical cohort/filter. Missing/bad/reversed/oversized dates return 422.
+        No customer identity/private token data.'
+      x-required-roles:
+      - admin
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analytics'
+              examples:
+                empty:
+                  value:
+                    dateFrom: '2026-10-20'
+                    dateTo: '2026-10-20'
+                    timezone: Asia/Almaty
+                    issued: 0
+                    waiting: 0
+                    completed: 0
+                    meanWaitMinutes: null
+                    meanServiceMinutes: null
+                    byService: []
+                    byDay:
+                    - date: '2026-10-20'
+                      issued: 0
+                      completed: 0
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Wrong role, organization or CSRF proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Wrong role, organization or CSRF proof
+                    details: null
+        '422':
+          description: Invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid date range
+                    details: null
+      parameters:
+      - name: dateFrom
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: Supply both filters or neither; inclusive organization-local
+          date.
+      - name: dateTo
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: Supply both filters or neither; inclusive organization-local
+          date.
 components:
   schemas:
     Error:
       type: object
       additionalProperties: false
       properties:
-        code: &id007
+        code: &id008
           type: string
-        message: *id007
+        message: *id008
         details:
           type: object
           additionalProperties: true
@@ -911,9 +2013,9 @@ components:
       additionalProperties: false
       properties:
         id: *id001
-        name: *id007
-        slug: *id007
-        description: *id007
+        name: *id008
+        slug: *id008
+        description: *id008
         timezone:
           type: string
           example: Asia/Almaty
@@ -934,10 +2036,10 @@ components:
           format: date
         isOpen:
           type: boolean
-        waiting: &id008
+        waiting: &id009
           type: integer
           minimum: 0
-        activeCounters: *id008
+        activeCounters: *id009
         estimatedWaitMinutes:
           type: integer
           minimum: 0
@@ -956,9 +2058,9 @@ components:
       properties:
         id: *id001
         organizationId: *id001
-        name: *id007
-        description: *id007
-        prefix: *id007
+        name: *id008
+        description: *id008
+        prefix: *id008
         durationMinutes:
           type: number
           exclusiveMinimum: true
@@ -969,7 +2071,7 @@ components:
         closesAt:
           type: string
           pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
-        timezone: *id007
+        timezone: *id008
         queue:
           $ref: '#/components/schemas/QueueSummary'
       required:
@@ -989,8 +2091,8 @@ components:
       properties:
         id: *id001
         queueId: *id001
-        ticketNumber: *id007
-        serviceName: *id007
+        ticketNumber: *id008
+        serviceName: *id008
         status:
           type: string
           enum:
@@ -1008,10 +2110,10 @@ components:
           type: integer
           minimum: 0
           nullable: true
-        counterId: &id009
+        counterId: &id010
           type: string
           nullable: true
-        counterName: *id009
+        counterName: *id010
         createdAt:
           type: string
           format: date-time
@@ -1077,11 +2179,11 @@ components:
       properties:
         id: *id006
         organizationId: *id006
-        username: *id010
+        username: *id011
         email:
           type: string
           format: email
-        name: *id010
+        name: *id011
         role:
           type: string
           enum:
@@ -1119,7 +2221,7 @@ components:
       properties:
         user:
           $ref: '#/components/schemas/Identity'
-        csrfToken: *id010
+        csrfToken: *id011
       required:
       - user
       - csrfToken
@@ -1127,7 +2229,7 @@ components:
       type: object
       additionalProperties: false
       properties:
-        csrfToken: *id010
+        csrfToken: *id011
       required:
       - csrfToken
     Counter:
@@ -1136,7 +2238,7 @@ components:
       properties:
         id: *id006
         organizationId: *id006
-        name: *id010
+        name: *id011
         isActive:
           type: boolean
         serviceIds:
@@ -1163,14 +2265,14 @@ components:
           type: object
           additionalProperties: false
           properties:
-            id: &id011
+            id: &id012
               type: string
               minLength: 1
               maxLength: 64
-            queueId: *id011
-            ticketNumber: &id012
+            queueId: *id012
+            ticketNumber: &id013
               type: string
-            serviceName: *id012
+            serviceName: *id013
             status:
               type: string
               enum:
@@ -1188,10 +2290,10 @@ components:
               type: integer
               minimum: 0
               nullable: true
-            counterId: &id013
+            counterId: &id014
               type: string
               nullable: true
-            counterName: *id013
+            counterName: *id014
             createdAt:
               type: string
               format: date-time
@@ -1247,14 +2349,14 @@ components:
       type: object
       additionalProperties: false
       properties:
-        id: &id014
+        id: &id015
           type: string
           minLength: 1
           maxLength: 64
-        queueId: *id014
-        ticketNumber: &id015
+        queueId: *id015
+        ticketNumber: &id016
           type: string
-        serviceName: *id015
+        serviceName: *id016
         status:
           type: string
           enum:
@@ -1272,10 +2374,10 @@ components:
           type: integer
           minimum: 0
           nullable: true
-        counterId: &id016
+        counterId: &id017
           type: string
           nullable: true
-        counterName: *id016
+        counterName: *id017
         createdAt:
           type: string
           format: date-time
@@ -1316,6 +2418,223 @@ components:
       - cancelledAt
       - noShowAt
       nullable: true
+    Service:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id007
+        organizationId: *id007
+        name: &id018
+          type: string
+          minLength: 1
+          maxLength: 120
+        description: &id019
+          type: string
+          maxLength: 1000
+        prefix: &id020
+          type: string
+          pattern: ^[A-Z]{1,4}$
+        durationMinutes: &id021
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 1440
+        opensAt: &id022
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        closesAt: &id023
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        isActive: &id024
+          type: boolean
+      required:
+      - id
+      - organizationId
+      - name
+      - description
+      - prefix
+      - durationMinutes
+      - opensAt
+      - closesAt
+      - isActive
+    ServiceCreate:
+      type: object
+      additionalProperties: false
+      properties: &id025
+        name: *id018
+        description: *id019
+        prefix: *id020
+        durationMinutes: *id021
+        opensAt: *id022
+        closesAt: *id023
+        isActive: *id024
+      required:
+      - name
+      - description
+      - prefix
+      - durationMinutes
+      - opensAt
+      - closesAt
+      - isActive
+    ServicePatch:
+      type: object
+      additionalProperties: false
+      properties: *id025
+      minProperties: 1
+    CounterCreate:
+      type: object
+      additionalProperties: false
+      properties: &id026
+        name: *id018
+        isActive: *id024
+        serviceIds:
+          type: array
+          uniqueItems: true
+          items: *id007
+      required:
+      - name
+      - isActive
+      - serviceIds
+    CounterPatch:
+      type: object
+      additionalProperties: false
+      properties: *id026
+      minProperties: 1
+    StaffCreate:
+      type: object
+      additionalProperties: false
+      properties: &id027
+        name: *id018
+        username:
+          type: string
+          minLength: 1
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+          - staff
+          - admin
+        isActive: *id024
+        password:
+          type: string
+          minLength: 12
+          maxLength: 1024
+          writeOnly: true
+      required:
+      - name
+      - username
+      - email
+      - role
+      - isActive
+      - password
+    StaffPatch:
+      type: object
+      additionalProperties: false
+      properties: *id027
+      minProperties: 1
+    Assignment:
+      type: object
+      additionalProperties: false
+      properties:
+        userId: *id007
+        counterId: *id007
+      required:
+      - userId
+      - counterId
+    QueueOverride:
+      type: object
+      additionalProperties: false
+      properties:
+        isOpen: *id024
+      required:
+      - isOpen
+    ServiceMetrics:
+      type: object
+      additionalProperties: false
+      properties:
+        serviceId: *id007
+        serviceName: *id018
+        issued: &id028
+          type: integer
+          minimum: 0
+        waiting: &id029
+          type: integer
+          minimum: 0
+        completed: &id030
+          type: integer
+          minimum: 0
+        meanWaitMinutes: &id031
+          type: number
+          minimum: 0
+          nullable: true
+        meanServiceMinutes: &id032
+          type: number
+          minimum: 0
+          nullable: true
+      required:
+      - serviceId
+      - serviceName
+      - issued
+      - waiting
+      - completed
+      - meanWaitMinutes
+      - meanServiceMinutes
+    DayMetrics:
+      type: object
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        issued:
+          type: integer
+          minimum: 0
+        completed:
+          type: integer
+          minimum: 0
+      required:
+      - date
+      - issued
+      - completed
+    Analytics:
+      type: object
+      additionalProperties: false
+      properties:
+        dateFrom:
+          type: string
+          format: date
+        dateTo:
+          type: string
+          format: date
+        timezone:
+          type: string
+        issued: *id028
+        waiting: *id029
+        completed: *id030
+        meanWaitMinutes: *id031
+        meanServiceMinutes: *id032
+        byService:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceMetrics'
+        byDay:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayMetrics'
+      required:
+      - dateFrom
+      - dateTo
+      - timezone
+      - issued
+      - waiting
+      - completed
+      - meanWaitMinutes
+      - meanServiceMinutes
+      - byService
+      - byDay
   securitySchemes:
     SessionCookie:
       type: apiKey

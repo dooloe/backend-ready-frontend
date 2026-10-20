@@ -354,3 +354,21 @@ selection, assignment, busy/empty behavior and strict transitions specified;
 AC-3 cookies and rejected examples explicit. Offline contract/example/security
 checks: backend/.venv/bin/python -m pytest backend/tests/test_mvp_contract.py -q
 -p no:cacheprovider, 18 passed, one existing import warning. No runtime changes.
+
+## 2026-10-20 — #7 administration and date-filtered analytics contract
+
+Extended planned OpenAPI with service/counter/staff list/create/patch, explicit
+staff-assignment composite-key create/delete, daily queue override and analytics.
+Defined organization ownership, deactivation/history preservation, active-work
+restrictions, non-overnight schedule validation, session revocation and duplicate
+identity rejection. admin-contract.md defines inclusive local-date cohorts,
+UTC boundary conversion, completed-only waiting/service averages and null values.
+
+AC-1 all administration operations and body schemas are explicit; AC-2 metrics
+and filters are defined; AC-3 full schema/examples validate, including invalid
+schedule, outside-hours queue opening and duplicate identities. Initial run
+reported 1 failed / 32 passed: OpenAPI 3.0 disallows an empty required array on
+PATCH schemas. Removed those fields (properties stay optional, minProperties=1).
+Re-run of backend/.venv/bin/python -m pytest backend/tests/test_mvp_contract.py -q
+-p no:cacheprovider passed 33 tests, one existing warning. #5 and #6 closure
+confirmed, running count 42 open / 10 closed before #7. No runtime feature claimed.

@@ -90,3 +90,20 @@ def test_session_and_staff_contract_requires_cookie_and_csrf():
     assert "409" in call["responses"]
     logout = DOCUMENT["paths"]["/api/auth/logout"]["post"]
     assert "content" not in logout["responses"]["204"]
+
+
+def test_admin_contract_owns_organization_and_preserves_history():
+    for path, method, operation in operations():
+        if not path.startswith("/api/admin/"):
+            continue
+        assert operation["x-required-roles"] == ["admin"]
+        assert operation["security"] == [{"SessionCookie": [], **({"CsrfHeader": []} if method != "get" else {})}]
+        if "requestBody" in operation:
+            body = expand(operation["requestBody"]["content"]["application/json"]["schema"])
+            assert "organizationId" not in body["properties"]
+    assert {"get", "post"} <= DOCUMENT["paths"]["/api/admin/staff-assignments"].keys()
+    assert "delete" in DOCUMENT["paths"]["/api/admin/staff-assignments/{userId}/{counterId}"]
+    assert "patch" in DOCUMENT["paths"]["/api/admin/queues/{queueId}"]
+    analytics = DOCUMENT["paths"]["/api/admin/analytics"]["get"]
+    assert {item["name"] for item in analytics["parameters"]} == {"dateFrom", "dateTo"}
+    assert {"meanWaitMinutes", "meanServiceMinutes"} <= set(DOCUMENT["components"]["schemas"]["Analytics"]["required"])
