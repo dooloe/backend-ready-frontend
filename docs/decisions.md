@@ -58,3 +58,18 @@ transactional singleton row lock on row-locking engines for the same operation
 ordering. PostgreSQL is a future integration, so compilation/portability checks
 must not be described as a tested live PostgreSQL deployment. The first schema
 is created for the new database; future schema evolution requires migrations.
+
+## 2026-10-20 — Recoverable anonymous issuance (#4)
+
+Adopt [ticket-issuance.md](ticket-issuance.md) as the exact planned join/retry
+contract. The client creates and retains separate 256-bit access and idempotency
+secrets before the request; persist hashes only. Serialize joins and enforce
+queue/key, queue/sequence and global token-hash uniqueness. Replays with matching
+proof return the same ticket before checking current closure/date; mismatched
+proof is a non-disclosing conflict. No names are collected by the planned flow.
+
+This explicitly changes server-minted-once issuance to a client-generated proof
+echoed in the creation/replay URL. It permits lost-response recovery without raw
+token storage. Unknown commit outcomes retry the original pair, including after
+midnight; never automatically issue in a new daily queue. Losing all client proof
+is unrecoverable anonymously. This is a contract decision, not completed #19.

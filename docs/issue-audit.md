@@ -201,4 +201,3 @@ only, not committed removals. The latest Makefile/OpenAPI commits are the verifi
 openapi.yaml byte-for-byte from HEAD; update README while retaining Lovable
 guidance. Leave the unused backend/.gitkeep deletion untouched. This records a
 reversible repair under the current instruction to investigate before restoring.
-

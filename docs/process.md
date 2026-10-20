@@ -302,3 +302,22 @@ explicit; AC-3 all 17 relative links in README/AGENTS/decisions/discussion notes
 resolve. make help and make -n dev test build exit 0. Byte comparison confirms
 all three restored files equal their HEAD snapshots. No runtime code changed;
 the previously recorded 90 passing tests are not claimed as re-run here.
+
+## 2026-10-20 — #4 recoverable anonymous issuance decision
+
+Specified exact join requests and creation/replay responses in ticket-issuance.md,
+with client-generated independent 32-byte access/idempotency secrets, hash-only
+storage and queue-scoped uniqueness. Reviewed lost-response recovery before and
+after closure/midnight, simultaneous identical requests, different proof with the
+same key, reused token with a new key, rollback and bounded contention. Each case
+has an explicit existing-ticket result or safe rejection, never an automatic
+second logical join. Documented the deviation from server-minted-once tokens and
+the unrecoverable loss of all anonymous proof. This closes design work only.
+
+Acceptance checks: AC-1 concrete JSON/header examples specify scope and ownership;
+AC-2 matching retries re-use the client-retained proof and no raw secret is saved;
+AC-3 serialization/constraints and key/token reuse outcomes are explicit. A Python
+one-off decoded/re-encoded both examples to verify distinct canonical 32-byte
+values and a name-free join body. No backend issuance or idempotency test is
+claimed; #19 remains open. Removed a trailing blank line reported by diff --check
+in the preceding audit documentation commit.
