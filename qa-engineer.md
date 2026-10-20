@@ -92,9 +92,11 @@ For browser checks, start the integrated local application with `make dev`, use 
 
 **Preconditions:** A disposable SQLite path configured through `DATABASE_URL`.
 
-**Steps:** Start the backend, create a ticket and an admin-managed record, stop the process cleanly, restart it with the same URL, and retrieve those records.
+**Steps:** Start the backend against a fresh disposable file; confirm migration startup and the `alembic_version` head; create a ticket and an admin-managed record; stop the process cleanly; restart it with the same URL and retrieve those records.
 
 **Expected:** Records and ticket lifecycle state survive restart; foreign keys remain enforced; the process does not silently switch to a different/default database.
+
+**Automated result:** Pass. Temporary-file tests verify fresh Alembic head, restart persistence, existing-schema adoption, safe rejection of partial schemas, WAL, foreign keys, busy timeout, rollback, and session isolation. Manual browser testing remains outstanding.
 
 ### QA-010 — Concurrent queue operations do not corrupt state
 
@@ -130,7 +132,7 @@ Follow the documented clean-checkout setup with supported Node.js and Python ver
 | --- | --- | --- |
 | Frontend unit tests | Pass | `npm --prefix frontend test` — 15 tests passed across 5 files, including catalog recovery, polling policy, and service form preservation. |
 | Frontend production build | Pass | `npm --prefix frontend run build` — client, SSR, and Nitro builds completed. Existing Vite config emitted advisory warnings about `vite-tsconfig-paths` and `inlineDynamicImports`. |
-| Backend suite | Pass | `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` — 119 passed in 64.98s. One Starlette/httpx deprecation warning. |
+| Backend suite | Pass | `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` — 124 passed in 70.20s. One Starlette/httpx deprecation warning. |
 | Typecheck | Pass | `npm --prefix frontend run typecheck` — passed with the new regression tests included. |
 | Lint | Pass with warnings | `npm --prefix frontend run lint` — exit 0, 7 warnings (6 UI fast-refresh warnings and one staff hook dependency warning). |
 | Manual browser/E2E cases | Not run | Cases QA-001 through QA-014 require interactive browser and/or an integrated live application. |

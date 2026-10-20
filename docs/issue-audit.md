@@ -14,7 +14,7 @@ Closed issues are #1–#9 and #49–#52.
 
 | Check | Actual result |
 | --- | --- |
-| Backend Pytest, isolated SQLite databases | 119 passed after QA and error-contract regressions; one existing Starlette/httpx deprecation warning |
+| Backend Pytest, isolated SQLite databases | 124 passed after QA, error-contract and migration regressions; one existing Starlette/httpx deprecation warning |
 | Frontend Vitest | 15 passed across five files, including QA regressions |
 | Issue-management Python unit tests | 12 passed |
 | Fresh frontend locked install in a temporary directory | 518 packages installed; exit 0 |
@@ -65,7 +65,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #7 | Closed | Administration, schedules and analytics contract is documented and validated. |
 | #8 | Closed | Eight page/state contracts and shared failure/loading behaviors are documented and checked. |
 | #9 | Closed | Validated startup settings, safe structured errors, OpenAPI error responses and regression evidence are committed. |
-| #10 | Open | SQLite FK/WAL/timeout/rollback/concurrency checks pass; Alembic initialization is absent. |
+| #10 | Verified; closure pending push | Alembic runs automatically at startup; fresh, legacy and partial-schema behavior plus SQLite connection/transaction rules are tested. |
 | #11 | Open | Configuration ORM and constraints exist; organization fields, organization ownership and assignment models are absent. |
 | #12 | Open | Tickets, hashed bearer sessions and active-counter constraints exist; daily queues, events and private-token/idempotency constraints are absent. |
 | #13 | Open | Persistent seed runs once; planned organization/timezone fixture and Argon2id criterion are unmet (current passwords use scrypt). |

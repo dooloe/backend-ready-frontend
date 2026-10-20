@@ -12,7 +12,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from .orm import Base, StoreState
+from .orm import StoreState
 from .settings import boolean_setting, database_url_from_environment
 
 
@@ -84,8 +84,14 @@ class Database:
             raise
 
     def create_schema(self):
-        # Initial schema only. create_all does not migrate existing tables.
-        Base.metadata.create_all(self.engine)
+        from alembic import command
+        from alembic.config import Config
+
+        config_path = Path(__file__).resolve().parents[1] / "alembic.ini"
+        config = Config(str(config_path))
+        with self.engine.connect().execution_options(kezek_write=True) as connection:
+            config.attributes["connection"] = connection
+            command.upgrade(config, "head")
 
     def close(self):
         self.engine.dispose()

@@ -5,13 +5,14 @@ import os
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 import pytest
-from sqlalchemy import create_mock_engine, func, select
+from sqlalchemy import create_mock_engine, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 
 from app.auth import token_hash
+from app.database import Database
 from app.main import create_app
 from app.models import JoinQueueRequest, LoginRequest
-from app.orm import ActiveTicketRow, Base, CounterServiceRow, ServiceRow, SessionRow, TicketRow, UserRow
+from app.orm import ActiveTicketRow, Base, CounterServiceRow, ServiceRow, SessionRow, StoreState, TicketRow, UserRow
 from app.store import DatabaseStore
 
 
@@ -120,6 +121,93 @@ def test_database_url_is_read_at_startup_and_selects_separate_files(tmp_path, mo
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{first}")
     with TestClient(create_app()) as client:
         assert client.get(f"/api/tickets/{ticket['id']}").status_code == 200
+
+
+def test_fresh_file_database_is_initialized_at_alembic_head(tmp_path):
+    url = f"sqlite:///{tmp_path / 'migration.db'}"
+    store = DatabaseStore(url, seed_tickets=False)
+    with store.db.engine.connect() as connection:
+        names = set(inspect(connection).get_table_names())
+        version = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
+    assert names == set(Base.metadata.tables) | {"alembic_version"}
+    assert version == "af7168bb27f8"
+    store.close()
+
+
+def test_pre_migration_file_database_is_stamped_without_losing_data(tmp_path):
+    url = f"sqlite:///{tmp_path / 'legacy.db'}"
+    legacy = Database(url)
+    Base.metadata.create_all(legacy.engine)
+    with legacy.session(write=True) as session:
+        session.add(StoreState(id=1, initialized=True))
+        session.add(ServiceRow(
+            id="legacy", name="Preserved", description="Existing data", prefix="L",
+            isOpen=True, avgServiceMinutes=4, next_sequence=7, deleted=False,
+        ))
+    legacy.close()
+
+    migrated = DatabaseStore(url)
+    assert [service.id for service in migrated.list_services()] == ["legacy"]
+    assert migrated.join(JoinQueueRequest(serviceId="legacy", customerName="Next")).code == "L-008"
+    with migrated.db.engine.connect() as connection:
+        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "af7168bb27f8"
+    migrated.close()
+
+
+def test_partial_unversioned_schema_is_rejected_without_overwriting_data(tmp_path):
+    database = Database(f"sqlite:///{tmp_path / 'partial.db'}")
+    with database.engine.begin() as connection:
+        connection.exec_driver_sql("CREATE TABLE operator_notes (value TEXT NOT NULL)")
+        connection.exec_driver_sql("INSERT INTO operator_notes (value) VALUES ('keep me')")
+
+    with pytest.raises(RuntimeError, match="schema is incomplete"):
+        database.create_schema()
+
+    with database.engine.connect() as connection:
+        assert connection.exec_driver_sql("SELECT value FROM operator_notes").scalar_one() == "keep me"
+        assert "services" not in inspect(connection).get_table_names()
+    database.close()
+
+
+def test_legacy_tables_with_incomplete_columns_are_not_stamped(tmp_path):
+    database = Database(f"sqlite:///{tmp_path / 'missing-columns.db'}")
+    table_names = (
+        "active_tickets", "counter_services", "counters", "services",
+        "sessions", "store_state", "tickets", "users",
+    )
+    with database.engine.begin() as connection:
+        for table in table_names:
+            columns = "id TEXT, name TEXT" if table == "services" else "id TEXT"
+            connection.exec_driver_sql(f'CREATE TABLE "{table}" ({columns})')
+        connection.exec_driver_sql("INSERT INTO services (id, name) VALUES ('keep', 'Keep existing')")
+
+    with pytest.raises(RuntimeError, match="missing columns"):
+        database.create_schema()
+
+    with database.engine.connect() as connection:
+        assert connection.exec_driver_sql("SELECT name FROM services WHERE id='keep'").scalar_one() == "Keep existing"
+    database.close()
+
+
+def test_file_connections_enable_pragmas_and_sessions_are_isolated(store):
+    first = store.db.engine.connect()
+    second = store.db.engine.connect()
+    try:
+        for connection in (first, second):
+            assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+            assert connection.exec_driver_sql("PRAGMA busy_timeout").scalar_one() == 10000
+            assert connection.exec_driver_sql("PRAGMA journal_mode").scalar_one().lower() == "wal"
+    finally:
+        first.close()
+        second.close()
+
+    with store.db.session(write=True) as writer:
+        service = writer.get(ServiceRow, "svc-reg")
+        service.name = "Uncommitted"
+        writer.flush()
+        with store.db.session() as reader:
+            assert reader.get(ServiceRow, "svc-reg").name == "Registrar Office"
+    assert next(row for row in store.list_services() if row.id == "svc-reg").name == "Uncommitted"
 
 
 @pytest.mark.parametrize("variable,value", [("DATABASE_URL", ""), ("SEED_DEMO_DATA", "maybe")])

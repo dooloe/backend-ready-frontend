@@ -157,10 +157,41 @@
       "issue_number": 9
     },
     "KEZEK-010": {
-      "status": "pending",
+      "status": "verified",
       "revision": null,
-      "criteria": [],
-      "checks": []
+      "criteria": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "checks": [
+        {
+          "command": "backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider",
+          "exit_code": 0,
+          "summary": "124 passed in 70.20s; migration, connections, WAL, rollback, legacy adoption, partial table/column rejection verified",
+          "evidence": "backend/tests/test_database.py"
+        },
+        {
+          "command": "DATABASE_URL=sqlite:////tmp/kezek-cli-migration.db SEED_DEMO_DATA=false backend/.venv/bin/alembic -c backend/alembic.ini upgrade head",
+          "exit_code": 0,
+          "summary": "Fresh isolated file upgraded to Alembic head without using the development database",
+          "evidence": "revision af7168bb27f8"
+        },
+        {
+          "command": "DATABASE_URL=sqlite:////tmp/kezek-cli-migration.db backend/.venv/bin/alembic -c backend/alembic.ini current && DATABASE_URL=sqlite:////tmp/kezek-cli-migration.db backend/.venv/bin/alembic -c backend/alembic.ini check",
+          "exit_code": 0,
+          "summary": "Reports af7168bb27f8 (head); no new upgrade operations detected",
+          "evidence": "Alembic CLI"
+        },
+        {
+          "command": "backend/.venv/bin/python -m pip check && backend/.venv/bin/python -m compileall -q backend/app backend/migrations backend/tests && git diff --check",
+          "exit_code": 0,
+          "summary": "Dependency consistency, Python compilation and whitespace checks pass",
+          "evidence": "local verification"
+        }
+      ],
+      "github_state": "open",
+      "issue_number": 10
     },
     "KEZEK-011": {
       "status": "pending",

@@ -46,9 +46,25 @@ make backend DATABASE_URL=sqlite:////absolute/path/kezek.db
 template is not automatically loaded. Do not put real connection credentials
 in tracked files. Local SQLite databases and journal files are ignored by Git.
 
-New databases get the initial schema automatically. This initialization does
-not alter existing tables; future schema changes require migrations. An
-in-memory server's transient data is not imported into the new database.
+Alembic migrations run automatically against the configured database during
+backend startup. `backend/alembic.ini` and `backend/migrations/` hold the
+migration history; a fresh database receives the baseline schema and an
+`alembic_version` row. A complete database created by the pre-Alembic app is
+stamped at the baseline without rewriting its data. A partial unversioned schema
+is rejected so startup cannot silently overwrite it. SQLite connections enable
+foreign keys, WAL and the bounded busy timeout before migrations or requests.
+The baseline downgrade intentionally retains tables/data; later schema revisions
+should provide explicit reversible operations where rollback is safe.
+
+To inspect or run migrations manually, use the same `DATABASE_URL` as the
+application:
+
+```bash
+DATABASE_URL=sqlite:///backend/data/kezek.db backend/.venv/bin/alembic -c backend/alembic.ini current
+DATABASE_URL=sqlite:///backend/data/kezek.db backend/.venv/bin/alembic -c backend/alembic.ini upgrade head
+```
+
+An in-memory server's transient data is not imported into a new database.
 
 Demo data is inserted only during the database's first initialization. Later
 startups preserve user edits, deleted services/counters, tickets, password hashes

@@ -427,3 +427,48 @@ closing comment records the acceptance evidence. The refreshed remote backlog is
 39 open and 13 closed issues (52 total). Existing organization/private-token/
 cookie-session requirements and live PostgreSQL support remain open in their
 separate issues.
+
+## 2026-10-20 — #10 SQLite sessions and Alembic migrations
+
+Added Alembic 1.20.0 to the runtime and development pins, an Alembic config and
+versioned baseline under `backend/migrations/`. Database initialization now runs
+`upgrade head` on the exact SQLAlchemy engine selected by `DATABASE_URL`, so
+migrations use the same connection hooks as requests. The baseline creates the
+current schema on a fresh file. A full pre-Alembic schema is stamped without
+rewriting records; an incomplete unversioned schema is rejected with its data
+preserved. The baseline downgrade is a documented no-op to avoid accidental data
+deletion.
+
+SQLite's connection event continues to enable foreign keys, `busy_timeout=10000`
+and WAL on every physical connection. Write transactions use `BEGIN IMMEDIATE`
+before mutable reads. Tests explicitly inspect two concurrent file-backed
+connections, prove separate-session read isolation and rollback, verify restart
+persistence, and exercise independent-process sequence/counter contention.
+
+AC-1: the file-backed connection test observes `foreign_keys=1`,
+`busy_timeout=10000` and `journal_mode=wal` on two simultaneous connections.
+AC-2: temporary file tests cover WAL, rollback, session isolation, restart and
+bounded busy handling. AC-3: a fresh temp file reaches revision `af7168bb27f8`;
+the documented CLI `upgrade head`, `current` and `check` commands succeed. Legacy
+complete schemas are stamped without data loss; partial schemas are rejected and
+their existing data remains intact.
+
+Verification:
+- `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` —
+  124 passed in 70.20s; one existing Starlette/httpx deprecation warning; exit 0.
+- `DATABASE_URL=sqlite:////tmp/kezek-cli-migration.db SEED_DEMO_DATA=false
+  backend/.venv/bin/alembic -c backend/alembic.ini upgrade head` — exit 0 on an
+  isolated `/tmp` database.
+- `DATABASE_URL=sqlite:////tmp/kezek-cli-migration.db
+  backend/.venv/bin/alembic -c backend/alembic.ini current` — reports
+  `af7168bb27f8 (head)`.
+- `DATABASE_URL=sqlite:////tmp/kezek-cli-migration.db
+  backend/.venv/bin/alembic -c backend/alembic.ini check` — no new upgrade
+  operations detected.
+- `backend/.venv/bin/python -m pip install --dry-run --no-index -r
+  backend/requirements-dev.txt`, `backend/.venv/bin/python -m pip check`,
+  `backend/.venv/bin/python -m compileall -q backend/app backend/migrations
+  backend/tests` and `git diff --check` — pass.
+
+The issue remains open until this implementation and evidence are committed,
+pushed and its verified acceptance results are posted to GitHub.
