@@ -1,0 +1,25 @@
+Issue #2 verification, 2026-10-20
+
+AC-1: fresh locked install
+Command: npm ci --prefix /tmp/kezek-frontend-audit-install-90nlefo9 --no-audit --no-fund
+Only frontend/package.json and package-lock.json were copied to this fresh directory.
+Result: exit 0; added 518 packages in 38s. Dependency deprecation warnings were visible.
+
+AC-2: documented verification commands
+Commands below run from frontend/ and are documented in frontend/README.md.
+- npm run lint: exit 0; 0 errors, 7 existing warnings.
+- npm run typecheck: exit 0; tsc --noEmit with the existing strict tsconfig.
+- npm test: exit 0; 2 files, 6 tests passed (4.44 seconds).
+- VITE_API_BASE_URL=http://127.0.0.1:8000 npm run build: exit 0; client, SSR and Nitro builds succeed.
+The initial audit also successfully built with the default mock configuration.
+
+AC-3: preserve existing route and mock tests; record initial failures
+Both frontend/src/test/app-routing.test.tsx and mock-api.test.ts are unchanged.
+Initial npm test: 6 passed. Initial npm run lint: 60 Prettier errors, 7 warnings.
+Only the six files reported with formatting errors were fixed with eslint --fix.
+The missing typecheck npm script was added; no strict compiler options were relaxed.
+Remaining lint warnings: six shared UI Fast Refresh warnings and one existing
+staff dashboard hook-dependency warning. Existing Vite/Nitro build warnings remain.
+
+Scope: frontend tooling only. These tests do not verify future MVP browser,
+organization, private-ticket, scheduling or cookie-session requirements.

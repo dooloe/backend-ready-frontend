@@ -226,3 +226,47 @@ Validation results:
 Unrelated root README/AGENTS/openapi.yaml and backend/.gitkeep deletions remain
 untouched and excluded from this implementation. No cookie/private-ticket or
 organization API migration is claimed; broader migration backlog issues stay open.
+
+## 2026-10-20 — Full issue audit and issue #2 frontend verification
+
+Read all 52 GitHub issue bodies and acceptance criteria using approved
+outside-sandbox GitHub CLI access, plus docs/plan.md, docs/spec.md, committed
+AGENTS.md, frontend routes/API/session code and backend routers/store/database/
+models/auth/tests. Initially 47 issues were open and 5 closed. The broader
+organization/private-ticket/cookie-session migration requirements are different
+from the explicitly implemented current-frontend contract (#49–#52).
+
+For #2, the first frontend run passed all six tests and strict tsc checking, and
+the mock-mode production build succeeded. Lint exposed 60 existing Prettier
+errors and seven warnings. Added the missing npm typecheck command and documented
+locked installation, checks and real-API startup in frontend/README.md. Applied
+eslint formatting fixes only to the six affected mock/route files; both existing
+test files and all compiler rules remain unchanged.
+
+Verified acceptance evidence is in verification-evidence/KEZEK-002.txt:
+- Fresh temporary-directory npm ci: exit 0, 518 packages installed in 38 seconds.
+- npm run lint: exit 0, no errors, seven pre-existing non-failing warnings.
+- npm run typecheck: exit 0, existing strict configuration unchanged.
+- npm test: exit 0, six tests in two files (4.44 seconds).
+- VITE_API_BASE_URL=http://127.0.0.1:8000 npm run build: exit 0.
+
+Whole-project checks:
+- backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider:
+  exit 0, 72 passed in 65.94 seconds, one existing Starlette/httpx warning.
+  Used approved outside-sandbox execution and isolated temporary SQLite files.
+- python3 -m unittest discover -s scripts/tests -v: exit 0, 12 passed.
+- python3 /tmp/kezek-audit-live.py: exit 0. Started API and Vite on temporary ports
+  18865/15873 with an isolated temporary SQLite file. All five frontend routes
+  returned HTTP 200; Vite served the configured real API URL. Transpiled the actual
+  frontend HTTP adapter and exercised all 20 operations against the running API:
+  joins, call/start/complete, cancel, no-show, CRUD, analytics and 401/403/404/409
+  rejection cases passed. Both server process groups stopped in finally cleanup.
+  This is HTTP integration verification, not a browser interaction/accessibility
+  test; Playwright issues #44–#46 remain open.
+- git diff --check -- frontend: exit 0.
+
+At audit start Makefile, README.md, AGENTS.md, openapi.yaml and backend/.gitkeep
+were already deleted locally. Asked whether these deletions were intentional;
+preserved them while awaiting clarification. The backend contract tests use
+HEAD:openapi.yaml as documented, so passing tests do not mean the local root
+contract file or make dev command is present. No development database was used.

@@ -10,16 +10,25 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Kezek — Join a queue from anywhere" },
-      { name: "description", content: "Pick a service, get a digital ticket, and track your place in line." },
+      {
+        name: "description",
+        content: "Pick a service, get a digital ticket, and track your place in line.",
+      },
       { property: "og:title", content: "Kezek — Join a queue from anywhere" },
-      { property: "og:description", content: "Pick a service, get a digital ticket, and track your place in line." },
+      {
+        property: "og:description",
+        content: "Pick a service, get a digital ticket, and track your place in line.",
+      },
     ],
   }),
   component: Index,
 });
 
 function Index() {
-  const { data: services, isLoading } = useQuery({ queryKey: ["services"], queryFn: api.listServices });
+  const { data: services, isLoading } = useQuery({
+    queryKey: ["services"],
+    queryFn: api.listServices,
+  });
   return (
     <div>
       <section className="mb-12 max-w-2xl">
@@ -27,12 +36,15 @@ function Index() {
           Stop standing in line. <span className="text-primary">Take a ticket.</span>
         </h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          Choose a service, get your number, and we'll show you exactly where you are and how long it takes.
+          Choose a service, get your number, and we'll show you exactly where you are and how long
+          it takes.
         </p>
       </section>
       {isLoading && <p className="text-muted-foreground">Loading services…</p>}
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {services?.map((s) => <ServiceCard key={s.id} service={s} />)}
+        {services?.map((s) => (
+          <ServiceCard key={s.id} service={s} />
+        ))}
       </div>
     </div>
   );
@@ -63,7 +75,13 @@ function ServiceCard({ service }: { service: Service }) {
           join.mutate();
         }}
       >
-        <Input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} disabled={!service.isOpen} required />
+        <Input
+          placeholder="Your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={!service.isOpen}
+          required
+        />
         <Button type="submit" disabled={!service.isOpen || join.isPending}>
           Join
         </Button>

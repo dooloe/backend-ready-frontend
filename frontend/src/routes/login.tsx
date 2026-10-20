@@ -40,9 +40,16 @@ function Login() {
         }}
       >
         <Input placeholder="Username" value={username} onChange={(e) => setU(e.target.value)} />
-        <Input type="password" placeholder="Password" value={password} onChange={(e) => setP(e.target.value)} />
+        <Input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setP(e.target.value)}
+        />
         {login.error && <p className="text-sm text-destructive">{login.error.message}</p>}
-        <Button className="w-full" disabled={login.isPending}>Sign in</Button>
+        <Button className="w-full" disabled={login.isPending}>
+          Sign in
+        </Button>
       </form>
       {usingMock && (
         <p className="mt-4 text-xs text-muted-foreground">

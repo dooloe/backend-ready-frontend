@@ -28,17 +28,56 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 function seed(): DB {
   return {
     services: [
-      { id: "svc-reg", name: "Registrar Office", description: "Documents, transcripts, enrollment", prefix: "A", isOpen: true, avgServiceMinutes: 6 },
-      { id: "svc-fin", name: "Finance & Payments", description: "Tuition, scholarships, refunds", prefix: "B", isOpen: true, avgServiceMinutes: 8 },
-      { id: "svc-it", name: "IT Help Desk", description: "Accounts, Wi-Fi, devices", prefix: "C", isOpen: false, avgServiceMinutes: 10 },
+      {
+        id: "svc-reg",
+        name: "Registrar Office",
+        description: "Documents, transcripts, enrollment",
+        prefix: "A",
+        isOpen: true,
+        avgServiceMinutes: 6,
+      },
+      {
+        id: "svc-fin",
+        name: "Finance & Payments",
+        description: "Tuition, scholarships, refunds",
+        prefix: "B",
+        isOpen: true,
+        avgServiceMinutes: 8,
+      },
+      {
+        id: "svc-it",
+        name: "IT Help Desk",
+        description: "Accounts, Wi-Fi, devices",
+        prefix: "C",
+        isOpen: false,
+        avgServiceMinutes: 10,
+      },
     ],
     counters: [
-      { id: "cnt-1", name: "Counter 1", serviceIds: ["svc-reg"], isActive: true, staffId: "stf-aigerim" },
-      { id: "cnt-2", name: "Counter 2", serviceIds: ["svc-reg", "svc-fin"], isActive: true, staffId: null },
+      {
+        id: "cnt-1",
+        name: "Counter 1",
+        serviceIds: ["svc-reg"],
+        isActive: true,
+        staffId: "stf-aigerim",
+      },
+      {
+        id: "cnt-2",
+        name: "Counter 2",
+        serviceIds: ["svc-reg", "svc-fin"],
+        isActive: true,
+        staffId: null,
+      },
     ],
     staff: [
       { id: "stf-admin", name: "Admin", username: "admin", role: "admin", password: "admin123" },
-      { id: "stf-aigerim", name: "Aigerim S.", username: "aigerim", role: "staff", password: "staff123" },
+      {
+        id: "stf-aigerim",
+        name: "Aigerim S.",
+        username: "aigerim",
+        role: "staff",
+        password: "staff123",
+      },
     ],
     tickets: [],
     seq: {},
@@ -95,7 +134,9 @@ function view(t: Ticket): TicketView {
       (o) => o.serviceId === t.serviceId && o.status === "waiting" && o.createdAt < t.createdAt,
     ).length;
     position = ahead + 1;
-    const active = d.counters.filter((c) => c.isActive && c.serviceIds.includes(t.serviceId)).length;
+    const active = d.counters.filter(
+      (c) => c.isActive && c.serviceIds.includes(t.serviceId),
+    ).length;
     eta = active === 0 ? null : Math.ceil((ahead * (svc?.avgServiceMinutes ?? 5)) / active);
   }
   return {
@@ -216,7 +257,8 @@ export const mockApi: KezekApi = {
   },
 
   startService: (id) => transition(id, ["called"], { status: "serving", servedAt: now() }),
-  completeTicket: (id) => transition(id, ["called", "serving"], { status: "completed", finishedAt: now() }),
+  completeTicket: (id) =>
+    transition(id, ["called", "serving"], { status: "completed", finishedAt: now() }),
   markNoShow: (id) => transition(id, ["called"], { status: "no_show", finishedAt: now() }),
 
   createService(input) {

@@ -10,7 +10,10 @@ export const Route = createFileRoute("/ticket/$id")({
       { title: "Your ticket — Kezek" },
       { name: "description", content: "Live position and estimated wait for your Kezek ticket." },
       { property: "og:title", content: "Your ticket — Kezek" },
-      { property: "og:description", content: "Live position and estimated wait for your Kezek ticket." },
+      {
+        property: "og:description",
+        content: "Live position and estimated wait for your Kezek ticket.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -50,7 +53,9 @@ function TicketPage() {
         <p className="ticket-code mt-2 text-8xl">{t.code}</p>
         <p className="mt-2 text-muted-foreground">{t.customerName}</p>
         <div className="my-6 border-t border-dashed" />
-        <span className="status-pill" data-status={t.status}>{t.status.replace("_", " ")}</span>
+        <span className="status-pill" data-status={t.status}>
+          {t.status.replace("_", " ")}
+        </span>
         <h2 className="mt-3 text-2xl font-semibold">{statusText[t.status]}</h2>
         {t.status === "waiting" && (
           <div className="mt-6 grid grid-cols-2 gap-4">
@@ -75,7 +80,12 @@ function TicketPage() {
           </p>
         )}
         {t.status === "waiting" && (
-          <Button variant="outline" className="mt-6 w-full" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
+          <Button
+            variant="outline"
+            className="mt-6 w-full"
+            onClick={() => cancel.mutate()}
+            disabled={cancel.isPending}
+          >
             Cancel my ticket
           </Button>
         )}

@@ -23,7 +23,11 @@ function StaffPage() {
   if (!session)
     return (
       <p className="text-muted-foreground">
-        Please <Link to="/login" className="text-primary underline">sign in</Link> to use the staff dashboard.
+        Please{" "}
+        <Link to="/login" className="text-primary underline">
+          sign in
+        </Link>{" "}
+        to use the staff dashboard.
       </p>
     );
   return <Dashboard userId={session.user.id} isAdmin={session.user.role === "admin"} />;
@@ -56,7 +60,11 @@ function Dashboard({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
       <div className="mb-8 flex flex-wrap items-center gap-3">
         <h1 className="mr-auto text-3xl font-bold">Counter dashboard</h1>
         {mine.map((c) => (
-          <Button key={c.id} variant={c.id === counterId ? "default" : "outline"} onClick={() => setCounterId(c.id)}>
+          <Button
+            key={c.id}
+            variant={c.id === counterId ? "default" : "outline"}
+            onClick={() => setCounterId(c.id)}
+          >
             {c.name}
             {!c.isActive && " (inactive)"}
           </Button>
@@ -68,16 +76,32 @@ function Dashboard({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
           {current ? (
             <>
               <p className="ticket-code mt-2 text-7xl">{current.code}</p>
-              <p className="mt-1 text-lg">{current.customerName} · {current.serviceName}</p>
-              <span className="status-pill mt-3" data-status={current.status}>{current.status}</span>
+              <p className="mt-1 text-lg">
+                {current.customerName} · {current.serviceName}
+              </p>
+              <span className="status-pill mt-3" data-status={current.status}>
+                {current.status}
+              </span>
               <div className="mt-6 flex flex-wrap gap-2">
                 {current.status === "called" && (
                   <>
-                    <Button onClick={() => act.mutate(() => api.startService(current.id))}>Start service</Button>
-                    <Button variant="outline" onClick={() => act.mutate(() => api.markNoShow(current.id))}>No-show</Button>
+                    <Button onClick={() => act.mutate(() => api.startService(current.id))}>
+                      Start service
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => act.mutate(() => api.markNoShow(current.id))}
+                    >
+                      No-show
+                    </Button>
                   </>
                 )}
-                <Button variant="secondary" onClick={() => act.mutate(() => api.completeTicket(current.id))}>Complete</Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => act.mutate(() => api.completeTicket(current.id))}
+                >
+                  Complete
+                </Button>
               </div>
             </>
           ) : (
@@ -107,11 +131,16 @@ function Dashboard({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
                 <span className="font-display font-bold text-primary">{t.code}</span>
                 <span className="text-sm">{t.customerName}</span>
                 <span className="text-xs text-muted-foreground">
-                  {new Date(t.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(t.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </span>
               </li>
             ))}
-            {queue && queue.waiting.length === 0 && <li className="py-3 text-sm text-muted-foreground">Nobody waiting.</li>}
+            {queue && queue.waiting.length === 0 && (
+              <li className="py-3 text-sm text-muted-foreground">Nobody waiting.</li>
+            )}
           </ul>
         </div>
       </div>
