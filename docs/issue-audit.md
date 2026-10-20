@@ -120,3 +120,85 @@ GitHub confirmed #2 closed after the verified commit was pushed. There are now
 6 closed and 46 open issues. The other 46 open
 issues retain their full acceptance criteria; none were closed on partial
 coverage or merely because a related current-contract issue was finished.
+
+## Rapid follow-up audit — initial categories
+
+Fresh GitHub retrieval: 46 open MVP issues, 6 closed (52 total). Every open
+issue's full acceptance criteria were compared with the code and evidence above.
+A means all criteria already implemented; B means a small, bounded completion;
+C means substantial missing foundational behavior; D means unresolved prerequisites
+prevent complete verification. A passing related test never substitutes for a
+missing criterion. C issues also have dependencies, listed explicitly below.
+
+**A: none.** No safe closure is available without implementation.
+
+B priority order (estimates are working time, not test results):
+
+| Rank | Issue | Estimate | Dependency / next action |
+| --- | --- | --- | --- |
+| 1 | #3 | 15–25 min | None; restore investigated contributor files, update stale setup and link-check guidance. |
+| 2 | #4 | 15–25 min | None; document client-retained secret and queue-scoped retry semantics, including response loss. |
+| 3 | #6 | 25–40 min | None; specify cookie/CSRF identity and assigned-counter operations. |
+| 4 | #7 | 30–45 min | None; specify administration schemas, restrictions and real analytics. |
+
+Small tasks currently in D promote to B in this order as prerequisites finish:
+#5 (25–40 min, after #4), #8 (20–30 min, after #5–#7), #9 (40–60 min,
+after #5–#7), #10 (45–75 min, after #9). Existing working API behavior will
+remain covered while implementing new contracts and persistence migrations.
+
+| Open issue | Initial category | Unfinished dependencies |
+| --- | --- | --- |
+| #3 | B | None |
+| #4 | B | None |
+| #5 | D | #4 |
+| #6 | B | None |
+| #7 | B | None |
+| #8 | D | #5, #6, #7 |
+| #9 | D | #1, #5, #6, #7 |
+| #10 | D | #9 |
+| #11 | C | #10 |
+| #12 | C | #4, #11 |
+| #13 | D | #12 |
+| #14 | C | #6, #12 |
+| #15 | D | #14 |
+| #16 | D | #14, #11 |
+| #17 | C | #12 |
+| #18 | D | #5, #17 |
+| #19 | C | #4, #5, #12, #17 |
+| #20 | D | #5, #19 |
+| #21 | D | #19, #20 |
+| #22 | D | #5, #19 |
+| #23 | D | #6, #16, #17 |
+| #24 | D | #19, #23 |
+| #25 | D | #24 |
+| #26 | D | #19, #21, #24, #25 |
+| #27 | D | #7, #16, #17 |
+| #28 | D | #7, #16, #11, #25 |
+| #29 | D | #7, #16, #14, #25 |
+| #30 | D | #7, #16, #17, #24 |
+| #31 | D | #7, #16, #25 |
+| #32 | D | #5, #6, #7, #15 |
+| #33 | D | #8, #18, #22, #32 |
+| #34 | D | #19, #32, #33 |
+| #35 | D | #20, #21, #32, #34 |
+| #36 | D | #14, #15, #32 |
+| #37 | D | #23, #24, #25, #32, #36 |
+| #38 | D | #27, #30, #32, #36 |
+| #39 | D | #28, #32, #36 |
+| #40 | D | #29, #32, #36 |
+| #41 | D | #31, #32, #36 |
+| #42 | D | #15, #19, #20 |
+| #43 | D | #13, #25, #27, #28, #29, #31 |
+| #44 | D | #13, #35, #37 |
+| #45 | D | #38, #39, #40, #44 |
+| #46 | D | #35, #36, #37, #38, #39, #40, #41 |
+| #47 | D | #2, #26, #43, #44, #45 |
+| #48 | D | #3, #26, #41, #42, #43, #44, #45, #46, #47 |
+
+Investigation before restoration: Git status and the index show local deletions
+only, not committed removals. The latest Makefile/OpenAPI commits are the verified
+#49/#51/#52 work; no replacement files exist. Restore Makefile, AGENTS.md and
+openapi.yaml byte-for-byte from HEAD; update README while retaining Lovable
+guidance. Leave the unused backend/.gitkeep deletion untouched. This records a
+reversible repair under the current instruction to investigate before restoring.
+

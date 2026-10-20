@@ -1,51 +1,69 @@
-# Backend Ready Frontend
+# Backend Ready Frontend — Kezek
 
-See [the specification](docs/spec.md) for the application requirements.
+Virtual queue demo with a React/TypeScript frontend, TanStack Router/Start,
+FastAPI and SQLAlchemy. SQLite persists tickets, configuration and hashed bearer
+sessions. The current client contract works; the full organization/private-ticket/
+cookie-session MVP is still being implemented. See [requirements](docs/plan.md),
+[architecture](docs/architecture.md) and [verified issue audit](docs/issue-audit.md).
 
-This project was built with [Lovable](https://lovable.dev).
+## Local setup
+
+Use Linux/WSL with Bash, `make`, `setsid` (util-linux), Python 3.12+ with pip/venv,
+and Node.js 22.12+ with npm. From the repository root:
+
+```sh
+make install
+make dev
+```
+
+Open <http://127.0.0.1:5173>. API docs: <http://127.0.0.1:8000/docs>.
+Ctrl+C stops both servers. `make help` lists commands; custom ports work with
+`make dev BACKEND_PORT=8001 FRONTEND_PORT=5174`.
+
+For separate terminals and all configuration details, see
+[backend setup](backend/README.md) and [frontend development](frontend/README.md).
+The combined Makefile command sets `VITE_API_BASE_URL`; launching Vite without
+that variable still uses the separate browser-local mock data.
+
+`DATABASE_URL` selects the database, defaulting to `backend/data/kezek.db`.
+Export environment settings from [the example](backend/.env.example); it is not
+automatically loaded. SQLite is tested; PostgreSQL driver integration is future
+work. Existing databases are not reset at startup. Development-only seed accounts:
+`admin / admin123` and `aigerim / staff123`; seeding happens once for a new DB.
+Current schema initialization uses SQLAlchemy; Alembic migration work is #10.
+
+## Verification and contributor workflow
+
+```sh
+make test
+npm --prefix frontend run lint
+npm --prefix frontend run typecheck
+make build
+python3 -m unittest discover -s scripts/tests -v
+```
+
+Tests isolate their SQLite files from development data. Frontend route/mock tests
+and API tests do not replace required browser workflows. See
+[process and actual results](docs/process.md) and [decisions](docs/decisions.md).
+
+Read [AGENTS.md](AGENTS.md) first. Find an existing
+[MVP issue](https://github.com/dooloe/backend-ready-frontend/issues?q=is%3Aopen+label%3Amvp)
+before implementation, work in dependency order, and verify every acceptance
+criterion, including rejected actions. Record exact commands, outcomes and any
+limitations in `docs/process.md`; commit scoped changes with the issue number,
+push normal commits, and post evidence before closing. Incomplete work stays open.
+[Issue workflow](docs/issue-automation.md) describes approved direct GitHub access;
+the manual scripts are retained only as a fallback. Never repeat authentication
+or force-push shared history.
+
+The selected routing deviation keeps TanStack instead of replacing it with React
+Router. Preserve the existing `frontend/`, `backend/`, `docs/` layout. Current API
+documentation is [openapi.yaml](openapi.yaml). Planned contracts are explicitly
+identified as design work until implemented; see [discussion notes](docs/chat-brainstorm.md).
 
 ## Build with Lovable
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/0ed83b3b-7020-468a-9cd1-e86f39874079).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-The repository contains the frontend application in `frontend/`, project
-documentation in `docs/`, and the initial FastAPI scaffold in `backend/`.
-The frontend currently uses mocked backend calls.
-
-For backend setup, its passing smoke test and Uvicorn startup commands, see
-[backend/README.md](backend/README.md). Queue features and authentication are
-still pending in the MVP backlog.
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-cd frontend
-npm i
-npm run dev
-```
-
-Run frontend verification from the repository root:
-
-```sh
-npm --prefix frontend test
-npm --prefix frontend run build
-```
-
-Configure frontend build services to use `frontend/` as their working directory.
-
-## MVP backlog and GitHub issues
-
-See [the task backlog](_docs/tasks.md), [the GitHub issues](https://github.com/dooloe/backend-ready-frontend/issues?q=label%3Amvp)
-and [the direct issue workflow](docs/issue-automation.md).
-
-GitHub issue management uses approved outside-sandbox `gh` commands. Actual issue
-numbers are recorded in `docs/issue-map.json`; verified implementation and check
-results are recorded in `docs/process.md` and `docs/verification.json`.
+This project was built with [Lovable](https://lovable.dev). Continue developing in
+[the Lovable editor](https://lovable.dev/projects/0ed83b3b-7020-468a-9cd1-e86f39874079).
+Commits pushed to the connected branch sync to its editor. Preserve published
+history; do not force-push or amend/rebase published commits.

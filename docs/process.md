@@ -277,3 +277,28 @@ A fresh GitHub issue listing confirmed 52 total: 6 closed (#1, #2, #49–#52),
 46 open (#3–#48). docs/issue-audit.md records the decision and outstanding gap
 for every issue; docs/verification.json records #2 evidence and actual closure.
 All unrelated local deletions remain uncommitted.
+
+## 2026-10-20 — Rapid audit and #3 contributor workflow
+
+Retrieved all 46 open MVP issue bodies from GitHub; compared every acceptance
+criterion with current code and prior evidence. No category A issue is complete.
+Ranked initial category B issues #3, #4, #6 and #7; recorded C/D categories and
+dependencies for all remaining issues in issue-audit.md. Counts before closure:
+46 open, 6 closed. Tests passing elsewhere do not satisfy missing MVP behavior.
+
+Investigated deleted root files using git status, index entries, path history
+and repository-wide filename searches. All four are tracked local deletions,
+with intact committed versions and no replacements; no committed removal was
+found. Under the current instruction to investigate before restoring, restored
+AGENTS.md, Makefile and openapi.yaml exactly from HEAD. Updated root README to
+describe current FastAPI/SQLite behavior, real-client configuration, contributor
+verification and outstanding MVP work while retaining Lovable guidance. Added
+chat-brainstorm.md with recorded decisions and open questions. Left the unused
+backend/.gitkeep deletion untouched.
+
+#3 acceptance verification: AC-1 issue-first work, evidence recording and verified
+closure are documented; AC-2 selected stack and TanStack routing deviation are
+explicit; AC-3 all 17 relative links in README/AGENTS/decisions/discussion notes
+resolve. make help and make -n dev test build exit 0. Byte comparison confirms
+all three restored files equal their HEAD snapshots. No runtime code changed;
+the previously recorded 90 passing tests are not claimed as re-run here.
