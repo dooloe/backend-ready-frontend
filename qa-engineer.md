@@ -26,7 +26,7 @@ For browser checks, start the integrated local application with `make dev`, use 
 
 **Expected:** The page shows a loading indicator while fetching, lists active and closed services after success, and clearly displays a recoverable error with a retry action after failure. Closed services cannot be submitted. No failed request leaves a blank, unexplained service area.
 
-**Current result:** **Fail — defect found.** `frontend/src/routes/index.tsx` does not render the query error or retry action; after a failed request the service grid is blank. Add a regression test and fix before release.
+**Current result:** **Automated regression passes; browser case not run.** The catalog component test forces a failed request, retries, and verifies recovery. Manual API-outage verification remains outstanding.
 
 ### QA-002 — Customer joins an open queue and receives a usable ticket
 
@@ -44,7 +44,7 @@ For browser checks, start the integrated local application with `make dev`, use 
 
 **Expected:** Ticket status and position come from the server and update without manual reload. The displayed wait is labeled as an estimate. Terminal tickets stop unnecessary polling. A temporary polling failure is visible and recovers on a later successful refresh.
 
-**Current result:** **Fail — defect found.** `frontend/src/routes/ticket.$id.tsx` polls every three seconds for every ticket status, including terminal states. Stop polling after a terminal status and cover it with a query-timer regression test.
+**Current result:** **Polling-policy regression passes; browser case not run.** Terminal states now disable the query interval; active and not-yet-loaded tickets retain the three-second interval.
 
 ### QA-004 — Customer cancellation is safe and final
 
@@ -78,7 +78,7 @@ For browser checks, start the integrated local application with `make dev`, use 
 
 **Expected:** Anonymous and invalid sessions receive 401; staff receive 403 for admin-only operations; allowed users can proceed. Staff cannot access or mutate counters/tickets outside their assignment. UI route messaging is not treated as authorization—the API must enforce every restriction. Responses do not expose passwords, bearer tokens, stack traces, or database details.
 
-**Current result:** **Fail — defect found.** `backend/app/routers/staff.py` does not pass the authenticated user to the store, and the staff store operations do not check counter assignment before returning queues or changing tickets. An authenticated staff user can operate counters without assignment checks.
+**Current result:** **Backend regression passes.** An unassigned staff account is denied access to another user's counter and its tickets; an unassigned counter remains available to staff, matching the dashboard behavior.
 
 ### QA-008 — Admin service, counter, assignment, and analytics workflow
 
@@ -114,7 +114,7 @@ Submit malformed bodies, missing fields, unknown service/ticket/counter IDs, ill
 
 Cause a service, counter, staff, or login request to fail validation or return an API error. Expect an inline/toast message and the user's entered values to remain available for correction. No form should report success or clear data before the server confirms the mutation.
 
-**Current result:** **Fail — defect found.** The service, counter, and staff creation forms clear their fields immediately after starting the mutation, before the server confirms it. Preserve form values on failure and clear them only after success.
+**Current result:** **Service-form regression passes.** Form values now clear only after successful service, counter, and staff creation responses; the automated component test forces a service-create failure and verifies values remain. Counter/staff error paths have not been exercised in a browser.
 
 ### QA-013 — Responsive and keyboard-accessible core flows
 
@@ -128,20 +128,20 @@ Follow the documented clean-checkout setup with supported Node.js and Python ver
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Frontend unit tests | Pass | `npm --prefix frontend test` — 6 tests passed across 2 files. |
+| Frontend unit tests | Pass | `npm --prefix frontend test` — 15 tests passed across 5 files, including catalog recovery, polling policy, and service form preservation. |
 | Frontend production build | Pass | `npm --prefix frontend run build` — client, SSR, and Nitro builds completed. Existing Vite config emitted advisory warnings about `vite-tsconfig-paths` and `inlineDynamicImports`. |
-| Backend suite | Pass | `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` — 117 passed in 65.44s. One Starlette/httpx deprecation warning. |
-| Typecheck | Pass | `npm --prefix frontend run typecheck` — passed. |
-| Lint | Pass with warnings | `npm --prefix frontend run lint` — exit 0, 7 warnings (6 existing UI fast-refresh warnings and one staff hook dependency warning). |
+| Backend suite | Pass | `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` — 118 passed in 68.93s. One Starlette/httpx deprecation warning. |
+| Typecheck | Pass | `npm --prefix frontend run typecheck` — passed with the new regression tests included. |
+| Lint | Pass with warnings | `npm --prefix frontend run lint` — exit 0, 7 warnings (6 UI fast-refresh warnings and one staff hook dependency warning). |
 | Manual browser/E2E cases | Not run | Cases QA-001 through QA-014 require interactive browser and/or an integrated live application. |
 
-## Defects found during this pass
+## Defects found and current disposition
 
-| ID | Severity | Defect | Required regression coverage |
+| ID | Severity | Defect | Disposition / evidence |
 | --- | --- | --- | --- |
-| BUG-001 | P0 | Customer service catalog request failure has no visible error or retry state, leaving the home page apparently empty. | QA-001: fail the catalog request, assert visible error/retry, restore API, assert services render after retry. |
-| BUG-002 | P1 | Ticket page continues polling every three seconds after the ticket reaches a terminal state. | QA-003: assert polling stops for completed, cancelled, and no-show tickets. |
-| BUG-003 | P0 | Staff API operations do not enforce counter/staff assignment; any authenticated staff account can access and operate counters by ID. | QA-007: use a staff session assigned to another counter and assert unauthorized access/mutations are rejected. |
-| BUG-004 | P1 | Service/counter/staff creation forms clear user input before the API mutation succeeds. | QA-012: force the mutation to fail and assert inputs remain; assert fields clear after success only. |
+| BUG-001 | P0 | Customer service catalog request failure had no visible error or retry state, leaving the home page apparently empty. | Fixed. `service-catalog.test.tsx` verifies error, retry, and recovery. |
+| BUG-002 | P1 | Ticket page continued polling every three seconds after the ticket reached a terminal state. | Fixed. `ticket-polling.test.ts` covers all terminal and active statuses. |
+| BUG-003 | P0 | Staff API operations did not enforce counter/staff assignment; any authenticated staff account could access and operate counters by ID. | Fixed. Backend regression covers counter list, queue read, call-next, and ticket transition authorization. |
+| BUG-004 | P1 | Service/counter/staff creation forms cleared user input before the API mutation succeeded. | Fixed. Service form regression verifies preserving values on error and clearing on success; counter/staff browser paths remain unrun. |
 
 **Release gate:** all P0 cases must pass; P1 cases must pass before declaring the MVP ready for general use. Do not mark a case Pass based only on a successful build or an unrelated unit test. Update the verification record with actual run evidence, and keep failed or unrun cases explicit.

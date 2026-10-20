@@ -146,7 +146,7 @@ function StatsTab() {
   );
 }
 
-function ServicesTab() {
+export function ServicesTab() {
   const { data } = useQuery({ queryKey: ["services"], queryFn: api.listServices });
   const act = useAct();
   const [f, setF] = useState({ name: "", description: "", prefix: "", avgServiceMinutes: 5 });
@@ -156,10 +156,13 @@ function ServicesTab() {
         className={`${card} grid gap-2 md:grid-cols-[1fr_2fr_80px_100px_auto]`}
         onSubmit={(e) => {
           e.preventDefault();
-          act.mutate(() =>
-            api.createService({ ...f, prefix: f.prefix.toUpperCase(), isOpen: true }),
+          act.mutate(
+            () => api.createService({ ...f, prefix: f.prefix.toUpperCase(), isOpen: true }),
+            {
+              onSuccess: () =>
+                setF({ name: "", description: "", prefix: "", avgServiceMinutes: 5 }),
+            },
           );
-          setF({ name: "", description: "", prefix: "", avgServiceMinutes: 5 });
         }}
       >
         <Input
@@ -227,10 +230,10 @@ function CountersTab() {
         className={`${card} flex gap-2`}
         onSubmit={(e) => {
           e.preventDefault();
-          act.mutate(() =>
-            api.createCounter({ name, serviceIds: [], isActive: true, staffId: null }),
+          act.mutate(
+            () => api.createCounter({ name, serviceIds: [], isActive: true, staffId: null }),
+            { onSuccess: () => setName("") },
           );
-          setName("");
         }}
       >
         <Input
@@ -301,8 +304,9 @@ function StaffTab() {
         className={`${card} grid gap-2 md:grid-cols-5`}
         onSubmit={(e) => {
           e.preventDefault();
-          act.mutate(() => api.createStaff(f));
-          setF({ name: "", username: "", password: "", role: "staff" });
+          act.mutate(() => api.createStaff(f), {
+            onSuccess: () => setF({ name: "", username: "", password: "", role: "staff" }),
+          });
         }}
       >
         <Input

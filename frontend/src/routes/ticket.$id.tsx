@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { ticketRefetchInterval } from "@/lib/ticket-polling";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/ticket/$id")({
@@ -28,14 +29,13 @@ const statusText: Record<string, string> = {
   cancelled: "Ticket cancelled",
   no_show: "Missed — marked as no-show",
 };
-
 function TicketPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const { data: t, error } = useQuery({
     queryKey: ["ticket", id],
     queryFn: () => api.getTicket(id),
-    refetchInterval: 3000,
+    refetchInterval: (query) => ticketRefetchInterval(query.state.data?.status),
   });
   const cancel = useMutation({
     mutationFn: () => api.cancelTicket(id),

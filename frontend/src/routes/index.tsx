@@ -24,10 +24,18 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-function Index() {
-  const { data: services, isLoading } = useQuery({
+export function Index() {
+  const {
+    data: services,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ["services"],
     queryFn: api.listServices,
+    retry: false,
   });
   return (
     <div>
@@ -41,6 +49,22 @@ function Index() {
         </p>
       </section>
       {isLoading && <p className="text-muted-foreground">Loading services…</p>}
+      {isError && (
+        <div className="mb-6 rounded-xl border border-destructive/40 bg-card p-4" role="alert">
+          <p className="text-destructive">Couldn't load services. {error.message}</p>
+          <Button
+            className="mt-3"
+            variant="outline"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+      {!isLoading && !isError && services?.length === 0 && (
+        <p className="text-muted-foreground">No services are available right now.</p>
+      )}
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {services?.map((s) => (
           <ServiceCard key={s.id} service={s} />

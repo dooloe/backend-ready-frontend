@@ -118,6 +118,28 @@ def test_every_admin_operation_denies_staff(client, staff, method, path):
     assert client.request(method, path, headers=staff, json={}).status_code == 403
 
 
+def test_staff_operations_are_limited_to_assigned_or_unassigned_counters(client, admin, staff):
+    created = client.post("/api/admin/staff", headers=admin, json={
+        "name": "Other staff", "username": "other-staff", "role": "staff", "password": "other-password"
+    })
+    assert created.status_code == 200
+    other_login = client.post("/api/auth/login", json={
+        "username": "other-staff", "password": "other-password"
+    })
+    assert other_login.status_code == 200
+    other = {"Authorization": "Bearer " + other_login.json()["token"]}
+
+    # cnt-1 belongs to Aigerim; cnt-2 is unassigned and remains available to any staff member.
+    assert [counter["id"] for counter in client.get("/api/counters", headers=other).json()] == ["cnt-2"]
+    assert client.get("/api/counters/cnt-1/queue", headers=other).status_code == 403
+    assert client.post("/api/counters/cnt-1/call-next", headers=other).status_code == 403
+
+    ticket = join(client)
+    assert client.post("/api/counters/cnt-1/call-next", headers=staff).json()["id"] == ticket["id"]
+    assert client.post(f"/api/tickets/{ticket['id']}/start", headers=other).status_code == 403
+    assert client.post(f"/api/tickets/{ticket['id']}/start", headers=staff).status_code == 200
+
+
 @pytest.mark.parametrize("authorization", ["Bearer invalid", "Basic abc", "Bearer", ""])
 def test_invalid_bearer_credentials(client, authorization):
     assert client.get("/api/counters", headers={"Authorization": authorization}).status_code == 401

@@ -160,10 +160,13 @@ class DatabaseStore:
             return [self._service(row) for row in session.scalars(
                 select(ServiceRow).where(ServiceRow.deleted.is_(False)).order_by(ServiceRow.id))]
 
-    def list_counters(self) -> list[Counter]:
+    def list_counters(self, actor: StaffUser | None = None) -> list[Counter]:
         with self.db.session() as session:
-            return [self._counter(session, row) for row in session.scalars(
-                select(CounterRow).where(CounterRow.deleted.is_(False)).order_by(CounterRow.id))]
+            rows = session.scalars(
+                select(CounterRow).where(CounterRow.deleted.is_(False)).order_by(CounterRow.id)
+            )
+            return [self._counter(session, row) for row in rows
+                    if actor is None or actor.role == "admin" or row.staffId is None or row.staffId == actor.id]
 
     def list_staff(self) -> list[StaffUser]:
         with self.db.session() as session:
@@ -222,18 +225,25 @@ class DatabaseStore:
             session.flush()
             return self._view(session, ticket)
 
-    def queue(self, counter_id: str) -> QueueView:
+    @staticmethod
+    def _authorize_counter(counter: CounterRow, actor: StaffUser | None) -> None:
+        if actor is not None and actor.role != "admin" and counter.staffId not in (None, actor.id):
+            raise HTTPException(403, "Counter is not assigned to this staff member")
+
+    def queue(self, counter_id: str, actor: StaffUser | None = None) -> QueueView:
         with self.db.session() as session:
             counter = self._get(session, CounterRow, counter_id, "Counter")
+            self._authorize_counter(counter, actor)
             claim = session.get(ActiveTicketRow, counter_id)
             current = self._ticket_row(session, claim.ticket_id) if claim else None
             ids = list(session.scalars(select(CounterServiceRow.service_id).where(CounterServiceRow.counter_id == counter.id)))
             return QueueView(current=self._view(session, current) if current else None,
                              waiting=[self._view(session, row) for row in self._waiting(session, ids)])
 
-    def call_next(self, counter_id: str) -> TicketView | None:
+    def call_next(self, counter_id: str, actor: StaffUser | None = None) -> TicketView | None:
         with self.db.session(write=True) as session:
             counter = self._get(session, CounterRow, counter_id, "Counter")
+            self._authorize_counter(counter, actor)
             if not counter.isActive:
                 raise HTTPException(409, "Counter is inactive")
             if session.get(ActiveTicketRow, counter_id) is not None:
@@ -248,12 +258,15 @@ class DatabaseStore:
             session.flush()
             return self._view(session, ticket)
 
-    def transition(self, ticket_id: str, action: str) -> TicketView:
+    def transition(self, ticket_id: str, action: str, actor: StaffUser | None = None) -> TicketView:
         rules = {"start": (("called",), "serving", "servedAt"),
                  "complete": (("called", "serving"), "completed", "finishedAt"),
                  "no-show": (("called",), "no_show", "finishedAt")}
         with self.db.session(write=True) as session:
             ticket = self._ticket_row(session, ticket_id)
+            if actor is not None and actor.role != "admin" and ticket.counterId is not None:
+                counter = self._get(session, CounterRow, ticket.counterId, "Counter")
+                self._authorize_counter(counter, actor)
             allowed, target, timestamp = rules[action]
             if ticket.status not in allowed:
                 raise HTTPException(409, f"Ticket is {ticket.status}")
