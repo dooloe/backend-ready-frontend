@@ -7,8 +7,8 @@ organization/private-ticket/cookie-session backlog is broader than the later
 current-client implementation issues #49–#52; overlapping functionality does not
 meet every original criterion.
 
-Remote status refreshed after Issue #9 was closed: **39 open, 13 closed, 52 total**.
-Closed issues are #1–#9 and #49–#52.
+Remote status refreshed after Issue #10 was closed: **38 open, 14 closed, 52 total**.
+Closed issues are #1–#10 and #49–#52.
 
 ## Verification
 
@@ -65,7 +65,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #7 | Closed | Administration, schedules and analytics contract is documented and validated. |
 | #8 | Closed | Eight page/state contracts and shared failure/loading behaviors are documented and checked. |
 | #9 | Closed | Validated startup settings, safe structured errors, OpenAPI error responses and regression evidence are committed. |
-| #10 | Verified; closure pending push | Alembic runs automatically at startup; fresh, legacy and partial-schema behavior plus SQLite connection/transaction rules are tested. |
+| #10 | Closed | Alembic runs automatically at startup; fresh, legacy and partial-schema behavior plus SQLite connection/transaction rules are tested. |
 | #11 | Open | Configuration ORM and constraints exist; organization fields, organization ownership and assignment models are absent. |
 | #12 | Open | Tickets, hashed bearer sessions and active-counter constraints exist; daily queues, events and private-token/idempotency constraints are absent. |
 | #13 | Open | Persistent seed runs once; planned organization/timezone fixture and Argon2id criterion are unmet (current passwords use scrypt). |

@@ -470,5 +470,6 @@ Verification:
   `backend/.venv/bin/python -m compileall -q backend/app backend/migrations
   backend/tests` and `git diff --check` — pass.
 
-The issue remains open until this implementation and evidence are committed,
-pushed and its verified acceptance results are posted to GitHub.
+Issue #10 was closed through approved GitHub CLI only after commit
+`16b3232` and its tests were pushed. The closing comment records the acceptance
+evidence. Remote issue state was refreshed: 38 open and 14 closed (52 total).
