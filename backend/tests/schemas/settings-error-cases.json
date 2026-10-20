@@ -1,0 +1,15 @@
+{
+  "invalid_configuration": [
+    {"variable": "APP_ENV", "value": "staging", "expected_message": "APP_ENV must be development, test or production"},
+    {"variable": "SEED_DEMO_DATA", "value": "yes", "expected_message": "SEED_DEMO_DATA must be true or false"},
+    {"variable": "SEED_DEMO_DATA", "value": "true", "APP_ENV": "production", "expected_message": "SEED_DEMO_DATA must be false in production"},
+    {"variable": "DATABASE_URL", "value": "", "expected_message": "DATABASE_URL must not be empty"},
+    {"variable": "DATABASE_URL", "value": "sqlite:///", "expected_message": "DATABASE_URL must be a valid SQLAlchemy connection URL"},
+    {"variable": "CORS_ORIGINS", "value": "https://example.test/path", "expected_message": "CORS_ORIGINS must contain explicit HTTP(S) origins without credentials or paths"},
+    {"variable": "CORS_ORIGINS", "value": "https://user:password@example.test", "expected_message": "CORS_ORIGINS must contain explicit HTTP(S) origins without credentials or paths"}
+  ],
+  "safe_http_errors": [401, 403, 404, 409, 422, 500, 503],
+  "required_error_fields": ["code", "message", "details", "detail"],
+  "legacy_detail_equals_message": true,
+  "secret_values_may_appear_in_diagnostics": false
+}

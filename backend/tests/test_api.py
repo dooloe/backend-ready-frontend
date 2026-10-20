@@ -105,6 +105,24 @@ def test_generated_routes_and_security_match_contract(client, contract):
             assert actual.get("x-required-roles") == expected.get("x-required-roles")
 
 
+def test_error_responses_match_the_documented_envelope(client, contract):
+    created = client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": "QA"})
+    ticket_id = created.json()["id"]
+    client.post(f"/api/tickets/{ticket_id}/cancel")
+    responses = [
+        (client.get("/api/tickets/missing"), "get", "/api/tickets/{id}", "404"),
+        (client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": " "}),
+         "post", "/api/tickets", "422"),
+        (client.post(f"/api/tickets/{ticket_id}/cancel"), "post", "/api/tickets/{id}/cancel", "409"),
+        (client.get("/api/counters"), "get", "/api/counters", "401"),
+    ]
+    for response, method, path, status in responses:
+        operation = contract["paths"][path][method]
+        error_response = dereference(operation["responses"][status], contract)
+        error_schema = error_response["content"]["application/json"]["schema"]
+        jsonschema.validate(response.json(), dereference(error_schema, contract))
+
+
 @pytest.mark.parametrize("method,path", STAFF_ENDPOINTS + ADMIN_ENDPOINTS)
 def test_every_protected_operation_denies_anonymous(client, method, path):
     response = client.request(method, path, json={})

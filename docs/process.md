@@ -387,3 +387,40 @@ AC-2 shared and page-specific states are defined; AC-3 mobile, private-route and
 customer-name removal rules are specified. One-off YAML/Markdown check confirmed
 all eight Operations rows resolve to declared IDs and every relative link exists.
 This is a design issue, so no browser execution or UI implementation is claimed.
+
+## 2026-10-20 — #9 backend configuration and safe errors
+
+Added validated environment-backed settings for `APP_ENV`, `DATABASE_URL`,
+`SEED_DEMO_DATA` and explicit HTTP(S) `CORS_ORIGINS`. Invalid or credential-bearing
+database/CORS values are rejected without echoing raw values; database URLs are
+excluded from settings repr. Production configuration refuses demo seeding. The
+non-secret `backend/.env.example` and `backend/README.md` document the defaults and
+how to export settings. Startup applies settings before opening the database.
+
+Added structured `code`, `message`, `details` error responses and the backwards-
+compatible `detail` alias. Request/Pydantic validation reports only allow-listed
+field paths; unexpected failures return a generic 500 message, and the outer ASGI
+boundary prevents server tracebacks from echoing credentials or request input.
+The existing `openapi.yaml` now describes the implemented shared error responses.
+
+AC-1: parametrized startup tests reject invalid environment, seed and database/CORS
+settings, verify production seed safety and ensure database credentials do not
+appear in settings repr or exceptions. AC-2: contract-backed tests validate 401,
+404, 409 and 422 JSON envelopes; an injected unexpected exception verifies generic
+response and secret-free logs while preserving auth challenge headers. AC-3: the
+default application startup test and documented example configuration pass.
+
+Verification:
+- `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` —
+  119 passed, one existing Starlette/httpx deprecation warning, exit 0.
+- `python3 /tmp/kezek-validate-current-openapi.py` — official OpenAPI 3.0 schema,
+  local references, all 20 operation/path/security mappings and TypeScript
+  request/response shapes passed.
+- `npm --prefix frontend test` — 15 passed; `npm --prefix frontend run typecheck`
+  passed; `npm --prefix frontend run lint` exited 0 with seven existing warnings;
+  `npm --prefix frontend run build` completed client, SSR and Nitro builds.
+- `git diff --check` — exit 0.
+
+The issue was closed only after the implementation and its tests were committed
+and pushed. Existing organization/private-token/cookie-session requirements and
+live PostgreSQL support remain open work in their separate issues.

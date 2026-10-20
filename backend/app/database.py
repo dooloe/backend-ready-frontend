@@ -1,7 +1,6 @@
 """SQLAlchemy engine/session boundary; dialect-specific behavior stays here."""
 
 from contextlib import contextmanager, nullcontext
-import os
 from pathlib import Path
 import sqlite3
 from threading import RLock
@@ -14,21 +13,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from .orm import Base, StoreState
+from .settings import boolean_setting, database_url_from_environment
 
 
 def configured_database_url() -> str:
-    default = "sqlite:///" + str(Path(__file__).resolve().parents[1] / "data" / "kezek.db")
-    value = os.environ.get("DATABASE_URL", default)
-    if not value.strip():
-        raise ValueError("DATABASE_URL must not be empty")
-    return value
+    return database_url_from_environment()
 
 
 def configured_demo_seed() -> bool:
-    value = os.getenv("SEED_DEMO_DATA", "true").strip().lower()
-    if value not in {"true", "false", "1", "0"}:
-        raise ValueError("SEED_DEMO_DATA must be true or false")
-    return value in {"true", "1"}
+    return boolean_setting("SEED_DEMO_DATA", "true")
 
 
 class Database:

@@ -120,10 +120,41 @@
       "checks": []
     },
     "KEZEK-009": {
-      "status": "pending",
+      "status": "verified",
       "revision": null,
-      "criteria": [],
-      "checks": []
+      "criteria": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "checks": [
+        {
+          "command": "backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider",
+          "exit_code": 0,
+          "summary": "119 passed in 64.98s; settings rejection/redaction, startup, safe 401/404/409/422 envelopes and unexpected-error redaction are covered",
+          "evidence": "backend/tests/test_app.py and backend/tests/test_api.py"
+        },
+        {
+          "command": "python3 /tmp/kezek-validate-current-openapi.py",
+          "exit_code": 0,
+          "summary": "Official OpenAPI 3.0 validation and all 20 current API operation and frontend type alignments pass",
+          "evidence": "openapi.yaml"
+        },
+        {
+          "command": "npm --prefix frontend test && npm --prefix frontend run typecheck && npm --prefix frontend run lint && npm --prefix frontend run build",
+          "exit_code": 0,
+          "summary": "15 frontend tests pass; strict typecheck passes; lint exits 0 with seven existing warnings; client/SSR/Nitro build passes",
+          "evidence": "frontend/src/test"
+        },
+        {
+          "command": "git diff --check",
+          "exit_code": 0,
+          "summary": "No whitespace errors",
+          "evidence": "working tree"
+        }
+      ],
+      "github_state": "open",
+      "issue_number": 9
     },
     "KEZEK-010": {
       "status": "pending",
@@ -422,16 +453,16 @@
       2,
       3,
       4,
+      5,
+      6,
+      7,
+      8,
       49,
       50,
       51,
       52
     ],
     "open_issue_numbers": [
-      5,
-      6,
-      7,
-      8,
       9,
       10,
       11,
@@ -476,7 +507,11 @@
     "newly_closed_issue_numbers": [
       2,
       3,
-      4
+      4,
+      5,
+      6,
+      7,
+      8
     ],
     "method": "Approved direct GitHub CLI; all acceptance criteria required for completion"
   }

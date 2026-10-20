@@ -10,9 +10,9 @@ info:
     authorization. No query parameters, pagination, idempotency header, organization routes, logout/current-user
     endpoint or separate assignment endpoint is sent by this client. Successful JSON responses are documented
     as 200; the adapter accepts any 2xx with the stated body, so 201 is compatible for creation. Empty
-    DELETE success must be 204. Error envelopes and status descriptions are inferred from mock ApiError
-    behavior and http.ts error parsing; they are not an implemented server guarantee. All nullable response
-    properties are required keys with null values allowed.
+    DELETE success must be 204. Errors use the structured ApiError envelope with the legacy detail alias
+    consumed by http.ts; the current FastAPI server implements these documented response components.
+    All nullable response properties are required keys with null values allowed.
 servers:
 - url: http://localhost:8000
   description: Example VITE_API_BASE_URL; replace with the configured backend base URL.
@@ -1191,12 +1191,23 @@ components:
         hourly buckets. No organization/timezone filters or service-duration metric are sent by this client.
     ApiError:
       type: object
-      required:
-      - detail
+      additionalProperties: false
+      required: [code, message, details, detail]
       properties:
+        code:
+          type: string
+          description: Stable machine-readable error code.
+          example: NOT_FOUND
+        message:
+          type: string
+          description: Safe user-facing explanation.
+          example: Ticket not found
+        details:
+          type: object
+          nullable: true
+          description: Safe field identifiers or retry guidance; never request values.
         detail:
           type: string
-          description: User-facing message read by http.ts.
-      description: Frontend-compatible proposed error envelope. The adapter uses JSON detail if present,
-        otherwise HTTP statusText; it does not require code/message/details. The mock throws ApiError
-        objects rather than emitting HTTP bodies.
+          description: Backwards-compatible alias consumed by the existing http.ts adapter; always equals message.
+          example: Ticket not found
+      description: Structured public error plus legacy detail alias. Validation field lists contain only allow-listed schema paths. Unexpected errors never expose tracebacks, database/SQL details or request values. Authentication challenge headers remain present for 401.

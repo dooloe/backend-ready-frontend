@@ -11,8 +11,8 @@ meet every original criterion.
 
 | Check | Actual result |
 | --- | --- |
-| Backend Pytest, isolated SQLite databases | 72 passed; one existing Starlette/httpx deprecation warning |
-| Frontend Vitest | 6 passed in two unchanged route/mock test files |
+| Backend Pytest, isolated SQLite databases | 119 passed after QA and error-contract regressions; one existing Starlette/httpx deprecation warning |
+| Frontend Vitest | 15 passed across five files, including QA regressions |
 | Issue-management Python unit tests | 12 passed |
 | Fresh frontend locked install in a temporary directory | 518 packages installed; exit 0 |
 | Frontend lint | Initially 60 formatting errors; after scoped fixes, zero errors and seven existing warnings |
@@ -20,7 +20,7 @@ meet every original criterion.
 | Production frontend build | Passed both default mock configuration and explicit real-API configuration |
 | Live HTTP integration | All 20 operations exercised through the actual TypeScript HTTP adapter against FastAPI and temporary SQLite |
 | Live rejection cases | Missing auth 401, bad login 401, staff/admin denial 403, unknown ticket 404, closed join/busy counter/cancel-called 409 |
-| Frontend server smoke | All five page routes return HTTP 200; transformed API module contains the real backend URL |
+| Frontend server smoke | Previously verified: all five page routes return HTTP 200; transformed API module contains the real backend URL |
 | Browser interactions, accessibility and live PostgreSQL | Not verified; relevant issues remain open |
 
 Live verification covered customer join → staff call → start → complete,
@@ -30,15 +30,13 @@ The two temporary server process groups were stopped after testing. Tests did
 not use the development database. Full commands and evidence are in
 [process.md](process.md) and [KEZEK-002.txt](verification-evidence/KEZEK-002.txt).
 
-## Local checkout blockers
+## Initial checkout blockers (resolved)
 
-The checkout already had uncommitted deletions of `Makefile`, `README.md`,
-`AGENTS.md`, `openapi.yaml` and `backend/.gitkeep`. They were excluded from the
-audit fixes and commits while clarification was requested. In this working
-tree, `make dev` is unavailable and the root API contract/documentation is
-missing. Their committed versions still exist on GitHub. Backend tests can read
-the committed OpenAPI snapshot, so their success does not resolve these missing
-local files. Read-only review of committed AGENTS guidance preserved its rules.
+The checkout initially showed local deletions of `Makefile`, `README.md`,
+`AGENTS.md`, `openapi.yaml` and `backend/.gitkeep`. The first four were restored
+from their committed versions and updated where needed; `backend/.gitkeep` is an
+empty marker and remains deleted. `make dev` and the root API contract are now
+available locally.
 
 Starting the frontend without `VITE_API_BASE_URL` still selects browser-local
 mocks. Use the explicit command in [frontend development](../frontend/README.md)
@@ -57,20 +55,20 @@ required evidence; it does not mean all work on that issue is absent.
 | --- | --- | --- |
 | #1 | Keep closed | Original empty backend milestone was verified historically; current backend tests pass. |
 | #2 | Closed | Fresh locked install, documented lint/typecheck/build/test commands and unchanged existing tests pass. Fixed formatting errors and added the missing typecheck script in d3d8455. |
-| #3 | Open | Decisions/process exist; contributor docs are missing locally, committed root setup is stale, and chat-brainstorm documentation is absent. |
-| #4 | Open | No agreed queue-scoped idempotency/lost-response recovery and hashed private-ticket-token design. |
-| #5 | Open | Current-client OpenAPI exists in Git; future organization/daily queue/private-token contract and structured error examples do not. |
-| #6 | Open | Current bearer contract lacks the planned logout/current-identity/CSRF/cookie and assigned-counter contract. |
-| #7 | Open | Future administration contract lacks schedules, daily closure, staff assignment operations and date/duration analytics. |
-| #8 | Open | No complete page/state contract for organization selection, private tokens and anonymous joins without customer names. |
-| #9 | Open | Environment database/CORS/seed settings exist; contracted structured error envelopes are absent. |
+| #3 | Closed | Contributor process/docs, recovered local files, updated setup and brainstorm links are committed and verified. |
+| #4 | Closed | Ticket issuance and idempotent retry/token behavior are specified in the issue evidence. |
+| #5 | Closed | Current OpenAPI and future full-stack contract validate against OpenAPI 3.0, including examples. |
+| #6 | Closed | Auth and staff-assignment contract is documented and validated. |
+| #7 | Closed | Administration, schedules and analytics contract is documented and validated. |
+| #8 | Closed | Eight page/state contracts and shared failure/loading behaviors are documented and checked. |
+| #9 | Closed | Validated startup settings, safe structured errors, OpenAPI error responses and regression evidence are committed. |
 | #10 | Open | SQLite FK/WAL/timeout/rollback/concurrency checks pass; Alembic initialization is absent. |
 | #11 | Open | Configuration ORM and constraints exist; organization fields, organization ownership and assignment models are absent. |
 | #12 | Open | Tickets, hashed bearer sessions and active-counter constraints exist; daily queues, events and private-token/idempotency constraints are absent. |
 | #13 | Open | Persistent seed runs once; planned organization/timezone fixture and Argon2id criterion are unmet (current passwords use scrypt). |
 | #14 | Open | Hashed expiring bearer sessions and login pass; inactive-user/current-identity/cookie criteria are unmet. |
 | #15 | Open | Explicit bearer CORS works; planned cookie CSRF and server-side logout/revocation are absent. |
-| #16 | Open | Anonymous and wrong-role denials pass; organization and staff-counter assignment checks are absent. |
+| #16 | Open | Anonymous, wrong-role and staff-counter assignment checks pass; organization-scope enforcement is absent. |
 | #17 | Open | No organization-local schedules, daily queue creation or manual daily closure model. |
 | #18 | Open | Current service list works; organization directory, daily queue IDs and scheduled availability are absent. |
 | #19 | Open | Atomic service-lifetime numbering passes; daily queues, private token hashes, events and idempotent retries are absent. |
