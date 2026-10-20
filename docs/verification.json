@@ -420,14 +420,14 @@
     "closed_issue_numbers": [
       1,
       2,
+      3,
+      4,
       49,
       50,
       51,
       52
     ],
     "open_issue_numbers": [
-      3,
-      4,
       5,
       6,
       7,
@@ -474,7 +474,9 @@
       48
     ],
     "newly_closed_issue_numbers": [
-      2
+      2,
+      3,
+      4
     ],
     "method": "Approved direct GitHub CLI; all acceptance criteria required for completion"
   }

@@ -58,8 +58,9 @@ or force-push shared history.
 
 The selected routing deviation keeps TanStack instead of replacing it with React
 Router. Preserve the existing `frontend/`, `backend/`, `docs/` layout. Current API
-documentation is [openapi.yaml](openapi.yaml). Planned contracts are explicitly
-identified as design work until implemented; see [discussion notes](docs/chat-brainstorm.md).
+documentation is [openapi.yaml](openapi.yaml). The [planned MVP contract](openapi.yml)
+is design work until implemented; [the migration map](docs/api-migration.md)
+explains the differences. See [discussion notes](docs/chat-brainstorm.md).
 
 ## Build with Lovable
 

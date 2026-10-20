@@ -73,3 +73,13 @@ echoed in the creation/replay URL. It permits lost-response recovery without raw
 token storage. Unknown commit outcomes retry the original pair, including after
 midnight; never automatically issue in a new daily queue. Losing all client proof
 is unrecoverable anonymously. This is a contract decision, not completed #19.
+
+## 2026-10-20 — Keep current and planned API contracts explicit (#5–#7)
+
+Retain root openapi.yaml as the verified current-client contract. Add the plan's
+openapi.yml as an explicitly labelled design document for the organization/daily
+queue/private-token/cookie API. Do not overwrite a working API specification with
+unimplemented endpoints. Contract-only issues validate schemas/examples; runtime
+and integration issues remain open until implemented. api-migration.md maps the
+current client calls/fields to the planned facade and documents coordinated
+private-token cutover without public ID fallback.

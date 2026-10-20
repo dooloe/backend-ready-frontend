@@ -321,3 +321,21 @@ one-off decoded/re-encoded both examples to verify distinct canonical 32-byte
 values and a name-free join body. No backend issuance or idempotency test is
 claimed; #19 remains open. Removed a trailing blank line reported by diff --check
 in the preceding audit documentation commit.
+
+## 2026-10-20 — #5 planned public API contract
+
+Added openapi.yml with organization/service directories, aggregate queue status,
+transactional creation/recovery and private-token read/cancel schemas. Kept the
+current openapi.yaml unchanged; planned endpoints are marked as design-only.
+Examples cover closed queues, invalid tokens, duplicate recovery, proof conflicts,
+token reuse, validation, bounded contention and unavailable wait estimates.
+api-migration.md maps existing calls and fields, name removal and token routes.
+
+AC-1 complete requests/responses/structured errors and access rules are present;
+AC-2 the required success/rejection/null examples validate; AC-3 the migration map
+reconciles current ID/name/bearer calls with the planned public contract. Added
+offline contract regression checks using the official OpenAPI 3.0 metaschema
+(source ID retained) and JSON Schema example validation. Command:
+backend/.venv/bin/python -m pytest backend/tests/test_mvp_contract.py -q -p no:cacheprovider
+passed 8 tests in 0.18s with one existing import warning. These validate design,
+not live endpoints. #4 closure confirmed: running count 44 open / 8 closed.
