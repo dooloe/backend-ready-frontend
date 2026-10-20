@@ -75,3 +75,18 @@ def test_public_contract_has_private_proof_and_retry_failures():
             assert operation["security"] == []
             assert "invalidToken" in operation["responses"]["404"]["content"]["application/json"]["examples"]
     assert "DESIGN CONTRACT" in DOCUMENT["info"]["description"]
+
+
+def test_session_and_staff_contract_requires_cookie_and_csrf():
+    assert DOCUMENT["components"]["securitySchemes"]["SessionCookie"]["in"] == "cookie"
+    for path, method, operation in operations():
+        if path.startswith("/api/staff/") or path in {"/api/auth/me", "/api/auth/csrf", "/api/auth/logout"}:
+            assert operation["security"] == [{"SessionCookie": [], **({"CsrfHeader": []} if method != "get" else {})}]
+            assert "401" in operation["responses"]
+            if method != "get":
+                assert "403" in operation["responses"]
+    call = DOCUMENT["paths"]["/api/staff/queues/{queueId}/call-next"]["post"]
+    assert call["responses"]["200"]["content"]["application/json"]["examples"]["empty"]["value"] is None
+    assert "409" in call["responses"]
+    logout = DOCUMENT["paths"]["/api/auth/logout"]["post"]
+    assert "content" not in logout["responses"]["204"]

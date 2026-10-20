@@ -339,3 +339,18 @@ offline contract regression checks using the official OpenAPI 3.0 metaschema
 backend/.venv/bin/python -m pytest backend/tests/test_mvp_contract.py -q -p no:cacheprovider
 passed 8 tests in 0.18s with one existing import warning. These validate design,
 not live endpoints. #4 closure confirmed: running count 44 open / 8 closed.
+
+## 2026-10-20 — #6 cookie/session and assigned staff contract
+
+Extended planned openapi.yml and auth-contract.md with login, logout, current
+identity, CSRF exchange, assigned counter/queue discovery, atomic call-next and
+strict staff lifecycle actions. Defined eight-hour hash-only opaque sessions,
+HttpOnly/SameSite/Secure settings, credentialed origins, assignment/organization
+checks, 200 null on empty queues and concrete 401/403/409 examples. Documented
+the migration from localStorage bearer identity without claiming it implemented.
+
+Acceptance: AC-1 all identity/session/CSRF operations specified; AC-2 counter
+selection, assignment, busy/empty behavior and strict transitions specified;
+AC-3 cookies and rejected examples explicit. Offline contract/example/security
+checks: backend/.venv/bin/python -m pytest backend/tests/test_mvp_contract.py -q
+-p no:cacheprovider, 18 passed, one existing import warning. No runtime changes.

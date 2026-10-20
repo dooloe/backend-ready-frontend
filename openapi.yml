@@ -308,15 +308,596 @@ paths:
       description: 'No internal-ID fallback. Invalid/noncanonical tokens and unknown
         hashes give the same 404. Private response never echoes the access token;
         Cache-Control: no-store.'
+  /api/auth/login:
+    post:
+      operationId: loginSession
+      summary: Authenticate active staff/admin and set cookie
+      description: No bearer response. Reject untrusted browser Origin to prevent
+        login CSRF. Verify Argon2id password; unknown/inactive/invalid credentials
+        share a safe 401. Rotate any previous session. Session token and CSRF proof
+        are independent; persist hashes only. Session expires after 8 hours, never
+        sliding beyond expiry.
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionIdentity'
+          headers:
+            Set-Cookie:
+              schema: &id010
+                type: string
+              description: kezek_session=<opaque>; Path=/api; HttpOnly; SameSite=Lax;
+                Max-Age=28800; Secure when HTTPS. Development HTTP may omit Secure
+                only in explicit development mode.
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '403':
+          description: Invalid CSRF proof, origin, role or assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Invalid CSRF proof, origin, role or assignment
+                    details: null
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_credentials:
+                  value:
+                    code: INVALID_CREDENTIALS
+                    message: Invalid credentials
+                    details: null
+        '422':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid request
+                    details: null
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+  /api/auth/logout:
+    post:
+      operationId: logoutSession
+      summary: Invalidate persisted session and clear its cookie
+      description: Requires the current CSRF proof. Delete the session hash, then
+        expire cookie using the same Path/SameSite/Secure settings. Following requests
+        get 401.
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Invalid CSRF proof, origin, role or assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Invalid CSRF proof, origin, role or assignment
+                    details: null
+        '204':
+          description: Session deleted; cookie expired; no body
+  /api/auth/me:
+    get:
+      operationId: currentIdentity
+      summary: Get active current user and organization
+      description: Use credentialed fetch on page reload. Never expose password hashes,
+        session hashes or raw session tokens.
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+  /api/auth/csrf:
+    get:
+      operationId: sessionCsrf
+      summary: Read/rotate session-bound CSRF proof
+      description: Authenticated cookie required. Return the current/rotated proof
+        with no-store; store only its hash. Client obtains a fresh proof after reload;
+        stale proof may require refresh and explicit retry. No user mutation is performed
+        by GET.
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfProof'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+  /api/staff/queues:
+    get:
+      operationId: listStaffQueues
+      summary: List active assigned counters with eligible service queues
+      description: Staff see only same-organization active assigned counters and active
+        supported services. Admins may operate all active counters in their organization.
+        Empty assignments return []. Each counter has at most one current called/serving
+        ticket. Closed queues with outstanding work remain operable.
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffCounterQueue'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+      x-required-roles:
+      - staff
+      - admin
+  /api/staff/queues/{queueId}/call-next:
+    post:
+      operationId: callNextTicket
+      summary: Atomically assign oldest waiting ticket at an authorized idle counter
+      description: Validate current user organization, active counter and staff assignment
+        plus supported service before mutable reads. Serialize the transaction. FIFO
+        by creation timestamp then sequence. Save called timestamp, claim and actor
+        event atomically. Closed queues allow outstanding work. Empty queue returns
+        literal JSON null with 200.
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NullableTicket'
+              examples:
+                empty:
+                  value: null
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Invalid CSRF proof, origin, role or assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Invalid CSRF proof, origin, role or assignment
+                    details: null
+        '404':
+          description: Queue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Queue not found
+                    details: null
+        '409':
+          description: Finish the current ticket first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                counter_busy:
+                  value:
+                    code: COUNTER_BUSY
+                    message: Finish the current ticket first
+                    details: null
+                inactive:
+                  value:
+                    code: COUNTER_INACTIVE
+                    message: Counter is inactive
+                    details: null
+        '422':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid request
+                    details: null
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - name: queueId
+        in: path
+        required: true
+        schema: &id006
+          type: string
+          minLength: 1
+          maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CounterAction'
+  /api/staff/tickets/{ticketId}/start:
+    post:
+      operationId: startTicket
+      summary: Transition called -> serving
+      description: Require active actor and same-organization assigned counter owning
+        this active ticket; admins remain organization-scoped. Only called -> serving
+        is allowed. Persist actor event and appropriate UTC timestamp in one transaction;
+        terminal state releases claim. Reject wrong-counter/cross-organization access;
+        no called-to-completed shortcut.
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Invalid CSRF proof, origin, role or assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Invalid CSRF proof, origin, role or assignment
+                    details: null
+        '404':
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Ticket not found
+                    details: null
+        '409':
+          description: Ticket cannot perform this transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_state:
+                  value:
+                    code: INVALID_STATE
+                    message: Ticket cannot perform this transition
+                    details: null
+        '422':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid request
+                    details: null
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CounterAction'
+  /api/staff/tickets/{ticketId}/complete:
+    post:
+      operationId: finishTicket
+      summary: Transition serving -> completed
+      description: Require active actor and same-organization assigned counter owning
+        this active ticket; admins remain organization-scoped. Only serving -> completed
+        is allowed. Persist actor event and appropriate UTC timestamp in one transaction;
+        terminal state releases claim. Reject wrong-counter/cross-organization access;
+        no called-to-completed shortcut.
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Invalid CSRF proof, origin, role or assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Invalid CSRF proof, origin, role or assignment
+                    details: null
+        '404':
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Ticket not found
+                    details: null
+        '409':
+          description: Ticket cannot perform this transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_state:
+                  value:
+                    code: INVALID_STATE
+                    message: Ticket cannot perform this transition
+                    details: null
+        '422':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid request
+                    details: null
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CounterAction'
+  /api/staff/tickets/{ticketId}/no-show:
+    post:
+      operationId: noShowTicket
+      summary: Transition called -> no_show
+      description: Require active actor and same-organization assigned counter owning
+        this active ticket; admins remain organization-scoped. Only called -> no_show
+        is allowed. Persist actor event and appropriate UTC timestamp in one transaction;
+        terminal state releases claim. Reject wrong-counter/cross-organization access;
+        no called-to-completed shortcut.
+      security:
+      - SessionCookie: []
+        CsrfHeader: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '401':
+          description: Sign in required or session expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_authenticated:
+                  value:
+                    code: NOT_AUTHENTICATED
+                    message: Sign in required or session expired
+                    details: null
+        '403':
+          description: Invalid CSRF proof, origin, role or assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: FORBIDDEN
+                    message: Invalid CSRF proof, origin, role or assignment
+                    details: null
+        '404':
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                not_found:
+                  value:
+                    code: NOT_FOUND
+                    message: Ticket not found
+                    details: null
+        '409':
+          description: Ticket cannot perform this transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_state:
+                  value:
+                    code: INVALID_STATE
+                    message: Ticket cannot perform this transition
+                    details: null
+        '422':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation_error:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Invalid request
+                    details: null
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CounterAction'
 components:
   schemas:
     Error:
       type: object
       additionalProperties: false
       properties:
-        code: &id006
+        code: &id007
           type: string
-        message: *id006
+        message: *id007
         details:
           type: object
           additionalProperties: true
@@ -330,9 +911,9 @@ components:
       additionalProperties: false
       properties:
         id: *id001
-        name: *id006
-        slug: *id006
-        description: *id006
+        name: *id007
+        slug: *id007
+        description: *id007
         timezone:
           type: string
           example: Asia/Almaty
@@ -353,10 +934,10 @@ components:
           format: date
         isOpen:
           type: boolean
-        waiting: &id007
+        waiting: &id008
           type: integer
           minimum: 0
-        activeCounters: *id007
+        activeCounters: *id008
         estimatedWaitMinutes:
           type: integer
           minimum: 0
@@ -375,9 +956,9 @@ components:
       properties:
         id: *id001
         organizationId: *id001
-        name: *id006
-        description: *id006
-        prefix: *id006
+        name: *id007
+        description: *id007
+        prefix: *id007
         durationMinutes:
           type: number
           exclusiveMinimum: true
@@ -388,7 +969,7 @@ components:
         closesAt:
           type: string
           pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
-        timezone: *id006
+        timezone: *id007
         queue:
           $ref: '#/components/schemas/QueueSummary'
       required:
@@ -408,8 +989,8 @@ components:
       properties:
         id: *id001
         queueId: *id001
-        ticketNumber: *id006
-        serviceName: *id006
+        ticketNumber: *id007
+        serviceName: *id007
         status:
           type: string
           enum:
@@ -427,10 +1008,10 @@ components:
           type: integer
           minimum: 0
           nullable: true
-        counterId: &id008
+        counterId: &id009
           type: string
           nullable: true
-        counterName: *id008
+        counterName: *id009
         createdAt:
           type: string
           format: date-time
@@ -490,3 +1071,262 @@ components:
       required:
       - ticket
       - ticketUrl
+    Identity:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id006
+        organizationId: *id006
+        username: *id010
+        email:
+          type: string
+          format: email
+        name: *id010
+        role:
+          type: string
+          enum:
+          - staff
+          - admin
+        isActive:
+          type: boolean
+      required:
+      - id
+      - organizationId
+      - username
+      - email
+      - name
+      - role
+      - isActive
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 255
+        password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+      required:
+      - username
+      - password
+    SessionIdentity:
+      type: object
+      additionalProperties: false
+      properties:
+        user:
+          $ref: '#/components/schemas/Identity'
+        csrfToken: *id010
+      required:
+      - user
+      - csrfToken
+    CsrfProof:
+      type: object
+      additionalProperties: false
+      properties:
+        csrfToken: *id010
+      required:
+      - csrfToken
+    Counter:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id006
+        organizationId: *id006
+        name: *id010
+        isActive:
+          type: boolean
+        serviceIds:
+          type: array
+          uniqueItems: true
+          items: *id006
+      required:
+      - id
+      - organizationId
+      - name
+      - isActive
+      - serviceIds
+    StaffCounterQueue:
+      type: object
+      additionalProperties: false
+      properties:
+        counter:
+          $ref: '#/components/schemas/Counter'
+        queues:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueueSummary'
+        current:
+          type: object
+          additionalProperties: false
+          properties:
+            id: &id011
+              type: string
+              minLength: 1
+              maxLength: 64
+            queueId: *id011
+            ticketNumber: &id012
+              type: string
+            serviceName: *id012
+            status:
+              type: string
+              enum:
+              - waiting
+              - called
+              - serving
+              - completed
+              - cancelled
+              - no_show
+            position:
+              type: integer
+              minimum: 1
+              nullable: true
+            estimatedWaitMinutes:
+              type: integer
+              minimum: 0
+              nullable: true
+            counterId: &id013
+              type: string
+              nullable: true
+            counterName: *id013
+            createdAt:
+              type: string
+              format: date-time
+            calledAt:
+              type: string
+              format: date-time
+              nullable: true
+            startedAt:
+              type: string
+              format: date-time
+              nullable: true
+            completedAt:
+              type: string
+              format: date-time
+              nullable: true
+            cancelledAt:
+              type: string
+              format: date-time
+              nullable: true
+            noShowAt:
+              type: string
+              format: date-time
+              nullable: true
+          required:
+          - id
+          - queueId
+          - ticketNumber
+          - serviceName
+          - status
+          - position
+          - estimatedWaitMinutes
+          - counterId
+          - counterName
+          - createdAt
+          - calledAt
+          - startedAt
+          - completedAt
+          - cancelledAt
+          - noShowAt
+          nullable: true
+      required:
+      - counter
+      - queues
+      - current
+    CounterAction:
+      type: object
+      additionalProperties: false
+      properties:
+        counterId: *id006
+      required:
+      - counterId
+    NullableTicket:
+      type: object
+      additionalProperties: false
+      properties:
+        id: &id014
+          type: string
+          minLength: 1
+          maxLength: 64
+        queueId: *id014
+        ticketNumber: &id015
+          type: string
+        serviceName: *id015
+        status:
+          type: string
+          enum:
+          - waiting
+          - called
+          - serving
+          - completed
+          - cancelled
+          - no_show
+        position:
+          type: integer
+          minimum: 1
+          nullable: true
+        estimatedWaitMinutes:
+          type: integer
+          minimum: 0
+          nullable: true
+        counterId: &id016
+          type: string
+          nullable: true
+        counterName: *id016
+        createdAt:
+          type: string
+          format: date-time
+        calledAt:
+          type: string
+          format: date-time
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        noShowAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - queueId
+      - ticketNumber
+      - serviceName
+      - status
+      - position
+      - estimatedWaitMinutes
+      - counterId
+      - counterName
+      - createdAt
+      - calledAt
+      - startedAt
+      - completedAt
+      - cancelledAt
+      - noShowAt
+      nullable: true
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: kezek_session
+      description: Opaque 8-hour session, hash-only storage. HttpOnly; SameSite=Lax;
+        Path=/api; Secure under HTTPS. No browser bearer/localStorage session.
+    CsrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: Session-bound synchronizer proof returned by login or authenticated
+        GET /api/auth/csrf. Required with cookie on protected mutations; never in
+        URLs.
