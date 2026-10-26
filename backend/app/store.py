@@ -309,6 +309,47 @@ class DatabaseStore:
                 estimatedWaitMinutes=math.ceil(waiting * service.avgServiceMinutes / capacity) if capacity else None,
             )
 
+    def set_queue_override(self, queue_id: str, is_open: bool, actor: StaffUser) -> QueueSummary:
+        with self.db.session(write=True) as session:
+            actor_row = self._actor_row(session, actor, admin=True)
+            queue = session.scalar(select(DailyQueueRow).where(
+                DailyQueueRow.id == queue_id,
+                DailyQueueRow.organization_id == actor_row.organization_id,
+            ))
+            if queue is None:
+                raise HTTPException(404, "Queue not found")
+            service = session.get(ServiceRow, queue.service_id)
+            organization = session.get(OrganizationRow, queue.organization_id)
+            if (service is None or service.deleted or organization is None
+                    or service.organization_id != actor_row.organization_id):
+                raise HTTPException(404, "Queue not found")
+
+            now = self.clock()
+            try:
+                schedule = resolve_queue_schedule(
+                    organization.timezone, service.opensAt, service.closesAt, now,
+                )
+            except ValueError as exc:
+                if is_open:
+                    raise HTTPException(409, "Cannot open outside service hours or business date") from exc
+                schedule = None
+            if is_open and (
+                not service.isActive or not service.isOpen or schedule is None
+                or not schedule.within_hours or queue.business_date != schedule.business_date
+            ):
+                raise HTTPException(409, "Cannot open outside service hours or business date")
+
+            target = "open" if is_open else "closed"
+            if queue.status != target:
+                queue.status = target
+                if is_open:
+                    queue.opened_at = now
+                    queue.closed_at = None
+                else:
+                    queue.closed_at = now
+            session.flush()
+        return self.queue_status(queue_id)
+
     def list_services(self) -> list[Service]:
         with self.db.session() as session:
             return [self._service(row) for row in session.scalars(

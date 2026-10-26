@@ -220,6 +220,10 @@ class QueueSummary(Model):
     estimatedWaitMinutes: int | None
 
 
+class QueueOverride(Model):
+    isOpen: bool
+
+
 class StaffCounterQueue(Model):
     counter: Counter
     queues: list[QueueSummary]

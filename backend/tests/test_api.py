@@ -145,6 +145,7 @@ ADMIN_ENDPOINTS = [
     ("GET", "/api/admin/services"), ("POST", "/api/admin/services"), ("PATCH", "/api/admin/services/svc-reg"),
     ("DELETE", "/api/admin/services/svc-reg"), ("POST", "/api/admin/counters"),
     ("PATCH", "/api/admin/counters/cnt-1"), ("DELETE", "/api/admin/counters/cnt-1"),
+    ("PATCH", "/api/admin/queues/queue-id"),
     ("GET", "/api/admin/staff"), ("POST", "/api/admin/staff"),
     ("PATCH", "/api/admin/staff/stf-aigerim"), ("GET", "/api/admin/stats"),
 ]
@@ -233,6 +234,10 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
     login = check("POST", "/api/auth/login", "/api/auth/login", json={"username": "admin", "password": "admin123"})
     headers = {"Authorization": "Bearer " + login["token"]}
     check("GET", "/api/admin/services", "/api/admin/services", headers=headers)
+    check("PATCH", f"/api/admin/queues/{queue_id}", "/api/admin/queues/{queueId}",
+          headers=headers, json={"isOpen": False})
+    check("PATCH", f"/api/admin/queues/{queue_id}", "/api/admin/queues/{queueId}",
+          headers=headers, json={"isOpen": True})
     check("GET", "/api/counters", "/api/counters", headers=headers)
     check("GET", "/api/staff/queues", "/api/staff/queues", headers=headers)
     check("GET", "/api/counters/cnt-1/queue", "/api/counters/{counterId}/queue", headers=headers)
@@ -690,6 +695,55 @@ def test_admin_staff_update_revokes_sessions_and_protects_active_work(client, ad
     assert client.get("/api/counters", headers=new_session).status_code == 401
     assert client.post("/api/auth/login", json={"username": "aigerim-new", "password": "staff123"}).status_code == 401
     assert client.patch("/api/admin/staff/unknown", headers=admin, json={"name": "Missing"}).status_code == 404
+
+
+def test_admin_daily_queue_override_preserves_existing_work_and_is_tenant_scoped(client, store, admin, staff):
+    ticket = join(client, name="Already waiting")
+    catalog = client.get("/api/organizations/org-demo/services").json()
+    queue_id = next(row["queue"]["id"] for row in catalog if row["id"] == "svc-reg")
+    assert client.get(f"/api/queues/{queue_id}/status").json()["isOpen"] is True
+
+    closed = client.patch(f"/api/admin/queues/{queue_id}", headers=admin, json={"isOpen": False})
+    assert closed.status_code == 200, closed.text
+    assert closed.json()["isOpen"] is False and closed.json()["waiting"] == 1
+    assert client.get(f"/api/tickets/{ticket['id']}").status_code == 200
+    assert anonymous_join(client, queue_id).status_code == 409
+    assert client.patch(f"/api/admin/queues/{queue_id}", headers=staff,
+                        json={"isOpen": True}).status_code == 403
+
+    # Closing prevents admission, but already-issued work remains callable and
+    # can be completed by assigned staff.
+    called = client.post("/api/counters/cnt-1/call-next", headers=staff)
+    assert called.status_code == 200 and called.json()["id"] == ticket["id"]
+    assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 200
+
+    reopened = client.patch(f"/api/admin/queues/{queue_id}", headers=admin, json={"isOpen": True})
+    assert reopened.status_code == 200 and reopened.json()["isOpen"] is True
+    assert anonymous_join(client, queue_id, key=proof(30), token=proof(31)).status_code == 201
+
+    add_other_organization(store)
+    other_queue = next(row.queue.id for row in store.list_organization_services("org-other"))
+    assert client.patch(f"/api/admin/queues/{other_queue}", headers=admin,
+                        json={"isOpen": False}).status_code == 404
+
+
+def test_daily_queue_cannot_be_reopened_outside_configured_hours(client, admin, clock):
+    clock.value = clock.value.replace(hour=5)
+    service = client.post("/api/admin/services", headers=admin, json={
+        "name": "Office hours", "description": "Scheduled", "prefix": "O",
+        "isOpen": True, "avgServiceMinutes": 5,
+        "opensAt": "09:00", "closesAt": "16:00",
+    })
+    assert service.status_code == 200, service.text
+    catalog = client.get("/api/organizations/org-demo/services").json()
+    queue_id = next(row["queue"]["id"] for row in catalog if row["id"] == service.json()["id"])
+    assert client.patch(f"/api/admin/queues/{queue_id}", headers=admin,
+                        json={"isOpen": False}).status_code == 200
+
+    clock.value = clock.value.replace(hour=12)
+    reopen = client.patch(f"/api/admin/queues/{queue_id}", headers=admin, json={"isOpen": True})
+    assert reopen.status_code == 409
+    assert client.get(f"/api/queues/{queue_id}/status").json()["isOpen"] is False
 
 
 def test_counter_changes_cannot_strand_an_active_ticket(client, admin, staff):

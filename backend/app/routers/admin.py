@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Response
 
 from ..auth import require_admin
 from ..models import (
-    Counter, CounterCreate, CounterUpdate, Service, ServiceCreate, ServiceUpdate,
+    Counter, CounterCreate, CounterUpdate, QueueOverride, QueueSummary, Service, ServiceCreate, ServiceUpdate,
     StaffCreate, StaffUpdate, StaffUser, Stats,
 )
 from ..store import DatabaseStore, get_store
@@ -50,6 +50,12 @@ def update_counter(counterId: str, body: CounterUpdate, store: Store, actor: Adm
 def delete_counter(counterId: str, store: Store, actor: AdminActor) -> Response:
     store.delete_counter(counterId, actor)
     return Response(status_code=204)
+
+
+@router.patch("/queues/{queueId}", response_model=QueueSummary,
+              operation_id="setQueueOverride", openapi_extra=roles)
+def set_queue_override(queueId: str, body: QueueOverride, store: Store, actor: AdminActor):
+    return store.set_queue_override(queueId, body.isOpen, actor)
 
 
 @router.get("/staff", response_model=list[StaffUser], operation_id="listStaff", openapi_extra=roles)

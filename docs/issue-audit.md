@@ -85,7 +85,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #27 | Closed (2026-10-26) | Organization-scoped service listing, schedule/activation validation, history-preserving deactivation and stable daily queue prefixes passed hosted verification. |
 | #28 | Closed (2026-10-26) | Duplicate and cross-organization links are rejected; active tickets stay visible/actionable after counter/link changes; unsafe reassignment is blocked. Hosted verification passed. |
 | #29 | Closed (2026-10-26) | Admin staff edits, activation, password-free responses, duplicate-identity rejection and session revocation are verified; active tickets prevent deactivation/reassignment. Hosted backend and contract checks passed. |
-| #30 | Open | Service-level open/closed toggle exists; a scheduled daily-queue override does not. |
+| #30 | Open | Admin daily-queue open/closed override is implemented with timezone/service-hour gates, organization scoping and continued ticket/staff processing. Focused tests pass; full suite and hosted verification pending. |
 | #31 | Open | Current UTC timestamp counts/averages pass; local-date filtering, organization isolation and mean service duration are absent. |
 | #32 | Open | Current typed bearer adapter passes all 20 live operations; future contract, cookie/CSRF/abort/structured-error integration is absent. |
 | #33 | Closed (2026-10-26 follow-up) | Organization selection, timezone hours, backend availability/wait estimates, and loading/empty/closed/error component states are verified. |
@@ -582,3 +582,14 @@ lint/typecheck, 24 Vitest tests and production build. Hosted frontend, backend
 tests and OpenAPI checks passed in run 40351318131. Its Chromium installation
 and browser workflow remain in progress; issue #29's API acceptance criteria
 were fully verified and the issue was closed.
+
+## Issue #30 daily queue availability override — 2026-10-26
+
+Added organization-admin `PATCH /api/admin/queues/{queueId}`. Daily queue state
+is persisted; opening is rejected when the service is inactive/disabled,
+outside its organization-local schedule, or for a stale business date. Closing
+blocks new joins while existing ticket lookup and assigned staff processing
+continue. Cross-organization access returns 404. Focused close/reopen, service
+hours, tenant-isolation, API contract and authorization tests passed. Full-suite
+and hosted checks remain pending, so #30 stays open. Secure token lookup remains
+the separate unfinished #20 scope.

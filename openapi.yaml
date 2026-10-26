@@ -659,6 +659,51 @@ paths:
       - admin
       parameters:
       - $ref: '#/components/parameters/counterId'
+  /api/admin/queues/{queueId}:
+    patch:
+      operationId: setQueueOverride
+      tags:
+      - Admin
+      summary: Set the manual open/closed state for a daily queue
+      description: 'Persists the daily manual availability gate for an administrator''s organization.
+        Opening is accepted only for the current organization-local business date while the service is
+        active, enabled and within its configured hours. Closing rejects new joins while existing tickets
+        remain viewable and staff can continue processing them.'
+      parameters:
+      - name: queueId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueueOverride'
+      responses:
+        '200':
+          description: Updated effective queue availability and aggregate status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
   /api/admin/staff:
     get:
       operationId: listStaff
@@ -1665,6 +1710,14 @@ components:
           type: integer
           minimum: 0
           nullable: true
+    QueueOverride:
+      type: object
+      additionalProperties: false
+      required: [isOpen]
+      properties:
+        isOpen:
+          type: boolean
+      description: Requested daily-queue gate. Effective availability also depends on the service and its configured schedule.
     StaffCounterQueue:
       type: object
       additionalProperties: false

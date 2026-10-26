@@ -1039,3 +1039,14 @@ Vitest tests and the production build passed. Hosted run 40351318131 passed the
 frontend, backend tests and OpenAPI checks. Its unrelated Chromium installation
 and browser workflow remain in progress; #29's backend acceptance criteria
 were verified, so the issue was closed.
+
+## 2026-10-26 — Issue #30 daily queue availability override
+
+Added organization-admin `PATCH /api/admin/queues/{queueId}`. Daily queue state
+is persisted; opening is rejected when the service is inactive/disabled,
+outside its organization-local schedule, or for a stale business date. Closing
+blocks new joins while existing ticket lookup and assigned staff processing
+continue. Cross-organization access returns 404. Focused close/reopen, service
+hours, tenant-isolation, API contract and authorization tests passed. Full-suite
+and hosted checks remain pending, so #30 stays open. Secure token lookup remains
+the separate unfinished #20 scope.
