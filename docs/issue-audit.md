@@ -288,3 +288,25 @@ field to become enabled before typing. GitHub Actions run
 passed all gates, including both browser viewports. Issue #47 was closed after
 the successful hosted run. GitHub now has **21 closed and 32 open issues**;
 open issues are #12–#32, #34–#43 and #48.
+
+## 2026-10-26 — Issue #48 clean setup and delivery verification
+
+GitHub Actions run [40308941320](https://github.com/dooloe/backend-ready-frontend/actions/runs/40308941320)
+verified clean dependency installation, fresh Alembic migration/model checks,
+all frontend/backend checks, and eight real-backend desktop/mobile browser
+cases. A separate direct `make dev` run used a fresh temporary SQLite database
+and non-default ports; migrations and demo seeding completed at startup. A
+desktop browser walkthrough discovered the university Demo, joined the real
+queue, received its private ticket, then observed staff call, start and complete
+the same ticket. Invalid ticket access and invalid login were rejected as
+expected. Additional failure checks in the browser suite cover empty search,
+closed queues, availability-race 409 without issuance, expired sessions and
+staff denial on admin pages. README, process evidence, demo guide, screenshots
+and limitations now describe the observed application. No new unresolved bug
+was found. Issue #48 was closed after all three criteria were verified.
+
+The remaining open issues are still tracked rather than treated as complete:
+daily queues/idempotent private ticket tokens, cookie/CSRF sessions, rate limits,
+complete organization scoping, and other design-contract work do not match the
+currently shipped bearer-session API. The repository now has **22 closed and
+31 open issues**; open issues are #12–#32 and #34–#43.

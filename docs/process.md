@@ -678,8 +678,24 @@ Evidence from clean hosted run [40308941320](https://github.com/dooloe/backend-r
 
 Failure/rejection cases verified by the same suite include: an unmatched search returns an empty state; a closed queue disables joining; a queue closed between availability check and submission returns an announced 409 without issuing a ticket; expired credentials receive HTTP 401 and the staff UI reports the load failure; invalid credentials are rejected; an invalid private ticket link shows safe unavailable feedback; and staff are denied the admin page. Desktop and mobile assertions found no horizontal overflow in customer, login, staff or admin views. Screenshot previews are committed under `docs/redesign-previews/`; Playwright also generated ignored run screenshots under `frontend/test-results/`.
 
-The end-to-end browser workflow provides repeatable real-API journey evidence,
-but it is automated rather than a separately recorded human-run manual session.
-Issue #48 therefore remains open until a manual run is observed and recorded and
-the remaining checklist is reconciled against the open dependencies; no manual
-observation is claimed here.
+Direct full-stack run: started a fresh isolated database and both services with
+`make dev DATABASE_URL=sqlite:////tmp/kezek-issue48-manual-20261026.sqlite BACKEND_PORT=18766 FRONTEND_PORT=15174`.
+Startup applied migrations and seeded the development directory. In a separate
+desktop Chromium session, opened Explore, selected the university Demo, chose
+Student services, joined, and received a private ticket URL. Signed in as the
+organization's demo staff user, called the ticket, started service and completed
+it; the visitor page reflected each state. Then verified an invalid private link
+shows safe unavailable feedback and a wrong password is rejected with the
+expected message. API access logs showed HTTP 200 for the completed lifecycle,
+404 for the invalid ticket and 401 for invalid credentials. The application was
+stopped cleanly after the walkthrough. This was a direct browser walkthrough
+against `make dev`, separate from the CI Playwright fixture.
+
+AC-1 and AC-2 are now verified by the clean hosted install/migration pipeline,
+the fresh-database direct startup and full browser journey, plus the documented
+rejection cases. AC-3 is reflected in the README, this evidence record, the
+known-limitations section in `docs/redesign.md`, and the open issue audit; no new
+untracked bug was found in the run. Existing incomplete planned-contract and
+security work remains open. Issue #48 was closed after the direct walkthrough
+and hosted checks. GitHub now has 22 closed and 31 open issues (#12–#32,
+#34–#43).
