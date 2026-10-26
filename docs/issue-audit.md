@@ -88,7 +88,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #30 | Open | Service-level open/closed toggle exists; a scheduled daily-queue override does not. |
 | #31 | Open | Current UTC timestamp counts/averages pass; local-date filtering, organization isolation and mean service duration are absent. |
 | #32 | Open | Current typed bearer adapter passes all 20 live operations; future contract, cookie/CSRF/abort/structured-error integration is absent. |
-| #33 | Open | Current service cards exist; organization selection, timezone hours and required real-data state component tests are absent. |
+| #33 | Closed (2026-10-26 follow-up) | Organization selection, timezone hours, backend availability/wait estimates, and loading/empty/closed/error component states are verified. |
 | #34 | Open | Current join works; it collects a name, uses an ID link and lacks idempotent uncertain-response recovery. |
 | #35 | Open | Current ticket polling/cancellation work; polling continues every three seconds for terminal states, with no confirmation or required refresh/recovery tests. |
 | #36 | Open | Bearer login/local storage exists; planned cookie identity, expiry recovery, logout revocation and protected-cache clearing are absent. |
@@ -99,9 +99,9 @@ required evidence; it does not mean all work on that issue is absent.
 | #41 | Open | Current stats come from real data when configured; date filters, service-duration metrics and full error-state coverage are absent. |
 | #42 | Open | Password and bearer hashes exist; private-ticket log/referrer protection and login/join rate limiting criteria are unmet. |
 | #43 | Open | SQLite restart/seed/history tests pass; fresh Alembic migrations and event persistence cannot be verified. |
-| #44 | Open | API/client lifecycle smoke passes; no required Playwright customer/staff workflows or migrated test database setup. |
-| #45 | Open | API role rejection passes; no required admin/access-control browser workflow suite. |
-| #46 | Open | No full mobile/keyboard/accessibility and loading/error/conflict workflow review; HTTP 200 is insufficient evidence. |
+| #44 | Closed | Real-backend customer/staff workflows pass on desktop and mobile with isolated migrated/seeded SQLite. |
+| #45 | Closed | Real-backend admin setup/assignment, access denial, expired-session UI/API and invalid private-link checks pass on desktop and mobile. |
+| #46 | Closed (2026-10-26 follow-up) | Mobile/keyboard flows, accessible labels, focus and dialogs, contrast, loading/empty/error/conflict states verified; category filter and skip-link defects fixed. |
 | #47 | Open | No CI workflow installing locked dependencies and running migrations/browser/schema checks. |
 | #48 | Open | Current demo has passing checks; complete clean-clone MVP, migrations, browser workflow and delivery documentation remain incomplete. |
 | #49 | Keep closed | Current-client contract verified against backend tests; file remains deleted only in this local working tree. |
@@ -190,9 +190,9 @@ remain covered while implementing new contracts and persistence migrations.
 | #41 | D | #31, #32, #36 |
 | #42 | D | #15, #19, #20 |
 | #43 | D | #13, #25, #27, #28, #29, #31 |
-| #44 | D | #13, #35, #37 |
-| #45 | D | #38, #39, #40, #44 |
-| #46 | D | #35, #36, #37, #38, #39, #40, #41 |
+| #44 | Closed (2026-10-26 follow-up) | Real-backend customer/staff desktop and mobile workflows pass. |
+| #45 | Closed (2026-10-26 follow-up) | Admin configuration, staff assignment visibility, anonymous/wrong-role/expired-session denials, and invalid private links pass real-backend browser checks. |
+| #46 | Closed (2026-10-26 follow-up) | Required screens reviewed and verified on desktop/mobile Chromium; see current process evidence. |
 | #47 | D | #2, #26, #43, #44, #45 |
 | #48 | D | #3, #26, #41, #42, #43, #44, #45, #46, #47 |
 
@@ -202,3 +202,84 @@ only, not committed removals. The latest Makefile/OpenAPI commits are the verifi
 openapi.yaml byte-for-byte from HEAD; update README while retaining Lovable
 guidance. Leave the unused backend/.gitkeep deletion untouched. This records a
 reversible repair under the current instruction to investigate before restoring.
+
+## GitHub state and revised MVP review — 2026-10-26
+
+Reviewed all 53 GitHub issues, including the acceptance criteria for the
+redesign and remaining milestones. The final backend suite passed (129 tests).
+Frontend Vitest passed (23 tests), typecheck and production build passed, and
+lint had zero errors (six existing warnings). The updated real-backend Playwright
+suite passed all six desktop/mobile cases, including live organization hours,
+timezone, availability and the admin Organizations tab. Issues #11, #33, #44 and
+#53 were closed with verification comments. No existing labels were changed.
+
+No other open issue was closed: each retains an unmet or unverified acceptance
+criterion, even where the redesigned application implements a related current-
+MVP flow.
+
+Customer discovery, joining, ticket tracking, staff FIFO operations, and the
+global admin directory are implemented and covered by existing API, frontend,
+and browser-test issues. The updated MVP explicitly retains bearer
+login and private ticket links; it does not require daily queue numbering,
+cookie/CSRF auth, account-based ticket history, or notification delivery. These
+older contract criteria remain open until their scope is formally resolved;
+they are not marked complete or silently removed. Security, authorization,
+transactional queue, admin, accessibility, CI and release-verification work
+remains in #12–#48.
+
+The previously considered proposal for a separate admin-overview browser issue
+is not needed: the all-organization view now passes the real-backend desktop and
+mobile browser workflow. No new GitHub issue was created.
+
+## 2026-10-26 — Issue #45 follow-up and next phase review
+
+Issue #45's three acceptance criteria are now verified in the isolated
+real-backend browser suite and the issue was closed with criterion-specific
+evidence. The suite passes six desktop/mobile cases, including admin service and
+counter creation, staff assignment visibility, anonymous and wrong-role denial,
+expired-session API/UI denial, and safe invalid private-ticket feedback. The
+current GitHub count is **19 closed and 34 open**. The open issues are #12–#32,
+#34–#43 and #46–#48.
+
+The open issue set was reviewed again against the updated customer-first MVP.
+Its remaining criteria already cover unfinished or unverified work, including
+daily queues/idempotency/private-token persistence, account/session security,
+organization scoping, schedule and analytics contracts, admin/staff integration,
+accessibility review, CI and delivery verification. Some older requirements
+(cookie/CSRF auth, daily numbering and account-based history) exceed the revised
+MVP, but their issues remain open until scope is formally reconciled; they were
+not closed as complete. No distinct uncovered feature was identified that
+warrants a new issue without duplicating this backlog. No new issues were
+created and no existing issue labels were changed.
+
+## 2026-10-26 — Issue #46 accessibility and responsive verification
+
+Fixed two accessibility defects found during review: the skip link now moves
+keyboard focus to the main content, and the category-filter label is exposed on
+an explicit accessible group. The browser suite now verifies keyboard
+navigation through discovery, service selection, queue joining and cancellation;
+staff login and Call Next; admin login and tab navigation; dialog focus and
+confirmation; and no horizontal overflow across customer, login, staff and admin
+screens at desktop and mobile viewports. A real-backend availability race also
+verifies that a 409 conflict is announced and does not create a ticket.
+
+Focused route/component tests cover loading, empty, closed and network-error
+states. The visual/code review checked accessible input names, focus styling,
+Radix alert-dialog semantics and key status colors. Measured text contrast ratios
+are 5.17:1 for primary blue on white, 4.76:1 for muted body text on white, 5.21:1
+for completed status text on its pale green surface, and 6.16:1 for waiting text
+on its pale blue surface. Vitest passed 23 tests, typecheck passed, lint had zero
+errors (six existing warnings), and real-backend Playwright passed all 8 desktop
+and mobile cases. Native assistive technology was not available for this review.
+Issue #46 was closed with these results. The repository now has **20 closed and
+33 open issues**; open issues are #12–#32, #34–#43 and #47–#48.
+
+## 2026-10-26 — Issue #47 CI implementation status
+
+Added `.github/workflows/ci.yml` for locked installs, frontend checks/build,
+fresh migrations and drift detection, backend checks/tests, current-contract
+OpenAPI consistency, and isolated real-backend Playwright workflows. Local
+commands for each gate pass, including 129 backend tests, two explicit
+OpenAPI consistency tests, fresh migration upgrade/check, and eight desktop/
+mobile browser cases. The workflow YAML parses; issue #47 remains open until the
+workflow itself passes in GitHub Actions.

@@ -191,7 +191,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Nav />
-      <main id="main" className="mx-auto min-h-[calc(100vh-230px)] max-w-6xl px-5 py-10 sm:py-14">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto min-h-[calc(100vh-230px)] max-w-6xl px-5 py-10 sm:py-14"
+      >
         <Outlet />
       </main>
       <footer className="mt-8 border-t bg-white">

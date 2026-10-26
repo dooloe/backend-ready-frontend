@@ -579,3 +579,84 @@ lifecycle; frontend lint and typecheck pass. This follow-up changes no prior
 Playwright evidence; the earlier six real-backend desktop/mobile workflows remain
 recorded above. The default local SQLite file was absent before seeding; the
 explicit development seed command created it and added the four demo organizations.
+
+## 2026-10-26 — GitHub issue review and current browser verification
+
+After the all-organization admin tab was added, the E2E scenario was updated to
+assert the real organization directory before navigating to Services for the
+configuration checks. From `frontend/`, run:
+
+```sh
+LD_LIBRARY_PATH=/tmp/kezek-browser-libs/usr/lib/x86_64-linux-gnu \
+PLAYWRIGHT_BROWSERS_PATH=/home/asus/.cache/ms-playwright npm run test:e2e
+```
+
+Actual result: **6 passed (1.2m)** across desktop and mobile Chromium. Playwright
+started the real FastAPI and Vite servers with a fresh migrated/seeded temporary
+SQLite database and mock mode disabled. The suite verifies discovery/search,
+ticket join and lifecycle, cancellation, no-show, browser-local private ticket
+history, staff FIFO operations, admin access, all five organizations in the
+admin directory, and admin service controls. Organization detail assertions
+also verify backend-provided operating hours, timezone, availability, waiting
+count, and wait estimate.
+
+The full backend suite also passed **129 tests**. The current frontend suite has
+**23 passing tests**; typecheck and production build pass; lint has no errors and
+six existing shared-component Fast Refresh warnings. On GitHub, #11, #33, #44
+and #53 were closed with criterion-specific verification comments. The repository
+now has 18 closed issues and 35 open issues (#12–#32, #34–#43 and #45–#48). No
+existing labels were changed, and no new issues were created.
+
+## 2026-10-26 — Issue #45 access-control browser verification
+
+The full browser command above was rerun after adding the expired-session and
+admin-assignment checks. Actual result: **6 passed (1.4m)** across desktop and
+mobile Chromium, against the real FastAPI/Vite applications and fresh temporary
+migrated/seeded SQLite. The browser suite verified admin service/counter creation
+and staff assignment, staff visibility of the assigned counter, anonymous and
+wrong-role admin denial, expired-session API 401 and UI recovery feedback, and
+safe invalid private-ticket feedback. Issue #45 was closed only after these
+checks passed. GitHub currently has 19 closed and 34 open issues (#12–#32,
+#34–#43, #46–#48).
+
+## 2026-10-26 — Issue #46 responsive and accessibility verification
+
+Accessibility fixes: the skip link target now receives focus, and the category
+filter is an explicitly named group for assistive technology. Real-backend
+Playwright covers keyboard navigation through customer discovery, service
+selection, queue joining and cancellation; staff login and Call Next; admin
+login and tab navigation; confirmation-dialog focus; and a queue-closed 409 race
+that announces the conflict without issuing a ticket. The same eight scenarios
+pass on desktop and mobile Chromium. Mobile checks assert no horizontal overflow
+in customer, login, staff and admin screens.
+
+Actual checks: `npm run lint` (zero errors, six existing Fast Refresh warnings),
+`npm run typecheck` (pass), `npm test` (23 passed across 8 files), and the
+real-backend command above (**8 passed in 1.7m**). Existing detail-page tests
+cover loading, empty, closed and network-error states. Contrast review measured
+primary blue on white at 5.17:1, muted text on white at 4.76:1, completed status
+text on pale green at 5.21:1, and waiting status text on pale blue at 6.16:1.
+The code review confirmed named inputs, visible focus styling and Radix dialog
+focus handling. Native screen-reader testing was unavailable. Issue #46 was
+closed after these checks; GitHub has 20 closed and 33 open issues (#12–#32,
+#34–#43, #47–#48).
+
+## 2026-10-26 — Issue #47 CI implementation
+
+Added `.github/workflows/ci.yml`. On pushes, pull requests and manual dispatch,
+it installs the frontend lockfile with `npm ci` and pinned backend requirements,
+runs frontend lint/typecheck/Vitest/build, applies fresh Alembic migrations and
+checks for model drift, compiles Python modules, runs an explicit current
+OpenAPI-to-FastAPI contract consistency gate plus the full backend suite, then
+installs Chromium and runs the real-backend Playwright workflows. The migration
+database uses the runner temporary directory; Playwright creates its own fresh
+temporary SQLite database. The workflow runs with read-only repository
+permissions.
+
+Local results: frontend lint (zero errors, six existing warnings), typecheck,
+Vitest (**23 passed**), production build, backend pytest (**129 passed**, one
+existing Starlette/httpx warning), explicit OpenAPI consistency guard (**2
+passed**), isolated `alembic upgrade head` plus `alembic check` (no pending model
+operations), and real-backend Playwright (**8 passed** across desktop/mobile).
+The workflow YAML parsed successfully. GitHub Actions has not yet run this
+workflow, so issue #47 remains open pending a successful remote run.

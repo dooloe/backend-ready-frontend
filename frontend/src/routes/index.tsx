@@ -111,7 +111,11 @@ export function Index() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="mb-10 flex flex-wrap gap-2" aria-label="Organization categories">
+        <div
+          role="group"
+          className="mb-10 flex flex-wrap gap-2"
+          aria-label="Organization categories"
+        >
           {["All organizations", ...categories].map((c, i) => {
             const Icon = categoryIcons[i - 1];
             return (

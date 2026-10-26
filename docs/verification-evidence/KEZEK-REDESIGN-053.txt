@@ -85,3 +85,41 @@ Alembic test assumes repository-root paths; the correct repository-root rerun
 passes. The initial new startup test assertion was updated to include the four
 intentionally seeded services. Neither failed intermediate attempt counts as a
 pass.
+
+Superseding verification update — 2026-10-26, after commit e3eb659:
+- Frontend Vitest: 23 passed; strict typecheck passed; production build passed.
+- Frontend lint: zero errors; six existing Fast Refresh warnings.
+- Backend pytest: 129 passed; one existing Starlette/httpx deprecation warning.
+- Updated real-backend browser run, from frontend/:
+  LD_LIBRARY_PATH=/tmp/kezek-browser-libs/usr/lib/x86_64-linux-gnu
+  PLAYWRIGHT_BROWSERS_PATH=/home/asus/.cache/ms-playwright npm run test:e2e
+  Result: 6 passed in 1.4m, across desktop and mobile Chromium. Scenarios assert
+  backend-provided organization hours, timezone, availability, waiting count and
+  wait estimate, and that the admin sees all five live organizations before
+  continuing through real service creation, queue closure and confirmed delete.
+  The fixture uses fresh migrated/seeded temporary SQLite and real apps.
+
+Issue status after this verification: #11, #33, #44, #45 and #53 closed with
+acceptance-criterion evidence; 34 broader API, security, tenant, schedule,
+administration and delivery issues remain open. This later run supersedes the
+earlier notes above that said #53 was still open or that the Playwright evidence
+predated admin-directory verification.
+
+Issue #45 follow-up details: the same isolated browser run verifies admin
+creation of a service and counter, staff assignment visibility, anonymous and
+wrong-role denial, expired-session API 401 and UI feedback, and safe invalid
+private-ticket feedback. All six browser cases passed on desktop and mobile.
+
+Issue #46 follow-up details — 2026-10-26:
+- `npm run lint`: zero errors, six existing Fast Refresh warnings.
+- `npm run typecheck`: passed.
+- `npm test`: 23 passed across 8 frontend test files.
+- Real-backend Playwright: 8 passed in 1.7m across desktop/mobile Chromium,
+  including keyboard customer, staff and admin interactions, focus-managed
+  cancellation confirmation, responsive overflow checks, and a real queue
+  conflict response.
+- Fixed skip-link focus and added accessible group semantics to category filters.
+- Contrast ratios: primary blue/white 5.17:1, muted text/white 4.76:1, completed
+  status/pale green 5.21:1, waiting status/pale blue 6.16:1.
+- Issue #46 closed with evidence. Updated GitHub state: 20 closed, 33 open.
+  Native assistive technology checks were unavailable.
