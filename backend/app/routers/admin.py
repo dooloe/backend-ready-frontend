@@ -1,10 +1,11 @@
+from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 
 from ..auth import require_admin
 from ..models import (
-    Counter, CounterCreate, CounterUpdate, QueueOverride, QueueSummary, Service, ServiceCreate, ServiceUpdate,
+    Analytics, Counter, CounterCreate, CounterUpdate, QueueOverride, QueueSummary, Service, ServiceCreate, ServiceUpdate,
     StaffCreate, StaffUpdate, StaffUser, Stats,
 )
 from ..store import DatabaseStore, get_store
@@ -76,3 +77,9 @@ def update_staff(staffId: str, body: StaffUpdate, store: Store, actor: AdminActo
 @router.get("/stats", response_model=Stats, operation_id="getStats", openapi_extra=roles)
 def stats(store: Store, actor: AdminActor):
     return store.stats(actor)
+
+
+@router.get("/analytics", response_model=Analytics, operation_id="getAnalytics", openapi_extra=roles)
+def analytics(store: Store, actor: AdminActor,
+              dateFrom: date | None = Query(default=None), dateTo: date | None = Query(default=None)):
+    return store.analytics(dateFrom, dateTo, actor)

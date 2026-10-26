@@ -842,6 +842,45 @@ paths:
       - BearerAuth: []
       x-required-roles:
       - admin
+  /api/admin/analytics:
+    get:
+      operationId: getAnalytics
+      tags:
+      - Admin
+      summary: Read organization-local date-filtered queue analytics
+      description: 'Uses an inclusive organization-local issued-date cohort. Supply both dateFrom/dateTo or neither; the default is today. Ranges may include at most 31 dates. Averages use completed tickets with valid timestamps; service duration requires a recorded start.'
+      parameters:
+      - name: dateFrom
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: dateTo
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Organization-scoped analytics for the requested local date range.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analytics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
   /api/organizations:
     get:
       tags:
@@ -1616,6 +1655,84 @@ components:
             $ref: '#/components/schemas/HourlyStats'
       description: Current frontend analytics shape. The mock uses browser-local dates and returns 24
         hourly buckets. No organization/timezone filters or service-duration metric are sent by this client.
+    ServiceMetrics:
+      type: object
+      additionalProperties: false
+      required: [serviceId, serviceName, issued, waiting, completed, meanWaitMinutes, meanServiceMinutes]
+      properties:
+        serviceId:
+          type: string
+        serviceName:
+          type: string
+        issued:
+          type: integer
+          minimum: 0
+        waiting:
+          type: integer
+          minimum: 0
+        completed:
+          type: integer
+          minimum: 0
+        meanWaitMinutes:
+          type: number
+          minimum: 0
+          nullable: true
+        meanServiceMinutes:
+          type: number
+          minimum: 0
+          nullable: true
+    DayMetrics:
+      type: object
+      additionalProperties: false
+      required: [date, issued, completed]
+      properties:
+        date:
+          type: string
+          format: date
+        issued:
+          type: integer
+          minimum: 0
+        completed:
+          type: integer
+          minimum: 0
+    Analytics:
+      type: object
+      additionalProperties: false
+      required: [dateFrom, dateTo, timezone, issued, waiting, completed, meanWaitMinutes, meanServiceMinutes, byService, byDay]
+      properties:
+        dateFrom:
+          type: string
+          format: date
+        dateTo:
+          type: string
+          format: date
+        timezone:
+          type: string
+        issued:
+          type: integer
+          minimum: 0
+        waiting:
+          type: integer
+          minimum: 0
+        completed:
+          type: integer
+          minimum: 0
+        meanWaitMinutes:
+          type: number
+          minimum: 0
+          nullable: true
+        meanServiceMinutes:
+          type: number
+          minimum: 0
+          nullable: true
+        byService:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceMetrics'
+        byDay:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayMetrics'
     ApiError:
       type: object
       additionalProperties: false

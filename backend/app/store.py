@@ -2,12 +2,13 @@
 
 from collections.abc import Callable
 import base64
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 import hashlib
 import hmac
 import math
 import re
 import secrets
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException, Request
 from sqlalchemy import delete, func, or_, select
@@ -16,9 +17,9 @@ from sqlalchemy.exc import IntegrityError
 from .auth import hash_password, token_hash, verify_password
 from .database import Database, configured_database_url
 from .models import (
-    Counter, CounterCreate, HourlyStats, JoinQueueRequest, LoginRequest, LoginResponse,
+    Analytics, Counter, CounterCreate, DayMetrics, HourlyStats, JoinQueueRequest, LoginRequest, LoginResponse,
     IssuedTicket, JoinResponse, Organization, PublicService, QueueSummary, QueueView, Service, ServiceCreate, ServiceStats, ServiceSummary, StaffCreate, StaffUser, Stats,
-    StaffCounterQueue, StaffCurrentTicket, StaffUpdate, Ticket, TicketView,
+    ServiceMetrics, StaffCounterQueue, StaffCurrentTicket, StaffUpdate, Ticket, TicketView,
 )
 from .scheduling import QueueSchedule, resolve_queue_schedule
 from .orm import (ActiveTicketRow, CounterRow, CounterServiceRow, OrganizationRow,
@@ -958,6 +959,92 @@ class DatabaseStore:
                          completedToday=sum(row.status == "completed" for row in tickets), avgWaitMinutes=average(tickets),
                          byService=by_service,
                          byHour=[HourlyStats(hour=h, count=sum(row.createdAt.hour == h for row in tickets)) for h in range(24)])
+
+    def analytics(self, date_from: date | None, date_to: date | None, actor: StaffUser) -> Analytics:
+        if (date_from is None) != (date_to is None):
+            raise HTTPException(422, "dateFrom and dateTo must be supplied together")
+        with self.db.session() as session:
+            actor_row = self._actor_row(session, actor, admin=True)
+            organization = session.get(OrganizationRow, actor_row.organization_id)
+            try:
+                zone = ZoneInfo(organization.timezone)
+            except (AttributeError, ZoneInfoNotFoundError) as exc:
+                raise HTTPException(422, "Organization timezone is invalid") from exc
+            if date_from is None:
+                date_from = self.clock().astimezone(zone).date()
+                date_to = date_from
+            if date_from > date_to:
+                raise HTTPException(422, "dateFrom must not be after dateTo")
+            if (date_to - date_from).days > 30:
+                raise HTTPException(422, "Date range cannot exceed 31 organization-local dates")
+
+            start_utc = datetime.combine(date_from, time.min, tzinfo=zone).astimezone(timezone.utc)
+            end_utc = datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=zone).astimezone(timezone.utc)
+            tickets = list(session.scalars(
+                select(TicketRow)
+                .join(ServiceRow, ServiceRow.id == TicketRow.serviceId)
+                .where(ServiceRow.organization_id == actor_row.organization_id,
+                       TicketRow.createdAt >= start_utc, TicketRow.createdAt < end_utc)
+                .order_by(TicketRow.createdAt, TicketRow.ordinal)
+            ))
+            completed = [row for row in tickets if row.status == "completed"]
+
+            def mean(values):
+                return math.floor(sum(values) / len(values) * 10 + 0.5) / 10 if values else None
+
+            waits = [
+                (row.calledAt - row.createdAt).total_seconds() / 60
+                for row in completed if row.calledAt is not None and row.calledAt >= row.createdAt
+            ]
+            durations = [
+                (row.finishedAt - row.servedAt).total_seconds() / 60
+                for row in completed
+                if row.servedAt is not None and row.finishedAt is not None and row.finishedAt >= row.servedAt
+            ]
+            grouped = {}
+            for ticket in tickets:
+                grouped.setdefault(ticket.serviceId, []).append(ticket)
+            service_rows = list(session.scalars(select(ServiceRow).where(
+                ServiceRow.organization_id == actor_row.organization_id,
+                ServiceRow.id.in_(grouped.keys()) if grouped else False,
+            ).order_by(ServiceRow.name, ServiceRow.id)))
+            by_service = []
+            for service in service_rows:
+                rows = grouped[service.id]
+                service_completed = [row for row in rows if row.status == "completed"]
+                service_waits = [
+                    (row.calledAt - row.createdAt).total_seconds() / 60
+                    for row in service_completed if row.calledAt is not None and row.calledAt >= row.createdAt
+                ]
+                service_durations = [
+                    (row.finishedAt - row.servedAt).total_seconds() / 60
+                    for row in service_completed
+                    if row.servedAt is not None and row.finishedAt is not None and row.finishedAt >= row.servedAt
+                ]
+                by_service.append(ServiceMetrics(
+                    serviceId=service.id, serviceName=service.name,
+                    issued=len(rows), waiting=sum(row.status == "waiting" for row in rows),
+                    completed=len(service_completed), meanWaitMinutes=mean(service_waits),
+                    meanServiceMinutes=mean(service_durations),
+                ))
+            daily_counts = {}
+            for row in tickets:
+                local_date = row.createdAt.astimezone(zone).date()
+                counts = daily_counts.setdefault(local_date, [0, 0])
+                counts[0] += 1
+                counts[1] += row.status == "completed"
+            by_day = [
+                DayMetrics(date=day, issued=daily_counts.get(day, [0, 0])[0],
+                           completed=daily_counts.get(day, [0, 0])[1])
+                for day in (date_from + timedelta(days=offset)
+                            for offset in range((date_to - date_from).days + 1))
+            ]
+            return Analytics(
+                dateFrom=date_from, dateTo=date_to, timezone=organization.timezone,
+                issued=len(tickets), waiting=sum(row.status == "waiting" for row in tickets),
+                completed=len(completed), meanWaitMinutes=mean(waits),
+                meanServiceMinutes=mean(durations), byService=by_service, byDay=by_day,
+            )
 
 
 def get_store(request: Request) -> DatabaseStore:

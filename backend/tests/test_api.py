@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import base64
 import hashlib
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 import jsonschema
@@ -148,6 +149,7 @@ ADMIN_ENDPOINTS = [
     ("PATCH", "/api/admin/queues/queue-id"),
     ("GET", "/api/admin/staff"), ("POST", "/api/admin/staff"),
     ("PATCH", "/api/admin/staff/stf-aigerim"), ("GET", "/api/admin/stats"),
+    ("GET", "/api/admin/analytics"),
 ]
 
 
@@ -265,6 +267,7 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
     check("PATCH", f"/api/admin/staff/{new_staff['id']}", "/api/admin/staff/{staffId}",
           headers=headers, json={"name": "Updated person"})
     check("GET", "/api/admin/stats", "/api/admin/stats", headers=headers)
+    check("GET", "/api/admin/analytics", "/api/admin/analytics", headers=headers)
     check("DELETE", f"/api/admin/services/{service['id']}", "/api/admin/services/{serviceId}", headers=headers)
     check("DELETE", f"/api/admin/counters/{counter['id']}", "/api/admin/counters/{counterId}", headers=headers)
     expected = {op["operationId"] for methods in contract["paths"].values() for op in methods.values()}
@@ -891,6 +894,62 @@ def test_statistics_use_real_timestamps_and_utc_days(client, admin, staff, clock
     assert stats["totalToday"] == 0 and stats["avgWaitMinutes"] is None
     assert stats["waitingNow"] == 1
     assert all(s["total"] == 0 for s in stats["byService"])
+
+
+def test_analytics_uses_local_date_cohorts_real_averages_and_tenant_scope(client, store, admin, clock):
+    add_other_organization(store)
+    entries = [
+        (join(client, "svc-reg", "Before local day"), datetime(2026, 10, 19, 18, 59, 59, tzinfo=timezone.utc), "completed"),
+        (join(client, "svc-reg", "At local day start"), datetime(2026, 10, 19, 19, 0, 0, tzinfo=timezone.utc), "completed"),
+        (join(client, "svc-fin", "Before local day end"), datetime(2026, 10, 20, 18, 59, 59, tzinfo=timezone.utc), "waiting"),
+        (join(client, "svc-fin", "At next local day"), datetime(2026, 10, 20, 19, 0, 0, tzinfo=timezone.utc), "completed"),
+        (join(client, "other-service", "Other organization"), datetime(2026, 10, 20, 10, 0, 0, tzinfo=timezone.utc), "completed"),
+        (join(client, "svc-reg", "Completed without a service start"), datetime(2026, 10, 20, 8, 0, 0, tzinfo=timezone.utc), "completed"),
+    ]
+    with store.db.session(write=True) as session:
+        for ticket, created, state in entries:
+            row = session.scalar(select(TicketRow).where(TicketRow.id == ticket["id"]))
+            assert row is not None, ticket
+            row.createdAt = created
+            row.status = state
+            if state == "completed":
+                row.calledAt = created + timedelta(minutes=10)
+                row.servedAt = created + timedelta(minutes=15)
+                row.finishedAt = created + timedelta(minutes=35)
+    with store.db.session(write=True) as session:
+        direct_ticket = session.scalar(select(TicketRow).where(TicketRow.id == entries[-1][0]["id"]))
+        direct_ticket.calledAt = direct_ticket.createdAt + timedelta(minutes=4)
+        direct_ticket.servedAt = None
+        direct_ticket.finishedAt = direct_ticket.createdAt + timedelta(minutes=10)
+
+    response = client.get("/api/admin/analytics?dateFrom=2026-10-20&dateTo=2026-10-20", headers=admin)
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert (result["issued"], result["waiting"], result["completed"]) == (3, 1, 2)
+    assert (result["meanWaitMinutes"], result["meanServiceMinutes"]) == (7, 20)
+    assert result["timezone"] == "Asia/Almaty"
+    assert result["byDay"] == [{"date": "2026-10-20", "issued": 3, "completed": 2}]
+    by_service = {item["serviceId"]: item for item in result["byService"]}
+    assert (by_service["svc-reg"]["issued"], by_service["svc-reg"]["completed"],
+            by_service["svc-reg"]["meanWaitMinutes"], by_service["svc-reg"]["meanServiceMinutes"]) == (2, 2, 7, 20)
+    assert by_service["svc-fin"]["issued"] == 1 and by_service["svc-fin"]["waiting"] == 1
+    assert "other-service" not in by_service
+
+    empty = client.get("/api/admin/analytics?dateFrom=2026-10-22&dateTo=2026-10-22", headers=admin)
+    assert empty.status_code == 200
+    assert empty.json()["issued"] == 0 and empty.json()["byService"] == []
+    assert empty.json()["meanWaitMinutes"] is None and empty.json()["meanServiceMinutes"] is None
+    assert empty.json()["byDay"] == [{"date": "2026-10-22", "issued": 0, "completed": 0}]
+
+
+def test_analytics_rejects_incomplete_reversed_and_oversized_ranges(client, admin, staff):
+    default = client.get("/api/admin/analytics", headers=admin)
+    assert default.status_code == 200
+    assert default.json()["dateFrom"] == default.json()["dateTo"] == "2026-10-20"
+    assert client.get("/api/admin/analytics?dateFrom=2026-10-20", headers=admin).status_code == 422
+    assert client.get("/api/admin/analytics?dateFrom=2026-10-21&dateTo=2026-10-20", headers=admin).status_code == 422
+    assert client.get("/api/admin/analytics?dateFrom=2026-10-01&dateTo=2026-11-01", headers=admin).status_code == 422
+    assert client.get("/api/admin/analytics", headers=staff).status_code == 403
 
 
 def test_parallel_joins_and_competing_counters_are_atomic(client, admin):

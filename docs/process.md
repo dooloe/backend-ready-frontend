@@ -1047,6 +1047,26 @@ is persisted; opening is rejected when the service is inactive/disabled,
 outside its organization-local schedule, or for a stale business date. Closing
 blocks new joins while existing ticket lookup and assigned staff processing
 continue. Cross-organization access returns 404. Focused close/reopen, service
-hours, tenant-isolation, API contract and authorization tests passed. Full-suite
-and hosted checks remain pending, so #30 stays open. Secure token lookup remains
-the separate unfinished #20 scope.
+hours, tenant-isolation, API contract and authorization tests passed. The full
+backend suite passed **178 tests**. Frontend lint (zero errors; six existing
+warnings), typecheck, 24 Vitest tests and production build passed. The real-
+backend desktop/mobile workflow passed **8 cases** locally. Hosted run
+[40353499016](https://github.com/dooloe/backend-ready-frontend/actions/runs/40353499016)
+passed every frontend, backend, migration and OpenAPI gate; its only failure was
+a mobile keyboard-focus assertion at the skip-link/search sequence, which passed
+on the local full rerun. #30 remains open until a hosted rerun is green. Secure
+token lookup remains the separate unfinished #20 scope.
+
+## 2026-10-26 — Issue #31 date-filtered operational analytics
+
+Added organization-admin `GET /api/admin/analytics` with paired inclusive local
+date filters, a 31-day maximum, local-midnight-to-UTC boundaries, organization
+isolation, issued/waiting/completed counts, means from completed ticket
+timestamps, per-service metrics, and zero-filled daily totals. Completed tickets
+without a start timestamp do not fabricate service duration. Focused timestamp,
+timezone-boundary, empty-range, tenant, authorization and OpenAPI checks pass.
+The full backend suite passed **178 tests**, backend compilation and
+`git diff --check` passed. Frontend lint (zero errors; six existing warnings),
+typecheck, 24 Vitest tests and production build passed. The real-backend
+desktop/mobile workflow passed **8 cases** locally. Hosted verification remains
+pending, so #31 stays open.

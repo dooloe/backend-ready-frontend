@@ -204,6 +204,35 @@ class Stats(Model):
     byHour: list[HourlyStats]
 
 
+class ServiceMetrics(Model):
+    serviceId: str
+    serviceName: str
+    issued: int
+    waiting: int
+    completed: int
+    meanWaitMinutes: float | None
+    meanServiceMinutes: float | None
+
+
+class DayMetrics(Model):
+    date: date
+    issued: int
+    completed: int
+
+
+class Analytics(Model):
+    dateFrom: date
+    dateTo: date
+    timezone: str
+    issued: int
+    waiting: int
+    completed: int
+    meanWaitMinutes: float | None
+    meanServiceMinutes: float | None
+    byService: list[ServiceMetrics]
+    byDay: list[DayMetrics]
+
+
 class PublicService(Service):
     waitingCount: int
     estimatedWaitMinutes: int | None
