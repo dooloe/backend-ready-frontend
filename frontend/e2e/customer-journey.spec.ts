@@ -219,6 +219,7 @@ test("staff no-show confirmation and essential admin configuration", async ({ pa
   const context = await browser.newContext({ viewport: page.viewportSize() });
   const staff = await context.newPage();
   await staff.goto("http://127.0.0.1:15173/login");
+  await expect(staff.getByLabel("Username")).toBeEnabled();
   const loginFitsViewport = await staff.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth,
   );
@@ -289,6 +290,7 @@ test("staff no-show confirmation and essential admin configuration", async ({ pa
   });
   await expiredContext.close();
   await staff.goto("http://127.0.0.1:15173/login");
+  await expect(staff.getByLabel("Username")).toBeEnabled();
   await staff.keyboard.press("Tab");
   await expect(staff.getByRole("link", { name: "Skip to content" })).toBeFocused();
   await staff.keyboard.press("Enter");
