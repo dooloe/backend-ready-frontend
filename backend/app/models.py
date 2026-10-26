@@ -141,6 +141,24 @@ class QueueView(Model):
     waiting: list[TicketView]
 
 
+class StaffCurrentTicket(Model):
+    id: str
+    queueId: str
+    ticketNumber: str
+    serviceName: str
+    status: Literal["called", "serving"]
+    position: int | None
+    estimatedWaitMinutes: int | None
+    counterId: str | None
+    counterName: str | None
+    createdAt: datetime
+    calledAt: datetime | None
+    startedAt: datetime | None
+    completedAt: datetime | None
+    cancelledAt: datetime | None
+    noShowAt: datetime | None
+
+
 class ServiceStats(Model):
     serviceId: str
     serviceName: str
@@ -180,6 +198,12 @@ class QueueSummary(Model):
     waiting: int
     activeCounters: int
     estimatedWaitMinutes: int | None
+
+
+class StaffCounterQueue(Model):
+    counter: Counter
+    queues: list[QueueSummary]
+    current: StaffCurrentTicket | None
 
 
 class ServiceSummary(Model):

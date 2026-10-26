@@ -489,3 +489,15 @@ unknown-queue 404 and private-data exclusion criteria. Issue #22 was closed
 with criterion-specific evidence. GitHub now has **31 closed and 22 open
 issues**; remaining open issues are #14–#15, #20–#21, #23–#32, #34–#36,
 #38–#41 and #43.
+
+## Issue #23 staff queue discovery implementation — 2026-10-26
+
+Added the authenticated staff queue discovery endpoint and current API contract.
+It scopes active counters and service queues to the authenticated user's
+organization and assignment, includes local-date aggregate counts/estimates and
+current counter ticket state, and excludes customer identity. Tests cover
+multiple services and assignments, inactive service/counter configuration,
+unassigned users, and cross-organization isolation. Focused checks passed and
+the full backend suite passed 160 tests after adding the endpoint to API
+operation-coverage checks; compileall and diff checks passed. Issue #23 remains
+open pending hosted verification.

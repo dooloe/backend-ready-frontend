@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from ..auth import require_staff
-from ..models import Counter, QueueView, StaffUser, TicketView
+from ..models import Counter, QueueView, StaffCounterQueue, StaffUser, TicketView
 from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api", tags=["Staff"], dependencies=[Depends(require_staff)])
@@ -15,6 +15,11 @@ roles = {"x-required-roles": ["staff", "admin"]}
 @router.get("/counters", response_model=list[Counter], operation_id="listCounters", openapi_extra=roles)
 def list_counters(store: Store, actor: Actor):
     return store.list_counters(actor)
+
+
+@router.get("/staff/queues", response_model=list[StaffCounterQueue], operation_id="listStaffQueues", openapi_extra=roles)
+def list_staff_queues(store: Store, actor: Actor):
+    return store.staff_queues(actor)
 
 
 @router.get("/counters/{counterId}/queue", response_model=QueueView, operation_id="getQueue", openapi_extra=roles)

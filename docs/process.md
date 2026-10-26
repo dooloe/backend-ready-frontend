@@ -928,3 +928,22 @@ passed (**8 passed**) on desktop and mobile. Hosted run
 passed frontend lint/typecheck/tests/build, fresh migrations/model-drift,
 backend compilation/tests, OpenAPI consistency, and real-backend desktop/mobile
 workflows for commit `5c68685`. Issue #22 was closed after these checks passed.
+
+## 2026-10-26 — Issue #23 staff queue discovery
+
+Added authenticated `GET /api/staff/queues` using existing bearer-session
+authorization. Staff receive active counters assigned to them (including
+unowned counters explicitly assigned to them); admins receive active counters
+in their organization. Each entry contains active same-organization service
+queues for the current organization-local business date, aggregate waiting and
+capacity estimates, and the active current counter ticket without customer
+identity fields. Inactive counters and services, unassigned counters, and
+cross-organization configuration are excluded. The endpoint is documented in
+the current frontend/backend contract and matches the generated OpenAPI route.
+
+Focused authorization, response-schema, multi-service/multi-assignment,
+inactive-config, empty-assignment and tenant-isolation checks passed. The full
+`backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` suite
+passed (**160 passed**, six existing deprecation warnings), as did compileall
+and `git diff --check`. Hosted CI is pending. Issue #23 remains open pending
+hosted verification.

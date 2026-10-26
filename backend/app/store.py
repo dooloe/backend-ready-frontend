@@ -10,7 +10,7 @@ import re
 import secrets
 
 from fastapi import HTTPException, Request
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from .auth import hash_password, token_hash, verify_password
@@ -18,7 +18,7 @@ from .database import Database, configured_database_url
 from .models import (
     Counter, CounterCreate, HourlyStats, JoinQueueRequest, LoginRequest, LoginResponse,
     IssuedTicket, JoinResponse, Organization, PublicService, QueueSummary, QueueView, Service, ServiceCreate, ServiceStats, ServiceSummary, StaffCreate, StaffUser, Stats,
-    Ticket, TicketView,
+    StaffCounterQueue, StaffCurrentTicket, Ticket, TicketView,
 )
 from .scheduling import QueueSchedule, resolve_queue_schedule
 from .orm import (ActiveTicketRow, CounterRow, CounterServiceRow, OrganizationRow,
@@ -349,6 +349,85 @@ class DatabaseStore:
                     CounterRow.isActive.is_(True),
                 )
             return [self._counter(session, row) for row in session.scalars(query.order_by(CounterRow.id))]
+
+    def staff_queues(self, actor: StaffUser) -> list[StaffCounterQueue]:
+        with self.db.session() as session:
+            actor_row = self._actor_row(session, actor)
+            query = select(CounterRow).where(
+                CounterRow.organization_id == actor_row.organization_id,
+                CounterRow.deleted.is_(False), CounterRow.isActive.is_(True),
+            )
+            if actor_row.role != "admin":
+                query = query.join(
+                    StaffAssignmentRow,
+                    (StaffAssignmentRow.counter_id == CounterRow.id)
+                    & (StaffAssignmentRow.organization_id == CounterRow.organization_id),
+                ).where(
+                    StaffAssignmentRow.user_id == actor_row.id,
+                    or_(CounterRow.staffId.is_(None), CounterRow.staffId == actor_row.id),
+                )
+            now = self.clock()
+            result = []
+            for counter in session.scalars(query.order_by(CounterRow.id)):
+                service_ids = list(session.scalars(select(CounterServiceRow.service_id).where(
+                    CounterServiceRow.organization_id == actor_row.organization_id,
+                    CounterServiceRow.counter_id == counter.id,
+                )))
+                counter_services = {row.id: row for row in session.scalars(select(ServiceRow).where(
+                    ServiceRow.organization_id == actor_row.organization_id,
+                    ServiceRow.id.in_(service_ids), ServiceRow.deleted.is_(False),
+                ))} if service_ids else {}
+                services = list(session.scalars(select(ServiceRow).where(
+                    ServiceRow.organization_id == actor_row.organization_id,
+                    ServiceRow.id.in_(service_ids), ServiceRow.deleted.is_(False),
+                    ServiceRow.isActive.is_(True),
+                ).order_by(ServiceRow.id))) if service_ids else []
+                summaries = []
+                for service in services:
+                    try:
+                        schedule, daily_queue, is_open = self._queue_state(session, service, now)
+                    except HTTPException:
+                        continue
+                    if daily_queue is None:
+                        continue
+                    waiting = session.scalar(select(func.count()).select_from(TicketRow).where(
+                        TicketRow.dailyQueueId == daily_queue.id, TicketRow.status == "waiting",
+                    )) or 0
+                    capacity = session.scalar(select(func.count()).select_from(CounterRow).join(
+                        CounterServiceRow, CounterServiceRow.counter_id == CounterRow.id,
+                    ).where(
+                        CounterServiceRow.organization_id == actor_row.organization_id,
+                        CounterServiceRow.service_id == service.id,
+                        CounterRow.organization_id == actor_row.organization_id,
+                        CounterRow.deleted.is_(False), CounterRow.isActive.is_(True),
+                    )) or 0
+                    summaries.append(QueueSummary(
+                        id=daily_queue.id, serviceId=service.id, queueDate=schedule.business_date,
+                        isOpen=is_open and daily_queue.business_date == schedule.business_date,
+                        waiting=waiting, activeCounters=capacity,
+                        estimatedWaitMinutes=math.ceil(waiting * service.avgServiceMinutes / capacity) if capacity else None,
+                    ))
+                claim = session.get(ActiveTicketRow, counter.id)
+                current = None
+                if claim:
+                    ticket = self._ticket_row(session, claim.ticket_id)
+                    if (ticket.status in {"called", "serving"} and ticket.counterId == counter.id
+                            and ticket.serviceId in counter_services and ticket.dailyQueueId):
+                        service = counter_services[ticket.serviceId]
+                        current = StaffCurrentTicket(
+                            id=ticket.id, queueId=ticket.dailyQueueId, ticketNumber=ticket.code,
+                            serviceName=service.name, status=ticket.status, position=None,
+                            estimatedWaitMinutes=None, counterId=counter.id, counterName=counter.name,
+                            createdAt=ticket.createdAt, calledAt=ticket.calledAt,
+                            startedAt=ticket.servedAt,
+                            completedAt=ticket.finishedAt if ticket.status == "completed" else None,
+                            cancelledAt=ticket.finishedAt if ticket.status == "cancelled" else None,
+                            noShowAt=ticket.finishedAt if ticket.status == "no_show" else None,
+                        )
+                result.append(StaffCounterQueue(
+                    counter=self._counter(session, counter), queues=summaries, current=current,
+                ))
+            return result
 
     @staticmethod
     def _issue(session, service, name: str, created: datetime):

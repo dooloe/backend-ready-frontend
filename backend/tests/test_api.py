@@ -133,6 +133,7 @@ def test_ticket_issue_rolls_back_number_ticket_and_event_on_event_failure(client
 
 STAFF_ENDPOINTS = [
     ("GET", "/api/counters"), ("GET", "/api/counters/cnt-1/queue"),
+    ("GET", "/api/staff/queues"),
     ("POST", "/api/counters/cnt-1/call-next"),
     ("POST", "/api/tickets/missing/start"), ("POST", "/api/tickets/missing/complete"),
     ("POST", "/api/tickets/missing/no-show"),
@@ -228,6 +229,7 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
     login = check("POST", "/api/auth/login", "/api/auth/login", json={"username": "admin", "password": "admin123"})
     headers = {"Authorization": "Bearer " + login["token"]}
     check("GET", "/api/counters", "/api/counters", headers=headers)
+    check("GET", "/api/staff/queues", "/api/staff/queues", headers=headers)
     check("GET", "/api/counters/cnt-1/queue", "/api/counters/{counterId}/queue", headers=headers)
     check("POST", "/api/counters/cnt-1/call-next", "/api/counters/{counterId}/call-next", headers=headers)
     check("POST", f"/api/tickets/{ticket['id']}/start", "/api/tickets/{id}/start", headers=headers)
@@ -325,6 +327,59 @@ def test_staff_operations_require_an_active_counter_assignment(client, admin, st
     assert client.post("/api/counters/cnt-1/call-next", headers=staff).json()["id"] == ticket["id"]
     assert client.post(f"/api/tickets/{ticket['id']}/start", headers=other).status_code == 403
     assert client.post(f"/api/tickets/{ticket['id']}/start", headers=staff).status_code == 200
+
+
+def test_staff_queue_discovery_is_assigned_active_and_private(client, store, staff, admin):
+    from app.orm import CounterServiceRow
+
+    with store.db.session(write=True) as session:
+        session.add(CounterServiceRow(organization_id="org-demo", counter_id="cnt-1", service_id="svc-fin"))
+        session.add(StaffAssignmentRow(organization_id="org-demo", user_id="stf-aigerim", counter_id="cnt-2"))
+        session.add(CounterServiceRow(organization_id="org-demo", counter_id="cnt-1", service_id="svc-it"))
+
+    reg = join(client, "svc-reg", "Private customer name")
+    fin = join(client, "svc-fin", "Another private name")
+    assert client.post("/api/counters/cnt-1/call-next", headers=staff).json()["id"] == reg["id"]
+    response = client.get("/api/staff/queues", headers=staff)
+    assert response.status_code == 200
+    counters = response.json()
+    assert [row["counter"]["id"] for row in counters] == ["cnt-1", "cnt-2"]
+    assert set(counters[0]["queues"][0]) == {
+        "id", "serviceId", "queueDate", "isOpen", "waiting", "activeCounters", "estimatedWaitMinutes",
+    }
+    assert {queue["serviceId"] for queue in counters[0]["queues"]} == {"svc-reg", "svc-fin"}
+    assert {queue["serviceId"] for queue in counters[1]["queues"]} == {"svc-reg", "svc-fin"}
+    assert {queue["serviceId"]: queue["waiting"] for queue in counters[0]["queues"]} == {
+        "svc-reg": 0, "svc-fin": 1,
+    }
+    current = counters[0]["current"]
+    assert current["id"] == reg["id"]
+    assert current["status"] == "called"
+    assert current["serviceName"] == "Registrar Office"
+    assert current["queueId"]
+    assert "customerName" not in current
+    assert counters[1]["current"] is None
+    assert fin["id"] != reg["id"]
+
+    with store.db.session(write=True) as session:
+        session.get(CounterRow, "cnt-2").isActive = False
+    assert [row["counter"]["id"] for row in client.get("/api/staff/queues", headers=staff).json()] == ["cnt-1"]
+
+    add_other_organization(store)
+    assert all(row["counter"]["id"] != "other-counter"
+               for row in client.get("/api/staff/queues", headers=staff).json())
+
+
+def test_staff_queue_discovery_returns_empty_for_unassigned_user(client, admin):
+    client.post("/api/admin/staff", headers=admin, json={
+        "name": "Unassigned", "username": "unassigned", "role": "staff", "password": "password",
+    }).json()
+    token = client.post("/api/auth/login", json={
+        "username": "unassigned", "password": "password",
+    }).json()["token"]
+    response = client.get("/api/staff/queues", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 @pytest.mark.parametrize("authorization", ["Bearer invalid", "Basic abc", "Bearer", ""])

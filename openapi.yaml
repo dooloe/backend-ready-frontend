@@ -242,6 +242,30 @@ paths:
       x-required-roles:
       - staff
       - admin
+  /api/staff/queues:
+    get:
+      operationId: listStaffQueues
+      tags: [Staff]
+      summary: List assigned counter queues
+      description: Returns active same-organization counters the staff member may operate, eligible active service queues for today, and the current ticket at each counter. Customer identity fields are excluded.
+      responses:
+        '200':
+          description: Staff counter and queue state.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffCounterQueue'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles: [staff, admin]
   /api/counters/{counterId}/queue:
     get:
       operationId: getQueue
@@ -1514,6 +1538,69 @@ components:
           type: integer
           minimum: 0
           nullable: true
+    StaffCounterQueue:
+      type: object
+      additionalProperties: false
+      required: [counter, queues, current]
+      properties:
+        counter:
+          $ref: '#/components/schemas/Counter'
+        queues:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueueSummary'
+        current:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, queueId, ticketNumber, serviceName, status, position, estimatedWaitMinutes, counterId, counterName, createdAt, calledAt, startedAt, completedAt, cancelledAt, noShowAt]
+          properties:
+            id:
+              type: string
+            queueId:
+              type: string
+            ticketNumber:
+              type: string
+            serviceName:
+              type: string
+            status:
+              type: string
+              enum: [called, serving]
+            position:
+              type: integer
+              nullable: true
+            estimatedWaitMinutes:
+              type: integer
+              nullable: true
+            counterId:
+              type: string
+              nullable: true
+            counterName:
+              type: string
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+            calledAt:
+              type: string
+              format: date-time
+              nullable: true
+            startedAt:
+              type: string
+              format: date-time
+              nullable: true
+            completedAt:
+              type: string
+              format: date-time
+              nullable: true
+            cancelledAt:
+              type: string
+              format: date-time
+              nullable: true
+            noShowAt:
+              type: string
+              format: date-time
+              nullable: true
     ServiceSummary:
       type: object
       required: [id, organizationId, name, description, prefix, durationMinutes, opensAt, closesAt, timezone, queue]
