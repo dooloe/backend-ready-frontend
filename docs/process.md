@@ -864,3 +864,9 @@ six existing Starlette/sqlite adapter deprecation warnings); compileall and
 `git diff --check` passed. The current client remains on the legacy join flow as
 documented for coordinated integration in #32/#34. Issue #19 remains open until
 hosted CI passes for the pushed change.
+
+Hosted workflow [40328672266](https://github.com/dooloe/backend-ready-frontend/actions/runs/40328672266)
+passed locked dependency setup, frontend lint/typecheck/tests/build, fresh
+migrations/model-drift, backend compilation/tests, OpenAPI consistency, and
+real-backend desktop/mobile workflows for commit `1f6456b`. Issue #19 was closed
+after this hosted verification.

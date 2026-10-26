@@ -431,3 +431,14 @@ rejection, and transaction rollback. Verification passed locally: 154 backend
 tests, including same-key concurrency, replay after closure, and injected event
 failure; compileall and diff checks also passed. Issue #19 stays open pending
 hosted CI; no closure is claimed yet.
+
+## Issue #19 hosted verification and closure — 2026-10-26
+
+Hosted run [40328672266](https://github.com/dooloe/backend-ready-frontend/actions/runs/40328672266)
+passed frontend lint, typecheck, tests and build; migration/model-drift,
+compilation, backend tests, OpenAPI consistency, and real-backend desktop/mobile
+workflows for commit `1f6456b`. Together with 154 passing local backend tests,
+including concurrency, replay-after-close and rollback coverage, this verifies
+all #19 acceptance criteria. Issue #19 was closed with criterion-specific
+evidence. GitHub now has **29 closed and 24 open issues**; remaining open issues
+are #14–#15, #18, #20–#32, #34–#36 and #38–#41 and #43.
