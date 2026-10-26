@@ -1,16 +1,130 @@
 from concurrent.futures import ThreadPoolExecutor
+import base64
 import hashlib
 
 from fastapi.testclient import TestClient
 import jsonschema
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.auth import hash_password, token_hash, verify_password
 from app.main import create_app
 from app.store import DatabaseStore
 from app.orm import (CounterRow, CounterServiceRow, OrganizationRow, ServiceRow,
-                     SessionRow, StaffAssignmentRow, TicketRow, UserRow)
+                     DailyQueueRow, SessionRow, StaffAssignmentRow, TicketEventRow, TicketRow, UserRow)
+
+
+def proof(byte):
+    return base64.urlsafe_b64encode(bytes([byte]) * 32).decode().rstrip("=")
+
+
+def daily_queue_id(store, service_id="svc-reg"):
+    from app.models import JoinQueueRequest
+
+    store.join(JoinQueueRequest(serviceId=service_id, customerName="Queue setup"))
+    with store.db.session() as session:
+        return session.scalar(select(DailyQueueRow.id).where(
+            DailyQueueRow.service_id == service_id,
+        ))
+
+
+def anonymous_join(client, queue_id, key=None, token=None):
+    return client.post(
+        f"/api/queues/{queue_id}/tickets",
+        headers={"Idempotency-Key": key or proof(1)},
+        json={"accessToken": token or proof(2)},
+    )
+
+
+def test_private_ticket_issue_and_matching_retry_returns_current_ticket(client, store):
+    queue_id = daily_queue_id(store)
+    first = anonymous_join(client, queue_id)
+    assert first.status_code == 201, first.text
+    assert first.headers["cache-control"] == "no-store"
+    result = first.json()
+    assert result["ticket"]["queueId"] == queue_id
+    assert result["ticket"]["ticketNumber"] == "A-001"
+    assert result["ticketUrl"] == f"/ticket/{proof(2)}"
+    assert "customerName" not in result["ticket"]
+
+    staff_token = client.post("/api/auth/login", json={
+        "username": "aigerim", "password": "staff123",
+    }).json()["token"]
+    headers = {"Authorization": "Bearer " + staff_token}
+    first_called = client.post("/api/counters/cnt-1/call-next", headers=headers)
+    assert first_called.status_code == 200
+    assert client.post(f"/api/tickets/{first_called.json()['id']}/complete", headers=headers).status_code == 200
+    called = client.post("/api/counters/cnt-1/call-next", headers=headers)
+    assert called.status_code == 200 and called.json()["id"] == result["ticket"]["id"]
+    with store.db.session(write=True) as session:
+        session.get(DailyQueueRow, queue_id).status = "closed"
+    replay = anonymous_join(client, queue_id)
+    assert replay.status_code == 200, replay.text
+    assert replay.headers["cache-control"] == "no-store"
+    assert replay.json()["ticket"]["id"] == result["ticket"]["id"]
+    assert replay.json()["ticket"]["status"] == "called"
+    with store.db.session() as session:
+        assert session.scalar(select(func.count()).select_from(TicketEventRow).where(
+            TicketEventRow.ticket_id == result["ticket"]["id"],
+        )) == 1
+
+
+def test_concurrent_same_key_issues_exactly_one_ticket(store):
+    queue_id = daily_queue_id(store)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(
+            lambda _: store.issue_ticket(queue_id, proof(7), proof(8)), range(8),
+        ))
+    assert sum(created for _, created in results) == 1
+    assert len({response.ticket.id for response, _ in results}) == 1
+    with store.db.session() as session:
+        ticket_id = results[0][0].ticket.id
+        assert session.scalar(select(func.count()).select_from(TicketRow).where(
+            TicketRow.id == ticket_id,
+        )) == 1
+        assert session.scalar(select(func.count()).select_from(TicketEventRow).where(
+            TicketEventRow.ticket_id == ticket_id,
+        )) == 1
+
+
+def test_ticket_issue_rejects_key_conflict_and_token_reuse(client, store):
+    queue_id = daily_queue_id(store)
+    assert anonymous_join(client, queue_id).status_code == 201
+    conflict = anonymous_join(client, queue_id, token=proof(3))
+    assert conflict.status_code == 409 and conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
+    reused = anonymous_join(client, queue_id, key=proof(4))
+    assert reused.status_code == 409 and reused.json()["code"] == "TOKEN_REUSED"
+
+
+def test_ticket_issue_closed_queue_and_invalid_proofs_do_not_allocate(client, store):
+    queue_id = daily_queue_id(store)
+    with store.db.session(write=True) as session:
+        session.get(DailyQueueRow, queue_id).status = "closed"
+    closed = anonymous_join(client, queue_id)
+    assert closed.status_code == 409 and closed.json()["code"] == "QUEUE_CLOSED"
+    assert anonymous_join(client, queue_id, key="not-a-proof").status_code == 422
+    with store.db.session() as session:
+        assert session.scalar(select(func.count()).select_from(TicketRow).where(
+            TicketRow.dailyQueueId == queue_id, TicketRow.dailyNumber.is_not(None),
+        )) == 0
+
+
+def test_ticket_issue_rolls_back_number_ticket_and_event_on_event_failure(client, store, monkeypatch):
+    from app import store as store_module
+
+    queue_id = daily_queue_id(store)
+    real_event = store_module.TicketEventRow
+    monkeypatch.setattr(store_module, "TicketEventRow", lambda **kwargs: real_event(**(kwargs | {"event_type": "invalid"})))
+    with pytest.raises(IntegrityError):
+        store.issue_ticket(queue_id, proof(5), proof(6))
+    monkeypatch.setattr(store_module, "TicketEventRow", real_event)
+    retry = store.issue_ticket(queue_id, proof(5), proof(6))[0]
+    assert retry.ticket.ticketNumber == "A-001"
+    with store.db.session() as session:
+        assert session.scalar(select(func.count()).select_from(TicketEventRow).where(
+            TicketEventRow.ticket_id == retry.ticket.id,
+        )) == 1
 
 
 STAFF_ENDPOINTS = [
@@ -80,13 +194,14 @@ def dereference(schema, document):
     return {"anyOf": [result, {"type": "null"}]} if schema.get("nullable") else result
 
 
-def test_every_operation_and_response_matches_contract(client, contract):
+def test_every_operation_and_response_matches_contract(client, store, contract):
     seen = set()
 
-    def check(method, actual_path, contract_path, **kwargs):
+    def check(method, actual_path, contract_path, *, expected_override=None, **kwargs):
         response = client.request(method, actual_path, **kwargs)
         operation = contract["paths"][contract_path][method.lower()]
-        expected = "204" if method == "DELETE" else "200"
+        expected = expected_override or ("204" if method == "DELETE" else
+                                         "201" if operation["operationId"] == "issueTicket" else "200")
         assert response.status_code == int(expected), response.text
         if expected == "204":
             assert response.content == b""
@@ -113,6 +228,12 @@ def test_every_operation_and_response_matches_contract(client, contract):
     missed = join(client)
     client.post("/api/counters/cnt-1/call-next", headers=headers)
     check("POST", f"/api/tickets/{missed['id']}/no-show", "/api/tickets/{id}/no-show", headers=headers)
+    queue_id = daily_queue_id(store)
+    issued = check("POST", f"/api/queues/{queue_id}/tickets", "/api/queues/{queueId}/tickets",
+                   headers={"Idempotency-Key": proof(20)}, json={"accessToken": proof(21)})
+    check("POST", f"/api/queues/{queue_id}/tickets", "/api/queues/{queueId}/tickets",
+          expected_override="200", headers={"Idempotency-Key": proof(20)}, json={"accessToken": proof(21)})
+    assert issued["ticket"]["id"]
     service = check("POST", "/api/admin/services", "/api/admin/services", headers=headers,
                     json={"name": "New", "description": "Service", "prefix": "N", "isOpen": True, "avgServiceMinutes": 5})
     check("PATCH", f"/api/admin/services/{service['id']}", "/api/admin/services/{serviceId}", headers=headers, json={"name": "Renamed"})

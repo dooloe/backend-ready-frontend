@@ -1,8 +1,8 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
-from ..models import JoinQueueRequest, Organization, Service, TicketView
+from ..models import AnonymousJoinRequest, JoinQueueRequest, JoinResponse, Organization, Service, TicketView
 from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api", tags=["Customer"])
@@ -17,6 +17,17 @@ def list_services(store: Store):
 @router.post("/tickets", response_model=TicketView, operation_id="joinQueue")
 def join_queue(body: JoinQueueRequest, store: Store):
     return store.join(body)
+
+
+@router.post("/queues/{queueId}/tickets", response_model=JoinResponse,
+             operation_id="issueTicket", status_code=status.HTTP_201_CREATED)
+def issue_ticket(queueId: str, body: AnonymousJoinRequest, response: Response,
+                 store: Store, idempotency_key: str = Header(alias="Idempotency-Key")):
+    result, created = store.issue_ticket(queueId, idempotency_key, body.accessToken)
+    response.headers["Cache-Control"] = "no-store"
+    if not created:
+        response.status_code = status.HTTP_200_OK
+    return result
 
 
 @router.get("/tickets/{id}", response_model=TicketView, operation_id="getTicket")

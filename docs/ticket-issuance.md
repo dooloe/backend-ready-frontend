@@ -1,7 +1,8 @@
 # Anonymous ticket issuance and retry contract (#4)
 
-This is the agreed MVP design, not a claim that the current ID/name-based API
-already implements it. It resolves response-loss recovery before #19 is built.
+This is the agreed MVP design. The backend implementation is tracked in #19;
+the current frontend's ID/name-based API remains a legacy flow pending coordinated
+integration in #32/#34.
 
 ## Ownership and request
 

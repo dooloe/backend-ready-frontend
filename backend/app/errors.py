@@ -25,6 +25,8 @@ def install_error_handlers(application):
                 429: "RATE_LIMITED", 503: "DATABASE_BUSY"}.get(exc.status_code, "HTTP_ERROR")
         if exc.status_code == 409:
             code = ("QUEUE_CLOSED" if message == "This queue is closed" else
+                    "IDEMPOTENCY_CONFLICT" if message.startswith("Idempotency key conflicts") else
+                    "TOKEN_REUSED" if message.startswith("Ticket access token has") else
                     "COUNTER_BUSY" if message == "Finish the current ticket first" else
                     "COUNTER_INACTIVE" if message == "Counter is inactive" else
                     "IDENTITY_CONFLICT" if message == "Username already taken" else

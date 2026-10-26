@@ -77,6 +77,63 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/JoinQueueRequest'
+  /api/queues/{queueId}/tickets:
+    post:
+      operationId: issueTicket
+      tags:
+      - Customer
+      summary: Create or recover a private daily ticket
+      description: Uses independent client-generated 32-byte access and idempotency proofs. Replays return the current ticket state; the raw proofs are never stored.
+      parameters:
+      - name: queueId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+      responses:
+        '200':
+          description: Matching retry of an existing ticket.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinResponse'
+        '201':
+          description: Ticket created.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/UnexpectedError'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnonymousJoinRequest'
   /api/tickets/{id}:
     get:
       operationId: getTicket
@@ -1132,6 +1189,75 @@ components:
           type: string
           minLength: 1
           description: Trimmed by the current mock; whitespace-only names are rejected.
+    AnonymousJoinRequest:
+      type: object
+      additionalProperties: false
+      required: [accessToken]
+      properties:
+        accessToken:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+          description: Canonical base64url encoding of 32 cryptographically random bytes.
+    IssuedTicket:
+      type: object
+      additionalProperties: false
+      required: [id, queueId, ticketNumber, serviceName, status, position, estimatedWaitMinutes, counterId, counterName, createdAt, calledAt, startedAt, completedAt, cancelledAt, noShowAt]
+      properties:
+        id:
+          type: string
+        queueId:
+          type: string
+        ticketNumber:
+          type: string
+        serviceName:
+          type: string
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        position:
+          type: integer
+          nullable: true
+        estimatedWaitMinutes:
+          type: integer
+          nullable: true
+        counterId:
+          type: string
+          nullable: true
+        counterName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        calledAt:
+          type: string
+          format: date-time
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        noShowAt:
+          type: string
+          format: date-time
+          nullable: true
+    JoinResponse:
+      type: object
+      additionalProperties: false
+      required: [ticket, ticketUrl]
+      properties:
+        ticket:
+          $ref: '#/components/schemas/IssuedTicket'
+        ticketUrl:
+          type: string
+          description: Private URL constructed from the supplied access proof, never persisted.
     LoginRequest:
       type: object
       required:

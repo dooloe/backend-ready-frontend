@@ -89,6 +89,33 @@ class JoinQueueRequest(Model):
         return value
 
 
+class AnonymousJoinRequest(Model):
+    accessToken: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
+
+
+class IssuedTicket(Model):
+    id: str
+    queueId: str
+    ticketNumber: str
+    serviceName: str
+    status: TicketStatus
+    position: int | None
+    estimatedWaitMinutes: int | None
+    counterId: str | None
+    counterName: str | None
+    createdAt: datetime
+    calledAt: datetime | None
+    startedAt: datetime | None
+    completedAt: datetime | None
+    cancelledAt: datetime | None
+    noShowAt: datetime | None
+
+
+class JoinResponse(Model):
+    ticket: IssuedTicket
+    ticketUrl: str
+
+
 class Ticket(Model):
     id: str
     code: str

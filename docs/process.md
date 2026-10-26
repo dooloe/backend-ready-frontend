@@ -846,3 +846,21 @@ local 149-test backend suite also passing, issue #17 was closed after verifying
 organization-local opening/closing boundaries, overnight business dates,
 deterministic daily queue creation on accepted joins, and manual closure
 precedence.
+
+## 2026-10-26 — Issue #19 transactional anonymous ticket issuance
+
+Added `POST /api/queues/{queueId}/tickets` with canonical 32-byte base64url
+proof validation, queue-scoped SHA-256 idempotency hashes, globally unique
+access-token hashes, sequential daily numbers, private ticket URLs, and an
+issued event. The write reservation precedes mutable reads; matching retries
+return the same ticket's current state before checking whether its queue has
+since closed. New requests validate the current organization-local schedule and
+queue status. Ticket, sequence, proof hashes and event commit in one transaction;
+no raw proofs or customer identity are stored in the new issuance record.
+
+Verification: focused issuance/replay/concurrency/conflict/closed-queue/rollback
+checks passed (**6 passed**). The complete backend suite passed (**154 passed**,
+six existing Starlette/sqlite adapter deprecation warnings); compileall and
+`git diff --check` passed. The current client remains on the legacy join flow as
+documented for coordinated integration in #32/#34. Issue #19 remains open until
+hosted CI passes for the pushed change.

@@ -421,3 +421,13 @@ overnight business date behavior, single daily queue under concurrent first
 access, and manual closure precedence. Issue #17 was closed with criterion-
 specific evidence. GitHub now has **28 closed and 25 open issues**; remaining
 open issues are #14–#15, #18–#32, #34–#36, #38–#41 and #43.
+
+## Issue #19 transactional issuance — 2026-10-26
+
+Implemented the queue-scoped anonymous issuance endpoint with canonical proof
+validation, hashed proofs, atomic daily numbering and issued-event persistence,
+idempotent current-state recovery, token/key conflict rejection, closed-queue
+rejection, and transaction rollback. Verification passed locally: 154 backend
+tests, including same-key concurrency, replay after closure, and injected event
+failure; compileall and diff checks also passed. Issue #19 stays open pending
+hosted CI; no closure is claimed yet.

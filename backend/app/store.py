@@ -1,8 +1,12 @@
 """Transactional SQLAlchemy store; routers only exchange public Pydantic models."""
 
 from collections.abc import Callable
+import base64
 from datetime import datetime, timedelta, timezone
+import hashlib
+import hmac
 import math
+import re
 import secrets
 
 from fastapi import HTTPException, Request
@@ -13,13 +17,13 @@ from .auth import hash_password, token_hash, verify_password
 from .database import Database, configured_database_url
 from .models import (
     Counter, CounterCreate, HourlyStats, JoinQueueRequest, LoginRequest, LoginResponse,
-    Organization, PublicService, QueueView, Service, ServiceCreate, ServiceStats, StaffCreate, StaffUser, Stats,
+    IssuedTicket, JoinResponse, Organization, PublicService, QueueView, Service, ServiceCreate, ServiceStats, StaffCreate, StaffUser, Stats,
     Ticket, TicketView,
 )
 from .scheduling import QueueSchedule, resolve_queue_schedule
 from .orm import (ActiveTicketRow, CounterRow, CounterServiceRow, OrganizationRow,
                   DailyQueueRow, ServiceRow, SessionRow, StaffAssignmentRow, StoreState,
-                  TicketRow, UserRow)
+                  TicketEventRow, TicketRow, UserRow)
 
 DEFAULT_ORGANIZATION_ID = "org-demo"
 
@@ -280,6 +284,91 @@ class DatabaseStore:
             if not is_open:
                 raise HTTPException(409, "This queue is closed")
             return self._view(session, self._issue(session, service, request.customerName, now))
+
+    @staticmethod
+    def _valid_proof(value: str) -> bool:
+        if not isinstance(value, str) or re.fullmatch(r"[A-Za-z0-9_-]{43}", value) is None:
+            return False
+        try:
+            raw = base64.urlsafe_b64decode(value + "=")
+        except (ValueError, base64.binascii.Error):
+            return False
+        return len(raw) == 32 and base64.urlsafe_b64encode(raw).decode().rstrip("=") == value
+
+    def issue_ticket(self, queue_id: str, idempotency_key: str, access_token: str) -> tuple[JoinResponse, bool]:
+        if not self._valid_proof(idempotency_key) or not self._valid_proof(access_token):
+            raise HTTPException(422, "Invalid ticket proof")
+        key_hash = hashlib.sha256(idempotency_key.encode("ascii")).hexdigest()
+        access_hash = hashlib.sha256(access_token.encode("ascii")).hexdigest()
+        with self.db.session(write=True) as session:
+            # Idempotency is checked before current availability so an uncertain
+            # response can be recovered after closure or a local date change.
+            existing = session.scalar(select(TicketRow).where(
+                TicketRow.dailyQueueId == queue_id,
+                TicketRow.idempotencyKeyHash == key_hash,
+            ))
+            if existing is not None:
+                if not hmac.compare_digest(existing.accessTokenHash or "", access_hash):
+                    raise HTTPException(409, "Idempotency key conflicts with this ticket")
+                return self._issued_view(session, existing, access_token), False
+
+            queue = session.get(DailyQueueRow, queue_id)
+            if queue is None:
+                raise HTTPException(404, "Queue not found")
+            service = session.get(ServiceRow, queue.service_id)
+            if service is None or service.deleted or service.organization_id != queue.organization_id:
+                raise HTTPException(404, "Queue not found")
+            now = self.clock()
+            schedule, current_queue, is_open = self._queue_state(session, service, now)
+            if (not is_open or current_queue is None or current_queue.id != queue_id
+                    or queue.status != "open" or queue.business_date != schedule.business_date):
+                raise HTTPException(409, "This queue is closed")
+            if session.scalar(select(TicketRow.id).where(TicketRow.accessTokenHash == access_hash)) is not None:
+                raise HTTPException(409, "Ticket access token has already been used")
+
+            number = (session.scalar(select(func.max(TicketRow.dailyNumber)).where(
+                TicketRow.dailyQueueId == queue_id)) or 0) + 1
+            service.next_sequence += 1
+            ticket = TicketRow(
+                id=new_id(), serviceId=service.id, dailyQueueId=queue_id,
+                dailyNumber=number, accessTokenHash=access_hash,
+                idempotencyKeyHash=key_hash, sequence=service.next_sequence,
+                code=f"{queue.ticket_prefix}-{number:03d}", customerName="Visitor",
+                status="waiting", createdAt=now,
+            )
+            session.add(ticket)
+            session.flush()
+            session.add(TicketEventRow(
+                id=new_id(), ticket_id=ticket.id, event_type="issued", occurred_at=now,
+            ))
+            session.flush()
+            return self._issued_view(session, ticket, access_token), True
+
+    def _issued_view(self, session, ticket: TicketRow, access_token: str) -> JoinResponse:
+        service = session.get(ServiceRow, ticket.serviceId)
+        counter = session.get(CounterRow, ticket.counterId) if ticket.counterId else None
+        waiting = list(session.scalars(select(TicketRow).where(
+            TicketRow.dailyQueueId == ticket.dailyQueueId,
+            TicketRow.status == "waiting",
+        ).order_by(TicketRow.dailyNumber)))
+        position = next((index + 1 for index, row in enumerate(waiting) if row.id == ticket.id), None)
+        capacity = session.scalar(select(func.count()).select_from(CounterRow).join(
+            CounterServiceRow, CounterServiceRow.counter_id == CounterRow.id).where(
+            CounterServiceRow.service_id == ticket.serviceId,
+            CounterRow.deleted.is_(False), CounterRow.isActive.is_(True)))
+        estimate = math.ceil((position - 1) * service.avgServiceMinutes / capacity) if (
+            position is not None and capacity and service is not None) else None
+        item = IssuedTicket(
+            id=ticket.id, queueId=ticket.dailyQueueId, ticketNumber=ticket.code,
+            serviceName=service.name if service else "Unknown", status=ticket.status,
+            position=position, estimatedWaitMinutes=estimate, counterId=ticket.counterId,
+            counterName=counter.name if counter else None, createdAt=ticket.createdAt,
+            calledAt=ticket.calledAt, startedAt=ticket.servedAt,
+            completedAt=ticket.finishedAt if ticket.status == "completed" else None,
+            cancelledAt=ticket.finishedAt if ticket.status == "cancelled" else None,
+            noShowAt=ticket.finishedAt if ticket.status == "no_show" else None,
+        )
+        return JoinResponse(ticket=item, ticketUrl=f"/ticket/{access_token}")
 
     @staticmethod
     def _queue_state(session, service: ServiceRow, instant: datetime, *, create: bool = False):
