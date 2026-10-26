@@ -25,6 +25,7 @@ async function join(page: Page) {
   await page.getByRole("button", { name: "Confirm & join queue" }).click();
   await expect(page).toHaveURL(/\/ticket\//);
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

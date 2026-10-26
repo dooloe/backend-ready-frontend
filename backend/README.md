@@ -127,6 +127,15 @@ admin may use staff endpoints; admin configuration and statistics require admin.
 Customer service listing, join, ticket lookup and cancellation remain public as
 specified by the current frontend contract. No cookie session is used.
 
+The API applies an in-process sliding-window limit of 20 login attempts per client
+IP per 15 minutes and 30 ticket joins per client IP per minute. A rejected request
+returns the safe `RATE_LIMITED` error envelope and `Retry-After` seconds without
+creating a session or ticket. Limits reset when the process restarts and are
+independent across workers; multi-worker deployments should also enforce shared
+limits at their gateway. Uvicorn access logs omit query strings and redact private
+ticket IDs. Responses set `Referrer-Policy: no-referrer`; the frontend ticket
+route also declares the same policy in its document metadata.
+
 `CORS_ORIGINS` accepts a comma-separated list of frontend origins. Defaults are
 `http://localhost:5173,http://127.0.0.1:5173`. Browser requests may send
 `Authorization` and `Content-Type`; no wildcard origin is enabled.

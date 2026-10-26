@@ -665,7 +665,7 @@ The login hydration wait added after the first hosted run made the keyboard
 login tests deterministic. Issue #47 was closed after the successful hosted
 run; GitHub now has 21 closed and 32 open issues (#12–#32, #34–#43, #48).
 
-## 2026-10-26 — Issue #48 delivery evidence in progress
+## 2026-10-26 — Issue #48 delivery evidence
 
 Updated the root README to describe the shipped customer-first journey, link the
 demo/setup guide and limitations, and point to the hosted verification workflow.
@@ -699,3 +699,31 @@ untracked bug was found in the run. Existing incomplete planned-contract and
 security work remains open. Issue #48 was closed after the direct walkthrough
 and hosted checks. GitHub now has 22 closed and 31 open issues (#12–#32,
 #34–#43).
+
+## 2026-10-26 — Issue #42 security controls implemented; hosted verification pending
+
+Added bounded per-client sliding-window limits to the current public API: 20
+login attempts per 15 minutes and 30 queue joins per minute. A rejected request
+returns the structured `RATE_LIMITED` response and `Retry-After` seconds before
+the authentication or ticket-issuance handler runs. The counters are process
+local and reset on restart; deployments with multiple workers need a shared
+gateway limit, documented in `backend/README.md`. Added response-wide
+`Referrer-Policy: no-referrer` and confirmed the private ticket route carries the
+same document policy. Uvicorn access logs now drop query strings and redact the
+private ticket identifier while retaining method, status and non-sensitive path.
+The current OpenAPI contract documents 429 responses and `Retry-After` on login
+and join.
+
+Verification so far: backend pytest (**133 passed**, one existing Starlette/
+httpx deprecation warning); OpenAPI-to-FastAPI consistency (**2 passed**);
+frontend Vitest (**23 passed**); lint (zero errors, six existing Fast Refresh
+warnings); typecheck; and real-backend Playwright (**8 passed** on desktop and
+mobile, including the private-ticket `no-referrer` metadata check). A separate
+Uvicorn run on a fresh temporary SQLite database returned 404 for a dummy private
+ticket URL while logging only `/api/tickets/[redacted]`; its `access_token` query
+was absent. The response included `Referrer-Policy: no-referrer`. Twenty invalid
+login attempts returned 401, the 21st returned 429, and the database retained
+zero sessions. Thirty joins returned 200, the 31st returned 429, and ticket count
+stayed at 34 (four seeded examples plus exactly 30 accepted joins). The dummy
+password/query values did not appear in captured Uvicorn logs. Hosted CI is
+pending; issue #42 stays open until that workflow passes.

@@ -8,10 +8,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routers import admin, auth, public, staff
 from .settings import Settings
 from .errors import SafeErrorBoundary, install_error_handlers
+from .security import (
+    RequestProtectionMiddleware,
+    SlidingWindowRateLimiter,
+    install_access_log_redaction,
+)
 from .store import DatabaseStore
 
 
-def create_app(store: DatabaseStore | None = None, *, database_url: str | None = None):
+def create_app(store: DatabaseStore | None = None, *, database_url: str | None = None,
+               rate_limiter: SlidingWindowRateLimiter | None = None):
     if store is not None and database_url is not None:
         raise ValueError("Provide a store or a database_url, not both")
 
@@ -41,6 +47,10 @@ def create_app(store: DatabaseStore | None = None, *, database_url: str | None =
 
     application = FastAPI(title="Kezek API", version="0.3.0", lifespan=lifespan)
     application.add_middleware(
+        RequestProtectionMiddleware,
+        limiter=rate_limiter or SlidingWindowRateLimiter(),
+    )
+    application.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
@@ -51,6 +61,7 @@ def create_app(store: DatabaseStore | None = None, *, database_url: str | None =
 
     for router in (public.router, auth.router, staff.router, admin.router):
         application.include_router(router)
+    install_access_log_redaction()
     return SafeErrorBoundary(application)
 
 
