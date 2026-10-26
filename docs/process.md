@@ -26,6 +26,12 @@ revision before the acceptance criteria are marked complete. The follow-up CI
 run flagged formatting in the revised browser spec; it has been corrected and
 local lint passes with zero errors and six existing warnings.
 
+Hosted CI run [40321281812](https://github.com/dooloe/backend-ready-frontend/actions/runs/40321281812)
+passed all frontend checks, migrations/model drift, OpenAPI consistency, backend
+tests and eight real-backend browser cases on desktop and mobile. Issues #16 and
+#37 were closed with criterion-specific evidence comments. No other issue was
+closed during this audit.
+
 ## 2026-10-20 — Backlog and issue automation preparation
 
 Scope: the user's requested initial step—inspect the project, prepare detailed MVP issues and provide scripts for their authenticated WSL terminal. No GitHub authentication, network issue management or application feature implementation was attempted in this step. The requested scripts are prepared before issue creation because the user will execute the import outside the sandbox.

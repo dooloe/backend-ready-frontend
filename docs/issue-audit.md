@@ -379,7 +379,25 @@ deactivated users' existing sessions are rejected. The full backend suite passed
 139 tests locally. The first hosted run passed all code gates but found stale
 browser expectations for organization scope and shared desktop/mobile queue
 state, plus an admin assignment UI bug. Those cases now pass locally in all eight
-desktop/mobile browser runs. The fixes are queued for hosted verification. Issue
-#16 remains open until hosted CI passes. The next hosted run flagged formatting
-in the updated browser spec; local lint now passes with zero errors. Current
-GitHub count remains 25 closed and 28 open.
+desktop/mobile browser runs. A second run flagged browser-spec formatting; local
+lint then passed with zero errors and six existing warnings. Hosted run
+[40321281812](https://github.com/dooloe/backend-ready-frontend/actions/runs/40321281812)
+passed every gate. Issues #16 and #37 were closed with criterion-specific
+evidence comments. GitHub now has **27 closed and 26 open issues**. The remaining
+open issues are #14–#15, #17–#32, #34–#36, #38–#41 and #43.
+
+## Next-phase backlog review — 2026-10-26
+
+No new issues are proposed: the missing requirements are already covered by
+open issues. The updated customer-first experience and responsive review are
+covered by #53 and #44–#48; staff authorization and dashboard behavior are now
+verified and closed in #16 and #37. Remaining technical work is represented by
+#18–#35 and #38–#43, with #14–#15, #17 and #30 requiring a scope decision because
+their cookie/CSRF and manual daily-queue requirements do not match the current
+bearer-session and operating-hours MVP. Issue #36 likewise specifies cookie
+session behavior that the current bearer API does not use. These remain open;
+none is being treated as implemented or removed.
+
+The `new-mvp` label already exists. No issues or labels were created or changed;
+if an uncovered, approved requirement emerges later, every new issue will carry
+`new-mvp` plus relevant area/type labels.
