@@ -9,7 +9,8 @@ from sqlalchemy import func, select
 from app.auth import hash_password, token_hash, verify_password
 from app.main import create_app
 from app.store import DatabaseStore
-from app.orm import ServiceRow, SessionRow, TicketRow, UserRow
+from app.orm import (CounterRow, CounterServiceRow, OrganizationRow, ServiceRow,
+                     SessionRow, StaffAssignmentRow, TicketRow, UserRow)
 
 
 STAFF_ENDPOINTS = [
@@ -30,6 +31,38 @@ def join(client, service="svc-reg", name="Customer"):
     response = client.post("/api/tickets", json={"serviceId": service, "customerName": name})
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def add_other_organization(store):
+    with store.db.session(write=True) as session:
+        session.add(OrganizationRow(
+            id="org-other", name="Other Organization", slug="other-organization",
+            description="Isolated tenant", timezone="Asia/Almaty",
+        ))
+        session.flush()
+        session.add_all([
+            UserRow(id="other-admin", organization_id="org-other", name="Other Admin",
+                    username="other-admin", email="other-admin@example.invalid", role="admin",
+                    password_hash=hash_password("other-admin-password"), is_active=True),
+            UserRow(id="other-staff", organization_id="org-other", name="Other Staff",
+                    username="other-staff", email="other-staff@example.invalid", role="staff",
+                    password_hash=hash_password("other-staff-password"), is_active=True),
+            ServiceRow(id="other-service", organization_id="org-other", name="Other service",
+                       description="Private configuration", prefix="O", isOpen=True,
+                       avgServiceMinutes=5, durationMinutes=5, isActive=True),
+        ])
+        session.flush()
+        session.add(CounterRow(
+            id="other-counter", organization_id="org-other", name="Other counter",
+            isActive=True, staffId="other-staff",
+        ))
+        session.flush()
+        session.add_all([
+            CounterServiceRow(organization_id="org-other", counter_id="other-counter",
+                              service_id="other-service"),
+            StaffAssignmentRow(organization_id="org-other", user_id="other-staff",
+                               counter_id="other-counter"),
+        ])
 
 
 def dereference(schema, document):
@@ -139,7 +172,7 @@ def test_every_admin_operation_denies_staff(client, staff, method, path):
     assert client.request(method, path, headers=staff, json={}).status_code == 403
 
 
-def test_staff_operations_are_limited_to_assigned_or_unassigned_counters(client, admin, staff):
+def test_staff_operations_require_an_active_counter_assignment(client, admin, staff):
     created = client.post("/api/admin/staff", headers=admin, json={
         "name": "Other staff", "username": "other-staff", "role": "staff", "password": "other-password"
     })
@@ -150,10 +183,15 @@ def test_staff_operations_are_limited_to_assigned_or_unassigned_counters(client,
     assert other_login.status_code == 200
     other = {"Authorization": "Bearer " + other_login.json()["token"]}
 
-    # cnt-1 belongs to Aigerim; cnt-2 is unassigned and remains available to any staff member.
-    assert [counter["id"] for counter in client.get("/api/counters", headers=other).json()] == ["cnt-2"]
+    # Unassigned counters are not exposed as available work until an admin assigns them.
+    assert client.get("/api/counters", headers=other).json() == []
     assert client.get("/api/counters/cnt-1/queue", headers=other).status_code == 403
     assert client.post("/api/counters/cnt-1/call-next", headers=other).status_code == 403
+    assert client.get("/api/counters/cnt-2/queue", headers=other).status_code == 403
+    assert client.post("/api/counters/cnt-2/call-next", headers=other).status_code == 403
+    assert client.patch("/api/admin/counters/cnt-2", headers=admin,
+                        json={"staffId": created.json()["id"]}).status_code == 200
+    assert [counter["id"] for counter in client.get("/api/counters", headers=other).json()] == ["cnt-2"]
 
     ticket = join(client)
     assert client.post("/api/counters/cnt-1/call-next", headers=staff).json()["id"] == ticket["id"]
@@ -282,7 +320,70 @@ def test_no_counter_estimate_and_closed_service_rules(client, admin, staff):
         client.patch(f"/api/admin/counters/{counter}", headers=admin, json={"isActive": False})
     finance = join(client, service="svc-fin")
     assert finance["estimatedWaitMinutes"] is None
-    assert client.post("/api/counters/cnt-2/call-next", headers=staff).status_code == 409
+    assert client.post("/api/counters/cnt-2/call-next", headers=staff).status_code == 403
+
+
+def test_unassigned_and_inactive_staff_counters_are_denied(client, store, staff):
+    join(client)
+    assert client.get("/api/counters/cnt-2/queue", headers=staff).status_code == 403
+    assert client.post("/api/counters/cnt-2/call-next", headers=staff).status_code == 403
+    with store.db.session(write=True) as session:
+        session.get(CounterRow, "cnt-1").isActive = False
+    assert client.get("/api/counters/cnt-1/queue", headers=staff).status_code == 409
+    assert client.post("/api/counters/cnt-1/call-next", headers=staff).status_code == 409
+
+
+def test_protected_operations_are_organization_scoped(client, store, admin, staff):
+    add_other_organization(store)
+    other_admin_login = client.post("/api/auth/login", json={
+        "username": "other-admin", "password": "other-admin-password",
+    }).json()
+    other_admin = {"Authorization": "Bearer " + other_admin_login["token"]}
+    other_staff_login = client.post("/api/auth/login", json={
+        "username": "other-staff", "password": "other-staff-password",
+    }).json()
+    other_staff = {"Authorization": "Bearer " + other_staff_login["token"]}
+
+    assert client.get("/api/counters", headers=staff).json() == [
+        {"id": "cnt-1", "name": "Counter 1", "serviceIds": ["svc-reg"],
+         "isActive": True, "staffId": "stf-aigerim"},
+    ]
+    assert client.get("/api/counters", headers=other_staff).json()[0]["id"] == "other-counter"
+    assert client.get("/api/organizations/org-other").status_code == 200
+    assert client.get("/api/counters/other-counter/queue", headers=staff).status_code == 404
+    assert client.post("/api/counters/other-counter/call-next", headers=staff).status_code == 404
+    assert client.patch("/api/admin/services/other-service", headers=admin,
+                        json={"name": "Stolen"}).status_code == 404
+    assert client.patch("/api/admin/counters/other-counter", headers=admin,
+                        json={"name": "Stolen"}).status_code == 404
+    assert client.post("/api/admin/counters", headers=admin, json={
+        "name": "Forged link", "serviceIds": ["other-service"],
+        "isActive": True, "staffId": None,
+    }).status_code == 422
+    own_staff = client.get("/api/admin/staff", headers=admin).json()
+    assert all(user["id"] not in {"other-admin", "other-staff"} for user in own_staff)
+    assert client.patch("/api/admin/services/other-service", headers=other_admin,
+                        json={"name": "Scoped update"}).status_code == 200
+
+    ticket = client.post("/api/tickets", json={
+        "serviceId": "other-service", "customerName": "Other visitor",
+    }).json()
+    called = client.post("/api/counters/other-counter/call-next", headers=other_staff).json()
+    assert called["id"] == ticket["id"]
+    assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 404
+    assert client.get(f"/api/tickets/{ticket['id']}").json()["status"] == "called"
+    assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=other_staff).status_code == 200
+    assert client.get("/api/admin/stats", headers=admin).json()["byService"]
+    assert [row["serviceId"] for row in client.get("/api/admin/stats", headers=other_admin).json()["byService"]] == ["other-service"]
+
+
+def test_deactivating_a_user_revokes_their_existing_session(client, store, staff):
+    bearer_token = staff["Authorization"].removeprefix("Bearer ")
+    with store.db.session(write=True) as session:
+        session.get(UserRow, "stf-aigerim").is_active = False
+    assert client.get("/api/counters", headers=staff).status_code == 401
+    with store.db.session() as session:
+        assert session.get(SessionRow, token_hash(bearer_token)) is None
 
 
 def test_admin_crud_patch_semantics_and_duplicate_username(client, admin):
@@ -373,14 +474,14 @@ def test_statistics_use_real_timestamps_and_utc_days(client, admin, staff, clock
     assert all(s["total"] == 0 for s in stats["byService"])
 
 
-def test_parallel_joins_and_competing_counters_are_atomic(client, staff):
+def test_parallel_joins_and_competing_counters_are_atomic(client, admin):
     with ThreadPoolExecutor(max_workers=8) as pool:
         tickets = list(pool.map(lambda i: join(client, name=f"Person {i}"), range(20)))
     assert len({t["id"] for t in tickets}) == 20
     assert {t["code"] for t in tickets} == {f"A-{n:03d}" for n in range(1, 21)}
     assert {t["position"] for t in tickets} == set(range(1, 21))
     with ThreadPoolExecutor(max_workers=2) as pool:
-        responses = list(pool.map(lambda c: client.post(f"/api/counters/{c}/call-next", headers=staff), ["cnt-1", "cnt-2"]))
+        responses = list(pool.map(lambda c: client.post(f"/api/counters/{c}/call-next", headers=admin), ["cnt-1", "cnt-2"]))
     assert all(r.status_code == 200 for r in responses)
     assert len({r.json()["id"] for r in responses}) == 2
     assert {r.json()["code"] for r in responses} == {"A-001", "A-002"}

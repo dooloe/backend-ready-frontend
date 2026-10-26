@@ -13,11 +13,14 @@ from sqlalchemy.exc import IntegrityError
 from app.auth import token_hash
 from app.database import Database
 from app.main import create_app
-from app.models import JoinQueueRequest, LoginRequest
+from app.models import JoinQueueRequest, LoginRequest, StaffUser
 from app.orm import (ActiveTicketRow, Base, CounterRow, CounterServiceRow, DailyQueueRow,
                      OrganizationRow, ServiceRow, SessionRow, StaffAssignmentRow, StoreState,
                      TicketEventRow, TicketRow, UserRow)
 from app.store import DatabaseStore
+
+
+ADMIN_ACTOR = StaffUser(id="stf-admin", name="Admin", username="admin", role="admin")
 
 
 def _database_worker(url, action, barrier, output):
@@ -30,7 +33,7 @@ def _database_worker(url, action, barrier, output):
             result = [store.join(JoinQueueRequest(serviceId="svc-reg", customerName="Parallel")).code for _ in range(4)]
         else:
             try:
-                ticket = store.call_next(action)
+                ticket = store.call_next(action, ADMIN_ACTOR)
                 result = {"status": 200, "id": ticket.id if ticket else None}
             except HTTPException as exc:
                 result = {"status": exc.status_code}
@@ -269,13 +272,17 @@ def test_invalid_environment_configuration_fails_without_fallback(tmp_path, monk
 def test_disabled_demo_seed_is_recorded_and_never_replays(tmp_path):
     url = f"sqlite:///{tmp_path / 'empty.db'}"
     first = DatabaseStore(url, seed_demo=False)
-    assert first.list_services() == [] and first.list_staff() == []
+    assert first.list_services() == []
+    with first.db.session() as session:
+        assert session.scalar(select(func.count()).select_from(UserRow)) == 0
     with pytest.raises(HTTPException) as exc:
         first.login(LoginRequest(username="admin", password="admin123"))
     assert exc.value.status_code == 401
     first.close()
     second = DatabaseStore(url, seed_demo=True)
-    assert second.list_services() == [] and second.list_staff() == []
+    assert second.list_services() == []
+    with second.db.session() as session:
+        assert session.scalar(select(func.count()).select_from(UserRow)) == 0
     second.close()
 
 
@@ -283,12 +290,12 @@ def test_seed_is_not_reinserted_when_all_visible_configuration_is_deleted(tmp_pa
     url = f"sqlite:///{tmp_path / 'deleted.db'}"
     store = DatabaseStore(url)
     for service in store.list_services():
-        store.delete_service(service.id)
-    for counter in store.list_counters():
-        store.delete_counter(counter.id)
+        store.delete_service(service.id, ADMIN_ACTOR)
+    for counter in store.list_counters(ADMIN_ACTOR):
+        store.delete_counter(counter.id, ADMIN_ACTOR)
     store.close()
     reopened = DatabaseStore(url)
-    assert reopened.list_services() == [] and reopened.list_counters() == []
+    assert reopened.list_services() == [] and reopened.list_counters(ADMIN_ACTOR) == []
     with reopened.db.session() as session:
         assert session.scalar(select(func.count()).select_from(TicketRow)) == 4
     reopened.close()
@@ -318,14 +325,14 @@ def test_database_foreign_keys_and_unique_constraints_are_enforced(store):
         with store.db.session(write=True) as session:
             session.add(TicketRow(id="duplicate-number", serviceId="svc-reg", sequence=1,
                                   code="A-001", customerName="Duplicate", status="waiting", createdAt=store.clock()))
-    store.call_next("cnt-1")
+    store.call_next("cnt-1", ADMIN_ACTOR)
     with pytest.raises(IntegrityError):
         with store.db.session(write=True) as session:
             session.add(ActiveTicketRow(counter_id="cnt-1", ticket_id=second.id))
     with pytest.raises(IntegrityError):
         with store.db.session(write=True) as session:
             session.add(ActiveTicketRow(counter_id="cnt-2", ticket_id=first.id))
-    assert store.queue("cnt-1").current.id == first.id
+    assert store.queue("cnt-1", ADMIN_ACTOR).current.id == first.id
 
 
 def test_organization_configuration_constraints_and_cross_org_links(store):
@@ -361,15 +368,15 @@ def test_organization_configuration_constraints_and_cross_org_links(store):
 
 def test_soft_deleting_configuration_keeps_ticket_history(store):
     ticket = store.join(JoinQueueRequest(serviceId="svc-reg", customerName="Historical"))
-    store.call_next("cnt-1")
-    store.delete_service("svc-reg")
+    store.call_next("cnt-1", ADMIN_ACTOR)
+    store.delete_service("svc-reg", ADMIN_ACTOR)
     with store.db.session() as session:
         saved_ticket = session.scalar(select(TicketRow).where(TicketRow.id == ticket.id))
         assert saved_ticket is not None
         assert saved_ticket.serviceId == "svc-reg"
         assert saved_ticket.counterId == "cnt-1"
         assert session.get(ServiceRow, "svc-reg").deleted is True
-    store.delete_counter("cnt-1")
+    store.delete_counter("cnt-1", ADMIN_ACTOR)
     with store.db.session() as session:
         assert session.scalar(select(TicketRow).where(TicketRow.id == ticket.id)).counterId == "cnt-1"
         assert session.get(CounterRow, "cnt-1").deleted is True

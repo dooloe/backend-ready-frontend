@@ -369,3 +369,12 @@ workflows for commit `07fd1a0`. The full backend suite passed 136 tests. Issue
 assignments, Argon2id hashes with legacy scrypt login compatibility, and
 repeat-seed ticket preservation. GitHub now has **25 closed and 28 open issues**;
 the remaining open issues are #14–#32, #34–#41 and #43.
+
+## Issue #16 authorization review — 2026-10-26
+
+Implemented database-backed role checks, same-organization scoping for protected
+admin operations, staff assignment checks for counter operations, and denial for
+inactive counters. Cross-organization IDs are hidden with 404 responses, and
+deactivated users' existing sessions are rejected. The full backend suite passed
+139 tests locally. Issue #16 remains open until the pushed revision passes hosted
+CI. Current GitHub count remains 25 closed and 28 open.

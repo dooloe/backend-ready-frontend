@@ -1,5 +1,24 @@
 # Implementation and verification record
 
+## 2026-10-26 — Issue #16 authorization and organization scoping (hosted verification pending)
+
+Added service-level actor checks that reload the authenticated user from the
+database and reject inactive accounts, non-staff roles, and non-admin access to
+admin operations. Staff counter reads and queue mutations now require a persisted
+same-organization assignment and an active counter. Protected admin operations,
+including services, counters, staff listing, and statistics, are scoped to the
+admin user's organization. Cross-organization resource IDs return 404. Disabled
+users' existing sessions are revoked on authentication. Finishing a ticket that
+was already called remains possible after its counter is soft-deleted.
+
+Verification: `backend/.venv/bin/python -m pytest backend/tests -q
+-p no:cacheprovider` passed (**139 passed**, six existing Starlette/sqlite
+deprecation warnings). The suite includes anonymous and wrong-role denials,
+cross-organization access rejection, unassigned and inactive counter rejection,
+and deactivated-session rejection. `git diff --check` passed. This work is not
+closed yet: hosted CI must pass on the pushed revision before the acceptance
+criteria are marked complete.
+
 ## 2026-10-20 — Backlog and issue automation preparation
 
 Scope: the user's requested initial step—inspect the project, prepare detailed MVP issues and provide scripts for their authenticated WSL terminal. No GitHub authentication, network issue management or application feature implementation was attempted in this step. The requested scripts are prepared before issue creation because the user will execute the import outside the sandbox.

@@ -163,7 +163,10 @@ class DatabaseStore:
                 session.delete(row)
                 return None
             user = session.get(UserRow, row.user_id)
-            return self._user(user) if user else None
+            if user is None or not user.is_active:
+                session.delete(row)
+                return None
+            return self._user(user)
 
     def list_organizations(self) -> list[Organization]:
         # Public aggregates deliberately contain no ticket IDs or visitor data.
@@ -191,19 +194,41 @@ class DatabaseStore:
             return [self._service(row) for row in session.scalars(
                 select(ServiceRow).where(ServiceRow.deleted.is_(False)).order_by(ServiceRow.id))]
 
-    def list_counters(self, actor: StaffUser | None = None) -> list[Counter]:
-        with self.db.session() as session:
-            rows = session.scalars(
-                select(CounterRow).where(CounterRow.deleted.is_(False)).order_by(CounterRow.id)
-            )
-            actor_row = session.get(UserRow, actor.id) if actor is not None else None
-            return [self._counter(session, row) for row in rows
-                    if actor is None or (actor_row is not None and row.organization_id == actor_row.organization_id
-                    and (actor.role == "admin" or row.staffId is None or row.staffId == actor.id))]
+    @staticmethod
+    def _actor_row(session, actor: StaffUser, *, admin: bool = False) -> UserRow:
+        row = session.get(UserRow, actor.id) if actor is not None else None
+        if row is None or not row.is_active:
+            raise HTTPException(401, "Not authenticated", headers={"WWW-Authenticate": "Bearer"})
+        if admin and row.role != "admin":
+            raise HTTPException(403, "Admins only")
+        if row.role not in {"staff", "admin"}:
+            raise HTTPException(403, "Role is not allowed")
+        return row
 
-    def list_staff(self) -> list[StaffUser]:
+    @staticmethod
+    def _organization_row(session, model, key: str, kind: str, organization_id: str):
+        row = session.get(model, key)
+        if row is None or getattr(row, "deleted", False) or row.organization_id != organization_id:
+            raise HTTPException(404, f"{kind} not found")
+        return row
+
+    def list_counters(self, actor: StaffUser) -> list[Counter]:
         with self.db.session() as session:
-            return [self._user(row) for row in session.scalars(select(UserRow).order_by(UserRow.id))]
+            actor_row = self._actor_row(session, actor)
+            query = select(CounterRow).where(
+                CounterRow.organization_id == actor_row.organization_id,
+                CounterRow.deleted.is_(False),
+            )
+            if actor_row.role != "admin":
+                query = query.join(
+                    StaffAssignmentRow,
+                    StaffAssignmentRow.counter_id == CounterRow.id,
+                ).where(
+                    StaffAssignmentRow.organization_id == actor_row.organization_id,
+                    StaffAssignmentRow.user_id == actor_row.id,
+                    CounterRow.isActive.is_(True),
+                )
+            return [self._counter(session, row) for row in session.scalars(query.order_by(CounterRow.id))]
 
     @staticmethod
     def _issue(session, service, name: str, created: datetime):
@@ -259,28 +284,32 @@ class DatabaseStore:
             return self._view(session, ticket)
 
     @staticmethod
-    def _authorize_counter(counter: CounterRow, actor: StaffUser | None, actor_row: UserRow | None = None) -> None:
-        if actor is not None and actor_row is not None and actor_row.organization_id != counter.organization_id:
-            raise HTTPException(403, "Counter belongs to another organization")
-        if actor is not None and actor.role != "admin" and counter.staffId not in (None, actor.id):
+    def _authorize_counter(session, counter: CounterRow, actor_row: UserRow, *, require_active: bool = True) -> None:
+        if counter.organization_id != actor_row.organization_id:
+            raise HTTPException(404, "Counter not found")
+        if actor_row.role != "admin" and session.get(StaffAssignmentRow, (actor_row.id, counter.id)) is None:
             raise HTTPException(403, "Counter is not assigned to this staff member")
+        if actor_row.role != "admin" and counter.staffId not in (None, actor_row.id):
+            raise HTTPException(403, "Counter is not assigned to this staff member")
+        if require_active and not counter.isActive:
+            raise HTTPException(409, "Counter is inactive")
 
-    def queue(self, counter_id: str, actor: StaffUser | None = None) -> QueueView:
+    def queue(self, counter_id: str, actor: StaffUser) -> QueueView:
         with self.db.session() as session:
+            actor_row = self._actor_row(session, actor)
             counter = self._get(session, CounterRow, counter_id, "Counter")
-            self._authorize_counter(counter, actor, session.get(UserRow, actor.id) if actor else None)
+            self._authorize_counter(session, counter, actor_row)
             claim = session.get(ActiveTicketRow, counter_id)
             current = self._ticket_row(session, claim.ticket_id) if claim else None
             ids = list(session.scalars(select(CounterServiceRow.service_id).where(CounterServiceRow.counter_id == counter.id)))
             return QueueView(current=self._view(session, current) if current else None,
                              waiting=[self._view(session, row) for row in self._waiting(session, ids)])
 
-    def call_next(self, counter_id: str, actor: StaffUser | None = None) -> TicketView | None:
+    def call_next(self, counter_id: str, actor: StaffUser) -> TicketView | None:
         with self.db.session(write=True) as session:
+            actor_row = self._actor_row(session, actor)
             counter = self._get(session, CounterRow, counter_id, "Counter")
-            self._authorize_counter(counter, actor, session.get(UserRow, actor.id) if actor else None)
-            if not counter.isActive:
-                raise HTTPException(409, "Counter is inactive")
+            self._authorize_counter(session, counter, actor_row)
             if session.get(ActiveTicketRow, counter_id) is not None:
                 raise HTTPException(409, "Finish the current ticket first")
             ids = list(session.scalars(select(CounterServiceRow.service_id).where(CounterServiceRow.counter_id == counter_id)))
@@ -293,15 +322,22 @@ class DatabaseStore:
             session.flush()
             return self._view(session, ticket)
 
-    def transition(self, ticket_id: str, action: str, actor: StaffUser | None = None) -> TicketView:
+    def transition(self, ticket_id: str, action: str, actor: StaffUser) -> TicketView:
         rules = {"start": (("called",), "serving", "servedAt"),
                  "complete": (("called", "serving"), "completed", "finishedAt"),
                  "no-show": (("called",), "no_show", "finishedAt")}
         with self.db.session(write=True) as session:
+            actor_row = self._actor_row(session, actor)
             ticket = self._ticket_row(session, ticket_id)
-            if actor is not None and actor.role != "admin" and ticket.counterId is not None:
-                counter = self._get(session, CounterRow, ticket.counterId, "Counter")
-                self._authorize_counter(counter, actor, session.get(UserRow, actor.id))
+            service = session.get(ServiceRow, ticket.serviceId)
+            if service is None or service.organization_id != actor_row.organization_id:
+                raise HTTPException(404, "Ticket not found")
+            if ticket.counterId is None:
+                raise HTTPException(409, "Ticket is not assigned to a counter")
+            counter = session.get(CounterRow, ticket.counterId)
+            if counter is None:
+                raise HTTPException(404, "Counter not found")
+            self._authorize_counter(session, counter, actor_row, require_active=False)
             allowed, target, timestamp = rules[action]
             if ticket.status not in allowed:
                 raise HTTPException(409, f"Ticket is {ticket.status}")
@@ -312,18 +348,20 @@ class DatabaseStore:
             session.flush()
             return self._view(session, ticket)
 
-    def create_service(self, request: ServiceCreate) -> Service:
+    def create_service(self, request: ServiceCreate, actor: StaffUser) -> Service:
         with self.db.session(write=True) as session:
+            actor_row = self._actor_row(session, actor, admin=True)
             data = request.model_dump()
-            row = ServiceRow(id=new_id(), organization_id=DEFAULT_ORGANIZATION_ID,
+            row = ServiceRow(id=new_id(), organization_id=actor_row.organization_id,
                              durationMinutes=data["avgServiceMinutes"], isActive=True, **data)
             session.add(row)
             session.flush()
             return self._service(row)
 
-    def update_service(self, service_id: str, patch: dict) -> Service:
+    def update_service(self, service_id: str, patch: dict, actor: StaffUser) -> Service:
         with self.db.session(write=True) as session:
-            row = self._get(session, ServiceRow, service_id, "Service")
+            actor_row = self._actor_row(session, actor, admin=True)
+            row = self._organization_row(session, ServiceRow, service_id, "Service", actor_row.organization_id)
             updated = Service(**(self._service(row).model_dump() | patch))
             for key in patch:
                 setattr(row, key, getattr(updated, key))
@@ -331,10 +369,13 @@ class DatabaseStore:
                 row.durationMinutes = updated.avgServiceMinutes
             return updated
 
-    def delete_service(self, service_id: str) -> None:
+    def delete_service(self, service_id: str, actor: StaffUser) -> None:
         with self.db.session(write=True) as session:
+            actor_row = self._actor_row(session, actor, admin=True)
             row = session.get(ServiceRow, service_id)
-            if row is not None:
+            if row is not None and row.organization_id != actor_row.organization_id:
+                raise HTTPException(404, "Service not found")
+            if row is not None and not row.deleted:
                 row.deleted = True
                 session.execute(delete(CounterServiceRow).where(CounterServiceRow.service_id == service_id))
 
@@ -355,10 +396,12 @@ class DatabaseStore:
         session.add_all([CounterServiceRow(organization_id=counter.organization_id, counter_id=counter_id, service_id=key) for key in dict.fromkeys(service_ids)])
         session.flush()
 
-    def create_counter(self, request: CounterCreate) -> Counter:
+    def create_counter(self, request: CounterCreate, actor: StaffUser) -> Counter:
         with self.db.session(write=True) as session:
-            self._validate_counter_links(session, request)
-            row = CounterRow(id=new_id(), organization_id=DEFAULT_ORGANIZATION_ID,
+            actor_row = self._actor_row(session, actor, admin=True)
+            organization_id = actor_row.organization_id
+            self._validate_counter_links(session, request, organization_id)
+            row = CounterRow(id=new_id(), organization_id=organization_id,
                              **request.model_dump(exclude={"serviceIds"}))
             session.add(row)
             session.flush()
@@ -368,9 +411,10 @@ class DatabaseStore:
                                                user_id=row.staffId, counter_id=row.id))
             return self._counter(session, row)
 
-    def update_counter(self, counter_id: str, patch: dict) -> Counter:
+    def update_counter(self, counter_id: str, patch: dict, actor: StaffUser) -> Counter:
         with self.db.session(write=True) as session:
-            row = self._get(session, CounterRow, counter_id, "Counter")
+            actor_row = self._actor_row(session, actor, admin=True)
+            row = self._organization_row(session, CounterRow, counter_id, "Counter", actor_row.organization_id)
             updated = Counter(**(self._counter(session, row).model_dump() | patch))
             self._validate_counter_links(session, updated, row.organization_id)
             for key in patch:
@@ -386,21 +430,25 @@ class DatabaseStore:
             session.flush()
             return self._counter(session, row)
 
-    def delete_counter(self, counter_id: str) -> None:
+    def delete_counter(self, counter_id: str, actor: StaffUser) -> None:
         with self.db.session(write=True) as session:
+            actor_row = self._actor_row(session, actor, admin=True)
             row = session.get(CounterRow, counter_id)
-            if row is not None:
+            if row is not None and row.organization_id != actor_row.organization_id:
+                raise HTTPException(404, "Counter not found")
+            if row is not None and not row.deleted:
                 row.deleted = True
                 session.execute(delete(CounterServiceRow).where(CounterServiceRow.counter_id == counter_id))
 
-    def create_staff(self, request: StaffCreate) -> StaffUser:
-        encoded = hash_password(request.password)
+    def create_staff(self, request: StaffCreate, actor: StaffUser) -> StaffUser:
         try:
             with self.db.session(write=True) as session:
+                actor_row = self._actor_row(session, actor, admin=True)
                 if session.scalar(select(UserRow.id).where(UserRow.username == request.username)):
                     raise HTTPException(409, "Username already taken")
+                encoded = hash_password(request.password)
                 data = request.model_dump(exclude={"password"})
-                row = UserRow(id=new_id(), organization_id=DEFAULT_ORGANIZATION_ID,
+                row = UserRow(id=new_id(), organization_id=actor_row.organization_id,
                               email=f"{data['username']}@example.invalid", is_active=True,
                               password_hash=encoded, **data)
                 session.add(row)
@@ -409,25 +457,47 @@ class DatabaseStore:
         except IntegrityError as exc:
             raise HTTPException(409, "Username already taken") from exc
 
-    def stats(self) -> Stats:
+    def list_staff(self, actor: StaffUser) -> list[StaffUser]:
         with self.db.session() as session:
+            actor_row = self._actor_row(session, actor, admin=True)
+            return [self._user(row) for row in session.scalars(
+                select(UserRow).where(UserRow.organization_id == actor_row.organization_id).order_by(UserRow.id)
+            )]
+
+    def stats(self, actor: StaffUser) -> Stats:
+        with self.db.session() as session:
+            actor_row = self._actor_row(session, actor, admin=True)
             now = self.clock().astimezone(timezone.utc)
             start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            tickets = list(session.scalars(select(TicketRow).where(TicketRow.createdAt >= start, TicketRow.createdAt < start + timedelta(days=1))))
+            organization_services = select(ServiceRow.id).where(
+                ServiceRow.organization_id == actor_row.organization_id,
+            )
+            tickets = list(session.scalars(select(TicketRow).where(
+                TicketRow.serviceId.in_(organization_services),
+                TicketRow.createdAt >= start,
+                TicketRow.createdAt < start + timedelta(days=1),
+            )))
 
             def average(items):
                 samples = [(row.calledAt - row.createdAt).total_seconds() / 60 for row in items if row.calledAt is not None]
                 return math.floor(sum(samples) / len(samples) * 10 + 0.5) / 10 if samples else None
 
             by_service = []
-            for service in session.scalars(select(ServiceRow).where(ServiceRow.deleted.is_(False)).order_by(ServiceRow.id)):
+            for service in session.scalars(select(ServiceRow).where(
+                ServiceRow.organization_id == actor_row.organization_id,
+                ServiceRow.deleted.is_(False),
+            ).order_by(ServiceRow.id)):
                 group = [row for row in tickets if row.serviceId == service.id]
                 by_service.append(ServiceStats(serviceId=service.id, serviceName=service.name,
                     total=len(group), waiting=sum(row.status == "waiting" for row in group),
                     completed=sum(row.status == "completed" for row in group),
                     noShows=sum(row.status == "no_show" for row in group),
                     cancelled=sum(row.status == "cancelled" for row in group), avgWaitMinutes=average(group)))
-            waiting = session.scalar(select(func.count()).select_from(TicketRow).where(TicketRow.status == "waiting"))
+            waiting = session.scalar(select(func.count()).select_from(TicketRow).join(
+                ServiceRow, ServiceRow.id == TicketRow.serviceId).where(
+                ServiceRow.organization_id == actor_row.organization_id,
+                TicketRow.status == "waiting",
+            ))
             return Stats(totalToday=len(tickets), waitingNow=waiting,
                          completedToday=sum(row.status == "completed" for row in tickets), avgWaitMinutes=average(tickets),
                          byService=by_service,
