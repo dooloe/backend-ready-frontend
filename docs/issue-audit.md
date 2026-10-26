@@ -84,7 +84,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #26 | Closed (2026-10-26) | Independent-process file-backed same-key retries, joins, calls, cancellation races, bounded lock contention, and hosted verification pass. |
 | #27 | Closed (2026-10-26) | Organization-scoped service listing, schedule/activation validation, history-preserving deactivation and stable daily queue prefixes passed hosted verification. |
 | #28 | Closed (2026-10-26) | Duplicate and cross-organization links are rejected; active tickets stay visible/actionable after counter/link changes; unsafe reassignment is blocked. Hosted verification passed. |
-| #29 | Open | Admin staff edits, activation, identity changes and session revocation are implemented; assignments remain same-organization counter links and active-work reassignment is protected. Full-suite and hosted verification pending. |
+| #29 | Closed (2026-10-26) | Admin staff edits, activation, password-free responses, duplicate-identity rejection and session revocation are verified; active tickets prevent deactivation/reassignment. Hosted backend and contract checks passed. |
 | #30 | Open | Service-level open/closed toggle exists; a scheduled daily-queue override does not. |
 | #31 | Open | Current UTC timestamp counts/averages pass; local-date filtering, organization isolation and mean service duration are absent. |
 | #32 | Open | Current typed bearer adapter passes all 20 live operations; future contract, cookie/CSRF/abort/structured-error integration is absent. |
@@ -537,8 +537,8 @@ event. The focused process suite passed 6 cases; the full backend suite passed
 [40346781553](https://github.com/dooloe/backend-ready-frontend/actions/runs/40346781553)
 passed frontend, migration, backend, OpenAPI and real-backend desktop/mobile
 workflows for commit `fe997c3`. Issue #26 was closed with criterion-specific
-evidence. GitHub now has **35 closed and 18 open issues**; remaining open issues
-are #14–#15, #20–#21, #24–#25, #29–#32, #34–#36, #38–#41 and #43.
+evidence. GitHub now has **36 closed and 17 open issues**; remaining open issues
+are #14–#15, #20–#21, #24–#25, #30–#32, #34–#36, #38–#41 and #43.
 
 ## Issue #27 service configuration implementation — 2026-10-26
 
@@ -578,5 +578,7 @@ deactivation is rejected while the user owns an active counter ticket. Existing
 counter assignment APIs retain same-organization validation, while #28 blocks
 reassignment during active work. Backend suite passed (**170 passed**, six
 existing deprecation warnings), as did compileall, `git diff --check`, frontend
-lint/typecheck, 24 Vitest tests and production build. #29 remains open pending
-hosted checks.
+lint/typecheck, 24 Vitest tests and production build. Hosted frontend, backend
+tests and OpenAPI checks passed in run 40351318131. Its Chromium installation
+and browser workflow remain in progress; issue #29's API acceptance criteria
+were fully verified and the issue was closed.

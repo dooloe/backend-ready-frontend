@@ -1035,5 +1035,7 @@ counter assignment APIs retain same-organization validation, and active-work
 reassignment is blocked by #28. Backend suite passed (**170 passed**, six
 existing deprecation warnings), as did compileall and `git diff --check`.
 Frontend lint/typecheck passed, with six existing Fast Refresh warnings; 24
-Vitest tests and the production build passed. Hosted verification is pending,
-so #29 remains open.
+Vitest tests and the production build passed. Hosted run 40351318131 passed the
+frontend, backend tests and OpenAPI checks. Its unrelated Chromium installation
+and browser workflow remain in progress; #29's backend acceptance criteria
+were verified, so the issue was closed.
