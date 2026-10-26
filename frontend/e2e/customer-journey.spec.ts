@@ -243,11 +243,11 @@ test("staff no-show confirmation and essential admin configuration", async ({ pa
   await staff.keyboard.press("Tab");
   await staff.keyboard.press("Enter");
   await expect(staff.locator("main")).toBeFocused();
-  await staff.keyboard.press("Tab");
-  await staff.keyboard.press("Tab");
   const callNext = staff.getByRole("button", { name: "Call Next", exact: true });
-  await expect(callNext).toBeFocused();
   await expect(callNext).toBeEnabled();
+  await staff.keyboard.press("Tab");
+  await staff.keyboard.press("Tab");
+  await expect(callNext).toBeFocused();
   await staff.keyboard.press("Enter");
   const staffFitsViewport = await staff.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth,
