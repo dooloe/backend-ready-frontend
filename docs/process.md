@@ -1,5 +1,28 @@
 # Implementation and verification record
 
+## 2026-10-26 — Issue #17 organization-local scheduling (hosted verification pending)
+
+Added `backend/app/scheduling.py` to resolve the service's business date and
+opening window using its organization's IANA timezone. Same-day hours include
+the opening instant and exclude the closing instant. Overnight hours belong to
+the date they opened, including the segment after midnight. Both hours absent or
+equal represent a full-day schedule; incomplete hours and invalid timezones fail
+closed. Service activity, the existing `isOpen` setting, schedule hours and a
+manually closed `DailyQueueRow` all participate in effective availability.
+Public directory reads reflect that availability without creating data. A
+successful legacy join creates the daily queue within the same writer-reserved
+transaction; the unique organization/service/date key and existing SQLite
+reservation prevent duplicate first-access queues across processes. Ticket-to-
+queue linkage and daily issuance remain for Issue #19.
+
+Verification: focused scheduling/directory/process tests passed (**14 passed**).
+The full backend suite passed (**149 passed**, six existing Starlette/sqlite
+deprecation warnings). Tests cover timezone conversion, opening/closing and
+midnight boundaries, overnight business dates, invalid and partial schedules,
+manual closure precedence, no queue creation after a closed-hours rejection,
+and concurrent first access from independent processes. `git diff --check`
+passed. Hosted CI is pending; Issue #17 remains open until hosted verification.
+
 ## 2026-10-26 — Issue #16 authorization and organization scoping (hosted verification pending)
 
 Added service-level actor checks that reload the authenticated user from the

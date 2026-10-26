@@ -16,8 +16,10 @@ from .models import (
     Organization, PublicService, QueueView, Service, ServiceCreate, ServiceStats, StaffCreate, StaffUser, Stats,
     Ticket, TicketView,
 )
+from .scheduling import QueueSchedule, resolve_queue_schedule
 from .orm import (ActiveTicketRow, CounterRow, CounterServiceRow, OrganizationRow,
-                  ServiceRow, SessionRow, StaffAssignmentRow, StoreState, TicketRow, UserRow)
+                  DailyQueueRow, ServiceRow, SessionRow, StaffAssignmentRow, StoreState,
+                  TicketRow, UserRow)
 
 DEFAULT_ORGANIZATION_ID = "org-demo"
 
@@ -171,6 +173,7 @@ class DatabaseStore:
     def list_organizations(self) -> list[Organization]:
         # Public aggregates deliberately contain no ticket IDs or visitor data.
         with self.db.session() as session:
+            now = self.clock()
             result = []
             for org in session.scalars(select(OrganizationRow).order_by(OrganizationRow.name)):
                 services = []
@@ -182,8 +185,14 @@ class DatabaseStore:
                         CounterServiceRow, CounterServiceRow.counter_id == CounterRow.id).where(
                         CounterServiceRow.service_id == row.id, CounterRow.deleted.is_(False),
                         CounterRow.isActive.is_(True)))
-                    services.append(PublicService(**self._service(row).model_dump(), waitingCount=count,
-                        estimatedWaitMinutes=math.ceil(count * row.avgServiceMinutes / capacity) if capacity and row.isOpen else None,
+                    try:
+                        _, _, is_open = self._queue_state(session, row, now)
+                    except HTTPException as exc:
+                        if exc.status_code != 422:
+                            raise
+                        is_open = False
+                    services.append(PublicService(**(self._service(row).model_dump() | {"isOpen": is_open}), waitingCount=count,
+                        estimatedWaitMinutes=math.ceil(count * row.avgServiceMinutes / capacity) if capacity and is_open else None,
                         operatingHours=f"{row.opensAt:%H:%M}–{row.closesAt:%H:%M}" if row.opensAt and row.closesAt else None))
                 result.append(Organization(id=org.id, name=org.name, description=org.description,
                     category=org.category, location=org.location, timezone=org.timezone, services=services))
@@ -266,9 +275,42 @@ class DatabaseStore:
     def join(self, request: JoinQueueRequest) -> TicketView:
         with self.db.session(write=True) as session:
             service = self._get(session, ServiceRow, request.serviceId, "Service")
-            if not service.isOpen:
+            now = self.clock()
+            _, _, is_open = self._queue_state(session, service, now, create=True)
+            if not is_open:
                 raise HTTPException(409, "This queue is closed")
-            return self._view(session, self._issue(session, service, request.customerName, self.clock()))
+            return self._view(session, self._issue(session, service, request.customerName, now))
+
+    @staticmethod
+    def _queue_state(session, service: ServiceRow, instant: datetime, *, create: bool = False):
+        organization = session.get(OrganizationRow, service.organization_id)
+        if organization is None:
+            raise HTTPException(404, "Organization not found")
+        try:
+            schedule: QueueSchedule = resolve_queue_schedule(
+                organization.timezone, service.opensAt, service.closesAt, instant,
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        queue = session.scalar(select(DailyQueueRow).where(
+            DailyQueueRow.organization_id == service.organization_id,
+            DailyQueueRow.service_id == service.id,
+            DailyQueueRow.business_date == schedule.business_date,
+        ))
+        is_open = (
+            service.isActive and service.isOpen and schedule.within_hours
+            and (queue is None or queue.status == "open")
+        )
+        if create and is_open and queue is None:
+            queue = DailyQueueRow(
+                id=new_id(), organization_id=service.organization_id,
+                service_id=service.id, business_date=schedule.business_date,
+                status="open", opened_at=instant, closed_at=None,
+                ticket_prefix=service.prefix,
+            )
+            session.add(queue)
+            session.flush()
+        return schedule, queue, is_open
 
     def ticket(self, ticket_id: str) -> TicketView:
         with self.db.session() as session:

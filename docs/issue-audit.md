@@ -392,12 +392,21 @@ No new issues are proposed: the missing requirements are already covered by
 open issues. The updated customer-first experience and responsive review are
 covered by #53 and #44–#48; staff authorization and dashboard behavior are now
 verified and closed in #16 and #37. Remaining technical work is represented by
-#18–#35 and #38–#43, with #14–#15, #17 and #30 requiring a scope decision because
-their cookie/CSRF and manual daily-queue requirements do not match the current
-bearer-session and operating-hours MVP. Issue #36 likewise specifies cookie
-session behavior that the current bearer API does not use. These remain open;
-none is being treated as implemented or removed.
+#18–#35 and #38–#43. Issues #14–#15 and #36 specify cookie/CSRF behavior that
+does not match the current bearer-session API; #30 specifies manual daily queue
+controls beyond the current operating-hours model. These remain open pending a
+scope decision; none is being treated as implemented or removed. Issue #17's
+organization-local schedule behavior is now implemented and awaits hosted
+verification.
 
 The `new-mvp` label already exists. No issues or labels were created or changed;
 if an uncovered, approved requirement emerges later, every new issue will carry
 `new-mvp` plus relevant area/type labels.
+
+## Issue #17 scheduling implementation — 2026-10-26
+
+Implemented organization-local schedule resolution and daily queue creation on
+accepted joins. Local backend verification passed 149 tests, including concurrent
+independent-process first access, same-day boundaries, midnight/overnight date
+selection, and manual closure precedence. Issue #17 remains open pending hosted
+CI; no issue count changed.

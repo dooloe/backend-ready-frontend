@@ -405,6 +405,10 @@ def test_separate_processes_allocate_unique_numbers(tmp_path):
     results = run_workers(url, ["join", "join", "join"])
     assert {number for group in results for number in group} == {f"A-{n:03d}" for n in range(1, 13)}
     assert parent.join(JoinQueueRequest(serviceId="svc-reg", customerName="After workers")).code == "A-013"
+    with parent.db.session() as session:
+        assert session.scalar(select(func.count()).select_from(DailyQueueRow).where(
+            DailyQueueRow.organization_id == "org-demo", DailyQueueRow.service_id == "svc-reg",
+        )) == 1
     parent.close()
 
 

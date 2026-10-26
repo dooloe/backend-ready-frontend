@@ -123,3 +123,21 @@ new cookie authentication, or the broader planned-contract migration is complete
 Remove mandatory name entry by sending `Visitor` to the compatible existing join
 endpoint. Staff completion is presented after start, retaining backend transition
 compatibility. Preserve all admin tabs while prioritizing services and queues.
+
+## 2026-10-26 — Organization-local daily queue schedule (#17)
+
+Use `ZoneInfo` with the owning organization's IANA timezone for schedule checks
+and queue business dates. Same-day hours are open at the opening instant and
+closed at the closing instant (`[opensAt, closesAt)`). An overnight schedule
+belongs to the date it opens; the after-midnight segment remains on that prior
+business date. Both hours absent or equal mean a 24-hour schedule. A partial
+schedule or invalid timezone is a configuration error and fails closed.
+
+Effective availability requires an active service, its existing `isOpen` setting,
+an in-hours instant and a daily queue whose status is not manually closed. An
+existing closed queue is never implicitly reopened by a schedule check. Public
+directory reads calculate availability without writing. A customer join creates
+the open daily queue on demand in the same SQLite writer-reserved transaction as
+the current join; the database uniqueness constraint is the cross-process
+backstop. Issue #19 will attach the newly issued ticket to this queue as part of
+the full daily issuance transaction.
