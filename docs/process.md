@@ -1092,5 +1092,7 @@ pass. The real-backend desktop/mobile browser workflow passes all 8 cases. #20
 remains open because AC-1 applies to customer ticket access as a whole, while
 existing browser links still use an ID-based deprecated lookup. The coordinated
 token migration in #35 (and private cancellation in #21) must remove that legacy
-access path before #20 can be closed. Hosted CI verification has not yet run
-for this partial implementation.
+access path before #20 can be closed. Hosted CI run
+[40364335218](https://github.com/dooloe/backend-ready-frontend/actions/runs/40364335218)
+passed all frontend, migration, OpenAPI, backend, and real-backend browser
+checks; #20 remains open until the remaining customer access path is migrated.
