@@ -410,3 +410,14 @@ accepted joins. Local backend verification passed 149 tests, including concurren
 independent-process first access, same-day boundaries, midnight/overnight date
 selection, and manual closure precedence. Issue #17 remains open pending hosted
 CI; no issue count changed.
+
+## Issue #17 hosted verification and closure — 2026-10-26
+
+Hosted CI run [40325780414](https://github.com/dooloe/backend-ready-frontend/actions/runs/40325780414)
+passed all frontend, backend, migration/model-drift, OpenAPI and real-backend
+desktop/mobile browser workflow gates for commit `25b83cf`. Combined with the
+149-test local backend suite, this verifies the issue's schedule boundaries,
+overnight business date behavior, single daily queue under concurrent first
+access, and manual closure precedence. Issue #17 was closed with criterion-
+specific evidence. GitHub now has **28 closed and 25 open issues**; remaining
+open issues are #14–#15, #18–#32, #34–#36, #38–#41 and #43.

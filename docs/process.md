@@ -835,3 +835,14 @@ until hosted CI passed for the pushed revision. Hosted run
 [40316814343](https://github.com/dooloe/backend-ready-frontend/actions/runs/40316814343)
 passed every gate, including real-backend desktop/mobile workflows, and issue
 #13 was closed with criterion-specific evidence.
+
+## 2026-10-26 — Issue #17 organization-local schedules
+
+Hosted CI run [40325780414](https://github.com/dooloe/backend-ready-frontend/actions/runs/40325780414)
+passed frontend lint, typecheck, tests and production build; fresh migration and
+model-drift checks; backend compilation and tests; OpenAPI contract checks; and
+real-backend desktop/mobile browser workflows for commit `25b83cf`. With the
+local 149-test backend suite also passing, issue #17 was closed after verifying
+organization-local opening/closing boundaries, overnight business dates,
+deterministic daily queue creation on accepted joins, and manual closure
+precedence.
