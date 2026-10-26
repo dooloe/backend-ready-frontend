@@ -916,3 +916,12 @@ queue-status case passed (**1 passed**). The full
 passed (**157 passed**, six existing deprecation warnings).
 `backend/.venv/bin/python -m compileall -q backend/app backend/tests` and
 `git diff --check` passed. Hosted CI is pending; issue #22 remains open.
+
+The docs-only push following #18 exposed a flaky admin-tab focus assertion in
+the browser workflow (the tab uses roving focus), and a prior workflow run had a
+fixed-count Tab assumption. Updated those checks to focus the tab before testing
+arrow navigation and to tab until the cancel action is focused. `npm run lint`
+passed with zero errors and six existing warnings; `npm run typecheck` passed.
+`LD_LIBRARY_PATH=/tmp/kezek-browser-libs/usr/lib/x86_64-linux-gnu PLAYWRIGHT_BROWSERS_PATH=/home/asus/.cache/ms-playwright npm run test:e2e`
+passed (**8 passed**) on desktop and mobile. Hosted verification for this fix
+and #22 is pending.

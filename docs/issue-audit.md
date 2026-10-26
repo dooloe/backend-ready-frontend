@@ -472,3 +472,8 @@ wait estimate. Unknown queues return 404; tests verify join/cancel/complete and
 manual-close changes without exposing private ticket or staff data. Focused
 checks passed; the full backend suite passed 157 tests, plus compileall and diff
 checks. Hosted CI remains pending. Issue #22 is open.
+
+The CI run before the fix caught an intermittent admin keyboard-focus test
+failure. The test now follows roving-tab focus correctly and waits for the
+cancel button instead of assuming a fixed tab count. Frontend lint/typecheck and
+all 8 local desktop/mobile E2E checks passed; hosted verification is pending.

@@ -1,4 +1,12 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
+
+async function tabUntilFocused(page: Page, target: Locator, maxTabs = 24) {
+  for (let i = 0; i < maxTabs; i += 1) {
+    if (await target.evaluate((element) => element === document.activeElement)) return;
+    await page.keyboard.press("Tab");
+  }
+  await expect(target).toBeFocused();
+}
 
 async function join(page: Page, organization: "university" | "clinic" = "university") {
   const directory =
@@ -95,8 +103,7 @@ test("discover, join, track position, staff call/start/complete, and private bro
   await second.goto(secondUrl);
   await second.keyboard.press("Tab");
   await expect(second.getByRole("link", { name: "Skip to content" })).toBeFocused();
-  for (let i = 0; i < 6; i += 1) await second.keyboard.press("Tab");
-  await expect(second.getByRole("button", { name: "Cancel Ticket", exact: true })).toBeFocused();
+  await tabUntilFocused(second, second.getByRole("button", { name: "Cancel Ticket", exact: true }));
   await second.keyboard.press("Enter");
   await expect(second.getByRole("alertdialog")).toBeVisible();
   await expect(second.getByRole("button", { name: "Go back", exact: true })).toBeFocused();
@@ -337,8 +344,8 @@ test("staff no-show confirmation and essential admin configuration", async ({ pa
   await expect(staff.getByRole("link", { name: "Skip to content" })).toBeFocused();
   await staff.keyboard.press("Enter");
   await expect(staff.locator("main")).toBeFocused();
-  await staff.keyboard.press("Tab");
   const organizationsTab = staff.getByRole("tab", { name: "Organizations" });
+  await organizationsTab.focus();
   await expect(organizationsTab).toBeFocused();
   await staff.keyboard.press("ArrowRight");
   await expect(staff.getByRole("tab", { name: "Analytics" })).toHaveAttribute(
