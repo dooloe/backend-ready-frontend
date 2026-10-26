@@ -28,6 +28,7 @@ export interface StaffUser {
   name: string;
   username: string;
   role: Role;
+  isActive?: boolean;
 }
 
 export interface Ticket {
@@ -110,6 +111,10 @@ export interface KezekApi {
   deleteCounter(id: string): Promise<void>;
   listStaff(): Promise<StaffUser[]>;
   createStaff(input: Omit<StaffUser, "id"> & { password: string }): Promise<StaffUser>;
+  updateStaff(
+    id: string,
+    input: Partial<Pick<StaffUser, "name" | "username" | "role" | "isActive">>,
+  ): Promise<StaffUser>;
   getStats(): Promise<Stats>;
 }
 

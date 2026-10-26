@@ -723,6 +723,52 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/StaffCreate'
+  /api/admin/staff/{staffId}:
+    patch:
+      operationId: updateStaff
+      tags:
+      - Admin
+      summary: Update a staff or admin user
+      description: 'Updates supported identity and activation fields for a user in the authenticated
+        administrator organization. Role/activation changes invalidate sessions; active assigned tickets
+        must be finished before deactivation. Duplicate usernames return 409.
+
+        Requires an authenticated admin.'
+      parameters:
+      - name: staffId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUpdate'
+      responses:
+        '200':
+          description: Updated identity; passwords and hashes are never returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - admin
   /api/admin/stats:
     get:
       operationId: getStats
@@ -1105,6 +1151,7 @@ components:
       - name
       - username
       - role
+      - isActive
       properties:
         id:
           type: string
@@ -1114,7 +1161,24 @@ components:
           type: string
         role:
           $ref: '#/components/schemas/Role'
+        isActive:
+          type: boolean
       description: Public staff/admin identity. Contains no password.
+    StaffUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        username:
+          type: string
+          minLength: 1
+        role:
+          $ref: '#/components/schemas/Role'
+        isActive:
+          type: boolean
+      additionalProperties: false
+      description: Partial<Pick<StaffUser, "name" | "username" | "role" | "isActive">>.
     StaffCreate:
       type: object
       required:

@@ -47,6 +47,7 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
     deleteCounter: (id) => req("DELETE", `/api/admin/counters/${id}`),
     listStaff: () => req("GET", "/api/admin/staff"),
     createStaff: (i) => req("POST", "/api/admin/staff", i),
+    updateStaff: (id, i) => req("PATCH", `/api/admin/staff/${encodeURIComponent(id)}`, i),
     getStats: () => req("GET", "/api/admin/stats"),
   };
 }

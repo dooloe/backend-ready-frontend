@@ -18,7 +18,7 @@ from .database import Database, configured_database_url
 from .models import (
     Counter, CounterCreate, HourlyStats, JoinQueueRequest, LoginRequest, LoginResponse,
     IssuedTicket, JoinResponse, Organization, PublicService, QueueSummary, QueueView, Service, ServiceCreate, ServiceStats, ServiceSummary, StaffCreate, StaffUser, Stats,
-    StaffCounterQueue, StaffCurrentTicket, Ticket, TicketView,
+    StaffCounterQueue, StaffCurrentTicket, StaffUpdate, Ticket, TicketView,
 )
 from .scheduling import QueueSchedule, resolve_queue_schedule
 from .orm import (ActiveTicketRow, CounterRow, CounterServiceRow, OrganizationRow,
@@ -840,6 +840,44 @@ class DatabaseStore:
             return [self._user(row) for row in session.scalars(
                 select(UserRow).where(UserRow.organization_id == actor_row.organization_id).order_by(UserRow.id)
             )]
+
+    def update_staff(self, staff_id: str, patch: dict, actor: StaffUser) -> StaffUser:
+        try:
+            with self.db.session(write=True) as session:
+                actor_row = self._actor_row(session, actor, admin=True)
+                row = self._organization_row(session, UserRow, staff_id, "Staff user", actor_row.organization_id)
+                if not patch:
+                    return self._user(row)
+                if staff_id == actor_row.id and patch.get("isActive") is False:
+                    raise HTTPException(409, "An administrator cannot deactivate their own account")
+                if "username" in patch and patch["username"] != row.username:
+                    duplicate = session.scalar(select(UserRow.id).where(
+                        UserRow.username == patch["username"], UserRow.id != row.id,
+                    ))
+                    if duplicate:
+                        raise HTTPException(409, "Username already taken")
+                    row.email = f"{patch['username']}@example.invalid"
+                if row.is_active and patch.get("isActive") is False:
+                    active_ticket = session.scalar(
+                        select(ActiveTicketRow.ticket_id)
+                        .join(CounterRow, CounterRow.id == ActiveTicketRow.counter_id)
+                        .join(StaffAssignmentRow,
+                              StaffAssignmentRow.counter_id == CounterRow.id)
+                        .where(StaffAssignmentRow.user_id == row.id,
+                               CounterRow.organization_id == row.organization_id)
+                    )
+                    if active_ticket is not None:
+                        raise HTTPException(409, "Finish the active ticket before deactivating this staff member")
+                for key, value in patch.items():
+                    setattr(row, {"isActive": "is_active"}.get(key, key), value)
+                if "isActive" in patch or "role" in patch:
+                    # Privilege/activation changes must take effect immediately;
+                    # display-name and username edits do not alter session scope.
+                    session.execute(delete(SessionRow).where(SessionRow.user_id == row.id))
+                session.flush()
+                return self._user(row)
+        except IntegrityError as exc:
+            raise HTTPException(409, "Username already taken") from exc
 
     def stats(self, actor: StaffUser) -> Stats:
         with self.db.session() as session:

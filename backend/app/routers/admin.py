@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Response
 from ..auth import require_admin
 from ..models import (
     Counter, CounterCreate, CounterUpdate, Service, ServiceCreate, ServiceUpdate,
-    StaffCreate, StaffUser, Stats,
+    StaffCreate, StaffUpdate, StaffUser, Stats,
 )
 from ..store import DatabaseStore, get_store
 
@@ -60,6 +60,11 @@ def list_staff(store: Store, actor: AdminActor):
 @router.post("/staff", response_model=StaffUser, operation_id="createStaff", openapi_extra=roles)
 def create_staff(body: StaffCreate, store: Store, actor: AdminActor):
     return store.create_staff(body, actor)
+
+
+@router.patch("/staff/{staffId}", response_model=StaffUser, operation_id="updateStaff", openapi_extra=roles)
+def update_staff(staffId: str, body: StaffUpdate, store: Store, actor: AdminActor):
+    return store.update_staff(staffId, body.model_dump(exclude_unset=True), actor)
 
 
 @router.get("/stats", response_model=Stats, operation_id="getStats", openapi_extra=roles)

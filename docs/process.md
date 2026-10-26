@@ -1021,4 +1021,19 @@ seeing and completing that ticket after service links are removed, while
 call-next remains blocked on inactive counters. The focused regression test
 passed. The full backend suite passed (**167 passed**, six existing
 deprecation warnings), as did backend compileall and `git diff --check`.
-Hosted verification is pending, so issue #28 remains open.
+Hosted run [40349956496](https://github.com/dooloe/backend-ready-frontend/actions/runs/40349956496)
+passed all frontend, migration, backend, OpenAPI and real-backend desktop/mobile
+gates. Issue #28 was closed after those checks passed.
+
+## 2026-10-26 — Issue #29 admin staff management
+
+Added admin-only staff updates for name, username, role and activation. Public
+staff responses expose activation state and omit passwords/hashes. Duplicate
+usernames are rejected; role/activation changes invalidate existing sessions, and
+deactivation is rejected while the user owns an active counter ticket. Existing
+counter assignment APIs retain same-organization validation, and active-work
+reassignment is blocked by #28. Backend suite passed (**170 passed**, six
+existing deprecation warnings), as did compileall and `git diff --check`.
+Frontend lint/typecheck passed, with six existing Fast Refresh warnings; 24
+Vitest tests and the production build passed. Hosted verification is pending,
+so #29 remains open.

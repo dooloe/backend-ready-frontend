@@ -72,6 +72,30 @@ describe("Kezek mock API", () => {
     await expect(mockApi.getStats()).rejects.toMatchObject({ status: 403 });
   });
 
+  it("updates staff details and revokes disabled staff sessions", async () => {
+    token = (await mockApi.login("admin", "admin123")).token;
+    const created = await mockApi.createStaff({
+      name: "Temporary staff",
+      username: "temporary",
+      role: "staff",
+      password: "secret123",
+    });
+    expect(created.isActive).toBe(true);
+    token = (await mockApi.login("temporary", "secret123")).token;
+
+    token = (await mockApi.login("admin", "admin123")).token;
+    const updated = await mockApi.updateStaff(created.id, { name: "Updated staff" });
+    expect(updated.name).toBe("Updated staff");
+    expect(updated).not.toHaveProperty("password");
+
+    const staffSession = (await mockApi.login("temporary", "secret123")).token;
+    token = (await mockApi.login("admin", "admin123")).token;
+    await mockApi.updateStaff(created.id, { isActive: false });
+    token = staffSession;
+    await expect(mockApi.listCounters()).rejects.toMatchObject({ status: 401 });
+    await expect(mockApi.login("temporary", "secret123")).rejects.toMatchObject({ status: 401 });
+  });
+
   it("removes a cancelled ticket from the active queue", async () => {
     const t = await mockApi.joinQueue({ serviceId: "svc-reg", customerName: "A" });
     await mockApi.cancelTicket(t.id);

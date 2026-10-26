@@ -145,7 +145,8 @@ ADMIN_ENDPOINTS = [
     ("GET", "/api/admin/services"), ("POST", "/api/admin/services"), ("PATCH", "/api/admin/services/svc-reg"),
     ("DELETE", "/api/admin/services/svc-reg"), ("POST", "/api/admin/counters"),
     ("PATCH", "/api/admin/counters/cnt-1"), ("DELETE", "/api/admin/counters/cnt-1"),
-    ("GET", "/api/admin/staff"), ("POST", "/api/admin/staff"), ("GET", "/api/admin/stats"),
+    ("GET", "/api/admin/staff"), ("POST", "/api/admin/staff"),
+    ("PATCH", "/api/admin/staff/stf-aigerim"), ("GET", "/api/admin/stats"),
 ]
 
 
@@ -254,8 +255,10 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
                     json={"name": "New", "serviceIds": [service["id"]], "isActive": True, "staffId": None})
     check("PATCH", f"/api/admin/counters/{counter['id']}", "/api/admin/counters/{counterId}", headers=headers, json={"staffId": "stf-aigerim"})
     check("GET", "/api/admin/staff", "/api/admin/staff", headers=headers)
-    check("POST", "/api/admin/staff", "/api/admin/staff", headers=headers,
-          json={"name": "New person", "username": "new", "role": "staff", "password": "new-password"})
+    new_staff = check("POST", "/api/admin/staff", "/api/admin/staff", headers=headers,
+                      json={"name": "New person", "username": "new", "role": "staff", "password": "new-password"})
+    check("PATCH", f"/api/admin/staff/{new_staff['id']}", "/api/admin/staff/{staffId}",
+          headers=headers, json={"name": "Updated person"})
     check("GET", "/api/admin/stats", "/api/admin/stats", headers=headers)
     check("DELETE", f"/api/admin/services/{service['id']}", "/api/admin/services/{serviceId}", headers=headers)
     check("DELETE", f"/api/admin/counters/{counter['id']}", "/api/admin/counters/{counterId}", headers=headers)
@@ -396,7 +399,7 @@ def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock
     assert client.post("/api/auth/login", json={"username": "missing", "password": "admin123"}).status_code == 401
     result = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"}).json()
     assert set(result) == {"token", "user"}
-    assert set(result["user"]) == {"id", "name", "username", "role"}
+    assert set(result["user"]) == {"id", "name", "username", "role", "isActive"}
     assert len(result["token"]) >= 40
     with store.db.session() as session:
         assert session.get(SessionRow, result["token"]) is None
@@ -655,6 +658,38 @@ def test_admin_crud_patch_semantics_and_duplicate_username(client, admin):
     assert client.delete(counter_path, headers=admin).status_code == 204
     assert client.delete(counter_path, headers=admin).content == b""
     assert all("password" not in u and "password_hash" not in u for u in client.get("/api/admin/staff", headers=admin).json())
+
+
+def test_admin_staff_update_revokes_sessions_and_protects_active_work(client, admin, staff):
+    listed = client.get("/api/admin/staff", headers=admin)
+    assert listed.status_code == 200
+    aigerim = next(user for user in listed.json() if user["username"] == "aigerim")
+    assert aigerim["isActive"] is True
+    path = f"/api/admin/staff/{aigerim['id']}"
+
+    ticket = join(client, name="Assigned staff visitor")
+    called = client.post("/api/counters/cnt-1/call-next", headers=staff)
+    assert called.status_code == 200 and called.json()["id"] == ticket["id"]
+    assert client.patch(path, headers=admin, json={"isActive": False}).status_code == 409
+    assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 200
+
+    assert client.patch(path, headers=admin, json={"username": "admin"}).status_code == 409
+    changed = client.patch(path, headers=admin, json={"name": "Aigerim Updated", "username": "aigerim-new"})
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["name"] == "Aigerim Updated"
+    assert changed.json()["username"] == "aigerim-new"
+    assert changed.json()["isActive"] is True
+    assert "password" not in changed.json() and "password_hash" not in changed.json()
+    assert client.get("/api/counters", headers=staff).status_code == 200
+
+    login = client.post("/api/auth/login", json={"username": "aigerim-new", "password": "staff123"})
+    assert login.status_code == 200
+    new_session = {"Authorization": "Bearer " + login.json()["token"]}
+    disabled = client.patch(path, headers=admin, json={"isActive": False})
+    assert disabled.status_code == 200 and disabled.json()["isActive"] is False
+    assert client.get("/api/counters", headers=new_session).status_code == 401
+    assert client.post("/api/auth/login", json={"username": "aigerim-new", "password": "staff123"}).status_code == 401
+    assert client.patch("/api/admin/staff/unknown", headers=admin, json={"name": "Missing"}).status_code == 404
 
 
 def test_counter_changes_cannot_strand_an_active_ticket(client, admin, staff):

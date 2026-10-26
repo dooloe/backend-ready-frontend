@@ -83,8 +83,8 @@ required evidence; it does not mean all work on that issue is absent.
 | #25 | Open | Actor-attributed lifecycle events and rollback pass; strict transition requirement conflicts with recorded decision preserving called → completed. |
 | #26 | Closed (2026-10-26) | Independent-process file-backed same-key retries, joins, calls, cancellation races, bounded lock contention, and hosted verification pass. |
 | #27 | Closed (2026-10-26) | Organization-scoped service listing, schedule/activation validation, history-preserving deactivation and stable daily queue prefixes passed hosted verification. |
-| #28 | Open | Counter updates reject duplicate links and unsafe active-ticket reassignment/deletion; active tickets remain visible/actionable after link removal or deactivation. Full suite and hosted verification pending. |
-| #29 | Open | Staff creation and password hashing pass; staff editing/deactivation, assignment lifecycle and session revocation are absent. |
+| #28 | Closed (2026-10-26) | Duplicate and cross-organization links are rejected; active tickets stay visible/actionable after counter/link changes; unsafe reassignment is blocked. Hosted verification passed. |
+| #29 | Open | Admin staff edits, activation, identity changes and session revocation are implemented; assignments remain same-organization counter links and active-work reassignment is protected. Full-suite and hosted verification pending. |
 | #30 | Open | Service-level open/closed toggle exists; a scheduled daily-queue override does not. |
 | #31 | Open | Current UTC timestamp counts/averages pass; local-date filtering, organization isolation and mean service duration are absent. |
 | #32 | Open | Current typed bearer adapter passes all 20 live operations; future contract, cookie/CSRF/abort/structured-error integration is absent. |
@@ -537,8 +537,8 @@ event. The focused process suite passed 6 cases; the full backend suite passed
 [40346781553](https://github.com/dooloe/backend-ready-frontend/actions/runs/40346781553)
 passed frontend, migration, backend, OpenAPI and real-backend desktop/mobile
 workflows for commit `fe997c3`. Issue #26 was closed with criterion-specific
-evidence. GitHub now has **34 closed and 19 open issues**; remaining open issues
-are #14–#15, #20–#21, #24–#25, #28–#32, #34–#36, #38–#41 and #43.
+evidence. GitHub now has **35 closed and 18 open issues**; remaining open issues
+are #14–#15, #20–#21, #24–#25, #29–#32, #34–#36, #38–#41 and #43.
 
 ## Issue #27 service configuration implementation — 2026-10-26
 
@@ -565,4 +565,18 @@ staff still see and finish that ticket after service links are removed, while
 the inactive counter cannot call another visitor. The focused regression test
 passed. The full backend suite passed (**167 passed**, six existing
 deprecation warnings), as did backend compileall and `git diff --check`. Hosted
-verification remains pending; issue #28 remains open.
+run [40349956496](https://github.com/dooloe/backend-ready-frontend/actions/runs/40349956496)
+passed the full frontend, migration, backend, OpenAPI and real-backend browser
+workflow. Issue #28 was closed with criterion-specific evidence.
+
+## Issue #29 admin staff management — 2026-10-26
+
+Added admin-only staff updates for name, username, role and activation. Staff
+responses now expose activation state but never passwords or hashes. Duplicate
+usernames are rejected; role/activation changes invalidate existing sessions, and
+deactivation is rejected while the user owns an active counter ticket. Existing
+counter assignment APIs retain same-organization validation, while #28 blocks
+reassignment during active work. Backend suite passed (**170 passed**, six
+existing deprecation warnings), as did compileall, `git diff --check`, frontend
+lint/typecheck, 24 Vitest tests and production build. #29 remains open pending
+hosted checks.

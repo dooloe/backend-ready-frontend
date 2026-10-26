@@ -210,7 +210,7 @@ function requireRole(role: Role): StaffRecord {
   const token = tokenProvider();
   const staffId = token ? d.sessions[token] : undefined;
   const user = d.staff.find((s) => s.id === staffId);
-  if (!user) throw new ApiError(401, "Not authenticated");
+  if (!user || user.isActive === false) throw new ApiError(401, "Not authenticated");
   if (role === "admin" && user.role !== "admin") throw new ApiError(403, "Admins only");
   return user;
 }
@@ -337,13 +337,15 @@ export const mockApi: KezekApi = {
 
   login(username, password) {
     const d = load();
-    const u = d.staff.find((s) => s.username === username && s.password === password);
+    const u = d.staff.find(
+      (s) => s.username === username && s.password === password && s.isActive !== false,
+    );
     if (!u) return Promise.reject(new ApiError(401, "Invalid username or password"));
     const token = uid();
     d.sessions[token] = u.id;
     save();
     const { password: _p, ...user } = u;
-    return delay({ token, user });
+    return delay({ token, user: { ...user, isActive: u.isActive !== false } });
   },
 
   listCounters() {
@@ -439,18 +441,46 @@ export const mockApi: KezekApi = {
   },
   listStaff() {
     requireRole("admin");
-    return delay(load().staff.map(({ password: _p, ...u }) => u));
+    return delay(
+      load().staff.map(({ password: _p, ...u }) => ({ ...u, isActive: u.isActive !== false })),
+    );
   },
   createStaff({ password, ...input }) {
     requireRole("admin");
     const d = load();
     if (d.staff.some((s) => s.username === input.username))
       throw new ApiError(409, "Username already taken");
-    const s = { ...input, password, id: uid() };
+    const s = { ...input, isActive: input.isActive ?? true, password, id: uid() };
     d.staff.push(s);
     save();
     const { password: _p, ...u } = s;
     return delay(u);
+  },
+  updateStaff(id, input) {
+    const actor = requireRole("admin");
+    const d = load();
+    const user = d.staff.find((s) => s.id === id);
+    if (!user) throw new ApiError(404, "Staff user not found");
+    if (id === actor.id && input.isActive === false)
+      throw new ApiError(409, "An administrator cannot deactivate their own account");
+    if (input.username && d.staff.some((s) => s.id !== id && s.username === input.username))
+      throw new ApiError(409, "Username already taken");
+    const hasActiveTicket = d.tickets.some(
+      (ticket) =>
+        ["called", "serving"].includes(ticket.status) &&
+        d.counters.some((counter) => counter.staffId === id && counter.id === ticket.counterId),
+    );
+    if (user.isActive !== false && input.isActive === false && hasActiveTicket)
+      throw new ApiError(409, "Finish the active ticket before deactivating this staff member");
+    Object.assign(user, input);
+    if ("isActive" in input || "role" in input) {
+      for (const [token, staffId] of Object.entries(d.sessions)) {
+        if (staffId === id) delete d.sessions[token];
+      }
+    }
+    save();
+    const { password: _p, ...publicUser } = user;
+    return delay({ ...publicUser, isActive: user.isActive !== false });
   },
 
   getStats() {

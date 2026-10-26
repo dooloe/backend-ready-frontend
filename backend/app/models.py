@@ -69,6 +69,7 @@ class StaffUser(Model):
     name: str
     username: str
     role: Role
+    isActive: bool = Field(default=True, validation_alias="is_active")
 
 
 class StaffCreate(Model):
@@ -76,6 +77,13 @@ class StaffCreate(Model):
     username: str
     role: Role
     password: str = Field(repr=False)
+
+
+class StaffUpdate(Model):
+    name: str = Field(default=None, min_length=1)
+    username: str = Field(default=None, min_length=1)
+    role: Role = Field(default=None)
+    isActive: bool = Field(default=None)
 
 
 class LoginRequest(Model):
