@@ -281,5 +281,10 @@ fresh migrations and drift detection, backend checks/tests, current-contract
 OpenAPI consistency, and isolated real-backend Playwright workflows. Local
 commands for each gate pass, including 129 backend tests, two explicit
 OpenAPI consistency tests, fresh migration upgrade/check, and eight desktop/
-mobile browser cases. The workflow YAML parses; issue #47 remains open until the
-workflow itself passes in GitHub Actions.
+mobile browser cases. The workflow YAML parses. The first hosted run exposed a
+login hydration race in keyboard tests; the tests now wait for the username
+field to become enabled before typing. GitHub Actions run
+[40308941320](https://github.com/dooloe/backend-ready-frontend/actions/runs/40308941320)
+passed all gates, including both browser viewports. Issue #47 was closed after
+the successful hosted run. GitHub now has **21 closed and 32 open issues**;
+open issues are #12–#32, #34–#43 and #48.

@@ -658,5 +658,9 @@ Vitest (**23 passed**), production build, backend pytest (**129 passed**, one
 existing Starlette/httpx warning), explicit OpenAPI consistency guard (**2
 passed**), isolated `alembic upgrade head` plus `alembic check` (no pending model
 operations), and real-backend Playwright (**8 passed** across desktop/mobile).
-The workflow YAML parsed successfully. GitHub Actions has not yet run this
-workflow, so issue #47 remains open pending a successful remote run.
+The workflow YAML parsed successfully. GitHub Actions run
+[40308941320](https://github.com/dooloe/backend-ready-frontend/actions/runs/40308941320)
+passed every gate, including the hosted desktop/mobile real-backend journey.
+The login hydration wait added after the first hosted run made the keyboard
+login tests deterministic. Issue #47 was closed after the successful hosted
+run; GitHub now has 21 closed and 32 open issues (#12–#32, #34–#43, #48).
