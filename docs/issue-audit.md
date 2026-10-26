@@ -81,7 +81,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #23 | Closed (2026-10-26) | Assigned staff queue discovery, tenant isolation, multiple service assignments, and hosted checks pass. |
 | #24 | Open | Atomic FIFO and actor-attributed events are present; requested queue-scoped route is ambiguous for staff assigned to multiple counters. |
 | #25 | Open | Actor-attributed lifecycle events and rollback pass; strict transition requirement conflicts with recorded decision preserving called → completed. |
-| #26 | Open | Same-key retries and cancellation races now have independent-process file-backed coverage; hosted verification pending. |
+| #26 | Closed (2026-10-26) | Independent-process file-backed same-key retries, joins, calls, cancellation races, bounded lock contention, and hosted verification pass. |
 | #27 | Open | Current service CRUD and history preservation pass; schedules, organization isolation and daily-queue edit semantics are absent. |
 | #28 | Open | Counter CRUD and service links pass; organization checks and active-work configuration-change safeguards are incomplete. |
 | #29 | Open | Staff creation and password hashing pass; staff editing/deactivation, assignment lifecycle and session revocation are absent. |
@@ -533,5 +533,9 @@ for same-key private issuance, process-level cancellation versus call-next,
 parallel distinct joins, competing counters, two calls on one counter, and
 bounded lock contention. The same-key retry race produced a single ticket and
 event. The focused process suite passed 6 cases; the full backend suite passed
-163 tests, compileall passed, and diff checks passed. Hosted verification for
-these new concurrency cases is pending; issue #26 remains open.
+163 tests, compileall passed, and diff checks passed. Hosted run
+[40346781553](https://github.com/dooloe/backend-ready-frontend/actions/runs/40346781553)
+passed frontend, migration, backend, OpenAPI and real-backend desktop/mobile
+workflows for commit `fe997c3`. Issue #26 was closed with criterion-specific
+evidence. GitHub now has **33 closed and 20 open issues**; remaining open issues
+are #14–#15, #20–#21, #24–#25, #27–#32, #34–#36, #38–#41 and #43.

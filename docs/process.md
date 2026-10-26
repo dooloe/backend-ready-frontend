@@ -985,5 +985,7 @@ cancellation/call-next race has only the valid serialized outcomes. Existing
 bounded busy-timeout tests verify retry after lock contention without corrupting
 state. The focused process suite passed (**6 passed**). The complete backend
 suite passed (**163 passed**, six existing deprecation warnings), as did
-compileall and `git diff --check`. Hosted verification for these new cases is
-pending; issue #26 remains open.
+compileall and `git diff --check`. Hosted run
+[40346781553](https://github.com/dooloe/backend-ready-frontend/actions/runs/40346781553)
+passed the complete frontend, migration, backend, OpenAPI and real-backend
+desktop/mobile workflow. Issue #26 was closed after those checks passed.
