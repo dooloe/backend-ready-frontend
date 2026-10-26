@@ -399,9 +399,10 @@ function CountersTab() {
               aria-label="Assigned staff member"
               className="h-9 rounded-md border bg-background px-2 text-sm"
               value={c.staffId ?? ""}
-              onChange={(e) =>
-                act.mutate(() => api.updateCounter(c.id, { staffId: e.target.value || null }))
-              }
+              onChange={(e) => {
+                const staffId = e.target.value || null;
+                act.mutate(() => api.updateCounter(c.id, { staffId }));
+              }}
             >
               <option value="">Any staff</option>
               {staff?.map((s) => (

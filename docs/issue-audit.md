@@ -376,5 +376,9 @@ Implemented database-backed role checks, same-organization scoping for protected
 admin operations, staff assignment checks for counter operations, and denial for
 inactive counters. Cross-organization IDs are hidden with 404 responses, and
 deactivated users' existing sessions are rejected. The full backend suite passed
-139 tests locally. Issue #16 remains open until the pushed revision passes hosted
-CI. Current GitHub count remains 25 closed and 28 open.
+139 tests locally. The first hosted run passed all code gates but found stale
+browser expectations for organization scope and shared desktop/mobile queue
+state, plus an admin assignment UI bug. Those cases now pass locally in all eight
+desktop/mobile browser runs. The fixes are queued for hosted verification. Issue
+#16 remains open until hosted CI passes. Current GitHub count remains 25 closed
+and 28 open.

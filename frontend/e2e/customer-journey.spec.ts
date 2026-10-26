@@ -1,20 +1,37 @@
 import { test, expect, type Page } from "@playwright/test";
 
-async function join(page: Page) {
+async function join(
+  page: Page,
+  organization: "university" | "clinic" = "university",
+) {
+  const directory =
+    organization === "university"
+      ? {
+          category: "Universities",
+          organizationName: "Almaty University · Demo",
+          serviceName: "Student services",
+          operatingHours: "Hours: 00:00–23:59",
+        }
+      : {
+          category: "Clinics",
+          organizationName: "City Health Clinic · Demo",
+          serviceName: "General consultation",
+          operatingHours: "Hours: 00:00–23:59",
+        };
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "Skip the waiting. Keep your place." }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Universities", exact: true }).click();
+  await page.getByRole("button", { name: directory.category, exact: true }).click();
   await expect(page.locator("article")).toHaveCount(1);
   await page.getByRole("link", { name: "View Services" }).click();
-  await expect(page.getByRole("heading", { name: "Almaty University · Demo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: directory.organizationName })).toBeVisible();
   await expect(page.getByText("Service hours listed below · Asia/Almaty")).toBeVisible();
-  await expect(page.getByText("Hours: 00:00–23:59")).toBeVisible();
-  const studentService = page.locator("article").filter({ hasText: "Student services" });
-  await expect(studentService.getByText("Open", { exact: true })).toBeVisible();
-  await expect(studentService.getByText(/\d+ waiting/)).toBeVisible();
-  await expect(studentService.getByText(/~\d+ min wait/)).toBeVisible();
+  await expect(page.getByText(directory.operatingHours)).toBeVisible();
+  const service = page.locator("article").filter({ hasText: directory.serviceName });
+  await expect(service.getByText("Open", { exact: true })).toBeVisible();
+  await expect(service.getByText(/\d+ waiting/)).toBeVisible();
+  await expect(service.getByText(/~\d+ min wait/)).toBeVisible();
   await page.getByRole("link", { name: "Join Queue" }).click();
   await expect(page.getByRole("heading", { name: "Confirm your place" })).toBeVisible();
   const joinFlowFitsViewport = await page.evaluate(
@@ -38,12 +55,15 @@ test("discover, join, track position, staff call/start/complete, and private bro
 }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const firstUrl = await join(page);
+  const organization = info.project.name === "mobile" ? "clinic" : "university";
+  const staffUsername = organization === "clinic" ? "demo-staff-clinic" : "demo-staff-university";
+  const serviceName = organization === "clinic" ? "General consultation" : "Student services";
+  const firstUrl = await join(page, organization);
   await expect(page.getByText("People ahead of you")).toBeVisible();
   await expect(page.locator("body")).not.toHaveText(/Mock API/);
   await page.screenshot({ path: info.outputPath("ticket.png"), fullPage: true });
   const second = await page.context().newPage();
-  const secondUrl = await join(second);
+  const secondUrl = await join(second, organization);
   await expect(
     second.getByText("People ahead of you").locator("..").getByText("1", { exact: true }),
   ).toBeVisible();
@@ -51,7 +71,7 @@ test("discover, join, track position, staff call/start/complete, and private bro
   const staffContext = await browser.newContext({ viewport: page.viewportSize() });
   const staff = await staffContext.newPage();
   await staff.goto("http://127.0.0.1:15173/login");
-  await staff.getByLabel("Username").fill("demo-staff-university");
+  await staff.getByLabel("Username").fill(staffUsername);
   await staff.getByLabel("Password").fill("staff123");
   await staff.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
@@ -92,7 +112,7 @@ test("discover, join, track position, staff call/start/complete, and private bro
   });
   await page.goto("/tickets");
   await expect(
-    page.locator("main").getByRole("link").filter({ hasText: "Student services" }),
+    page.locator("main").getByRole("link").filter({ hasText: serviceName }),
   ).toHaveCount(2);
 
   const privateContext = await browser.newContext();
@@ -177,7 +197,7 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
 test("queue conflict after availability changes is announced and prevents ticket issuance", async ({
   page,
 }) => {
-  await page.goto("/join/demo-clinic/demo-svc-clinic");
+  await page.goto("/join/org-demo/svc-fin");
   const joinButton = page.getByRole("button", { name: "Confirm & join queue" });
   await expect(joinButton).toBeEnabled();
   const login = await page.request.post("http://127.0.0.1:18765/api/auth/login", {
@@ -186,7 +206,7 @@ test("queue conflict after availability changes is announced and prevents ticket
   expect(login.ok()).toBe(true);
   const { token } = await login.json();
   const closed = await page.request.patch(
-    "http://127.0.0.1:18765/api/admin/services/demo-svc-clinic",
+    "http://127.0.0.1:18765/api/admin/services/svc-fin",
     {
       headers: { Authorization: `Bearer ${token}` },
       data: { isOpen: false },
@@ -203,7 +223,7 @@ test("queue conflict after availability changes is announced and prevents ticket
     await expect(joinButton).toBeDisabled();
   } finally {
     const reopened = await page.request.patch(
-      "http://127.0.0.1:18765/api/admin/services/demo-svc-clinic",
+      "http://127.0.0.1:18765/api/admin/services/svc-fin",
       {
         headers: { Authorization: `Bearer ${token}` },
         data: { isOpen: true },
@@ -363,13 +383,31 @@ test("staff no-show confirmation and essential admin configuration", async ({ pa
     .locator("div.surface")
     .filter({ has: staff.getByText("Browser assigned counter", { exact: true }) });
   await expect(counter.last()).toBeVisible();
-  await counter.last().getByLabel("Assigned staff member").selectOption({ label: "Aigerim S." });
+  const assignResponse = staff.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/admin/counters/`) &&
+      response.request().method() === "PATCH" &&
+      response.request().postData()?.includes('"staffId"'),
+  );
+  await counter.last().getByLabel("Assigned staff member").selectOption("stf-aigerim");
+  const assignment = await assignResponse;
+  expect(assignment.ok()).toBe(true);
+  expect((await assignment.json()).staffId).toBe("stf-aigerim");
+  const serviceResponse = staff.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/admin/counters/`) &&
+      response.request().method() === "PATCH" &&
+      response.request().postData()?.includes('"serviceIds"'),
+  );
   await counter.last().getByRole("button", { name: "A · Registrar Office", exact: true }).click();
+  expect((await serviceResponse).ok()).toBe(true);
   await staff.getByRole("button", { name: "Sign out", exact: true }).click();
   await staff.goto("http://127.0.0.1:15173/login");
   await staff.getByLabel("Username").fill("aigerim");
   await staff.getByLabel("Password").fill("staff123");
   await staff.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
+  await staff.reload();
   await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
   await expect(
     staff.getByRole("button", { name: "Browser assigned counter" }).last(),

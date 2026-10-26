@@ -15,9 +15,14 @@ Verification: `backend/.venv/bin/python -m pytest backend/tests -q
 -p no:cacheprovider` passed (**139 passed**, six existing Starlette/sqlite
 deprecation warnings). The suite includes anonymous and wrong-role denials,
 cross-organization access rejection, unassigned and inactive counter rejection,
-and deactivated-session rejection. `git diff --check` passed. This work is not
-closed yet: hosted CI must pass on the pushed revision before the acceptance
-criteria are marked complete.
+and deactivated-session rejection. The first hosted run passed every code gate
+but found stale browser assumptions about cross-organization admin mutations and
+shared desktop/mobile queue state. While aligning those checks, the admin counter
+assignment UI was found to capture a controlled select value after it had reset,
+causing `null` to be sent; the handler now captures the value synchronously. The
+browser checks use isolated organizations, assert assignment persistence, and
+passed locally (**8 desktop/mobile cases**). Hosted CI must pass on the updated
+revision before the acceptance criteria are marked complete.
 
 ## 2026-10-20 — Backlog and issue automation preparation
 
