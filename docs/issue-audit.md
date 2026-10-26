@@ -67,8 +67,8 @@ required evidence; it does not mean all work on that issue is absent.
 | #9 | Closed | Validated startup settings, safe structured errors, OpenAPI error responses and regression evidence are committed. |
 | #10 | Closed | Alembic runs automatically at startup; fresh, legacy and partial-schema behavior plus SQLite connection/transaction rules are tested. |
 | #11 | Verified | Organization-owned models, same-organization links, legacy data backfill, and history-preserving deletion are covered by migration and database tests. |
-| #12 | In progress | Additive migration now adds daily queues, ticket events, token/idempotency hashes and active-ticket uniqueness; local verification passed, hosted verification pending. See latest process entry. |
-| #13 | In progress | Idempotent four-organization Asia/Almaty seed is verified; new demo hashes now use Argon2id with legacy scrypt verification retained. Hosted verification pending. |
+| #12 | Closed (2026-10-26) | Daily queues, ticket events, hashed ticket credentials, scoped idempotency, active-counter uniqueness, legacy backfill and hosted verification pass; see latest process entry. |
+| #13 | Closed (2026-10-26) | Idempotent Asia/Almaty demo seed, assigned staff/counters, development-only credentials, Argon2id hashes, legacy scrypt verification and hosted checks pass. |
 | #14 | Open | Hashed expiring bearer sessions and login pass; inactive-user/current-identity/cookie criteria are unmet. |
 | #15 | Open | Explicit bearer CORS works; planned cookie CSRF and server-side logout/revocation are absent. |
 | #16 | Open | Anonymous, wrong-role and staff-counter assignment checks pass; organization-scope enforcement is absent. |
@@ -322,8 +322,8 @@ real-backend desktop/mobile browser journey. Local and live-server evidence for
 rate limiting, ticket-token redaction and referrer policy is recorded in
 `docs/process.md`.
 
-GitHub currently has **23 closed and 30 open issues**. The remaining open
-issues are #12–#32, #34–#41 and #43. They still have incomplete acceptance
+GitHub currently has **24 closed and 29 open issues**. The remaining open
+issues are #13–#32, #34–#41 and #43. They still have incomplete acceptance
 criteria; in particular, #43 requires event persistence, which the current
 backend does not implement. No other issue was closed during this review.
 
@@ -331,7 +331,7 @@ The revised customer-first experience is implemented and verified under #53,
 with the real customer/staff journey in #44, admin/access checks in #45,
 responsive/accessibility review in #46, CI in #47 and clean setup/delivery in
 #48. The remaining open issues already cover the remaining technical gaps:
-queue/ticket persistence and transactions (#12, #19–#21, #26, #43), public
+queue/ticket persistence and transactions (#19–#21, #26, #43), public
 availability and authorization (#16, #18, #22–#25), administration and
 analytics (#27–#31), API facade and frontend integration (#32, #34–#41), and
 seed data (#13). These should be prioritized and reconciled with the revised
@@ -349,3 +349,23 @@ No distinct uncovered requirement warrants a new issue today, so no issue was
 created. The existing `new-mvp` label is available for any genuinely new,
 approved backlog items; every newly created issue for this version will receive
 `new-mvp` and appropriate area labels. No existing labels were changed.
+
+## Issue #12 hosted verification and closure — 2026-10-26
+
+Hosted run [40315662108](https://github.com/dooloe/backend-ready-frontend/actions/runs/40315662108)
+passed all frontend/backend, migration/model-drift, OpenAPI, and real-backend
+desktop/mobile workflow gates for commit `cec8e7e`. Issue #12 was closed with
+acceptance-criterion evidence. GitHub now has **24 closed and 29 open issues**;
+the remaining open issues are #13–#32, #34–#41 and #43. The Argon2id seed
+update and its hosted verification are recorded in the follow-up below.
+
+## Issue #13 hosted verification and closure — 2026-10-26
+
+Hosted run [40316814343](https://github.com/dooloe/backend-ready-frontend/actions/runs/40316814343)
+passed locked dependency installation, all frontend/backend checks, fresh
+migrations/model-drift, OpenAPI consistency, and real-backend desktop/mobile
+workflows for commit `07fd1a0`. The full backend suite passed 136 tests. Issue
+#13 was closed after verifying the seeded organizations/services/counters/
+assignments, Argon2id hashes with legacy scrypt login compatibility, and
+repeat-seed ticket preservation. GitHub now has **25 closed and 28 open issues**;
+the remaining open issues are #14–#32, #34–#41 and #43.

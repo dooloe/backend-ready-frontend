@@ -755,8 +755,10 @@ confirm duplicate service/date queues, per-queue daily numbers, per-queue ticket
 codes, global access-token hashes, same-queue idempotency keys and concurrent
 active counter claims are rejected; a repeated idempotency hash in a different
 queue is allowed. The legacy migration test verifies timezone-aware business
-date assignment and imported issued/completed events. Issue #12 remains open
-until the hosted workflow for the pushed implementation passes.
+date assignment and imported issued/completed events. Hosted workflow
+[40315662108](https://github.com/dooloe/backend-ready-frontend/actions/runs/40315662108)
+passed all CI gates, including the real-backend browser journey, and issue #12
+was closed with criterion-specific evidence.
 
 ## 2026-10-26 — Issue #13 deterministic Argon2id development seed
 
@@ -773,5 +775,8 @@ Focused verification passed (**4 tests**): Argon2id salted writes and login,
 legacy scrypt verification, all four organization/service/counter/assignment
 fixtures, and a second seed run preserving an issued ticket. The full backend
 suite passed (**136 passed**, six existing Starlette/sqlite adapter deprecation
-warnings); `pip check` reported no broken requirements. Issue #13 remains open
-until hosted CI passes for the pushed revision.
+warnings); `pip check` reported no broken requirements. Issue #13 remained open
+until hosted CI passed for the pushed revision. Hosted run
+[40316814343](https://github.com/dooloe/backend-ready-frontend/actions/runs/40316814343)
+passed every gate, including real-backend desktop/mobile workflows, and issue
+#13 was closed with criterion-specific evidence.
