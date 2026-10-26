@@ -85,8 +85,8 @@ required evidence; it does not mean all work on that issue is absent.
 | #27 | Closed (2026-10-26) | Organization-scoped service listing, schedule/activation validation, history-preserving deactivation and stable daily queue prefixes passed hosted verification. |
 | #28 | Closed (2026-10-26) | Duplicate and cross-organization links are rejected; active tickets stay visible/actionable after counter/link changes; unsafe reassignment is blocked. Hosted verification passed. |
 | #29 | Closed (2026-10-26) | Admin staff edits, activation, password-free responses, duplicate-identity rejection and session revocation are verified; active tickets prevent deactivation/reassignment. Hosted backend and contract checks passed. |
-| #30 | Open | Admin daily-queue open/closed override is implemented with timezone/service-hour gates, organization scoping and continued ticket/staff processing. Full backend suite and real-backend desktop/mobile browser suite pass locally; hosted run passed all code/API gates but one unrelated mobile keyboard-focus assertion failed. Awaiting a green hosted rerun. |
-| #31 | Open | `/api/admin/analytics` implements organization-local inclusive date filtering, scoped totals, completed wait/service averages, per-service metrics and daily buckets. Focused and full backend suites, frontend checks, and real-backend desktop/mobile browser suite pass locally; hosted verification pending. |
+| #30 | Closed (2026-10-26) | Admin daily-queue open/closed override is implemented with timezone/service-hour gates, organization scoping and continued ticket/staff processing. Full backend and real-backend desktop/mobile checks passed locally; hosted retry run 40353499016 passed every gate. |
+| #31 | Closed (2026-10-26) | `/api/admin/analytics` implements organization-local inclusive date filtering, scoped totals, completed wait/service averages, per-service metrics and daily buckets. Full backend suite (178), frontend checks, and real-backend desktop/mobile suite passed locally; hosted run 40355682682 passed all gates. |
 | #32 | Open | Current typed bearer adapter passes all 20 live operations; future contract, cookie/CSRF/abort/structured-error integration is absent. |
 | #33 | Closed (2026-10-26 follow-up) | Organization selection, timezone hours, backend availability/wait estimates, and loading/empty/closed/error component states are verified. |
 | #34 | Open | Current join works; it collects a name, uses an ID link and lacks idempotent uncertain-response recovery. |
@@ -593,12 +593,12 @@ continue. Cross-organization access returns 404. Focused close/reopen, service
 hours, tenant-isolation, API contract and authorization tests passed. The full
 backend suite passed **178 tests**. Frontend lint (zero errors; six existing
 warnings), typecheck, 24 Vitest tests and production build passed. The real-
-backend desktop/mobile workflow passed **8 cases** locally. Hosted run
+backend desktop/mobile workflow passed **8 cases** locally. Hosted retry run
 [40353499016](https://github.com/dooloe/backend-ready-frontend/actions/runs/40353499016)
-passed every frontend, backend, migration and OpenAPI gate; its only failure was
-a mobile keyboard-focus assertion at the skip-link/search sequence, which passed
-on the local full rerun. #30 remains open until a hosted rerun is green. Secure
-token lookup remains the separate unfinished #20 scope.
+passed every frontend, backend, migration, OpenAPI and real-backend desktop/mobile
+workflow gate. The initial attempt's mobile keyboard-focus assertion passed on
+the retry and local full rerun. Issue #30 was closed with criterion-specific
+evidence. Secure token lookup remains the separate unfinished #20 scope.
 
 ## Issue #31 date-filtered operational analytics — 2026-10-26
 
@@ -611,5 +611,9 @@ timezone-boundary, empty-range, tenant, authorization and OpenAPI checks pass.
 The full backend suite passed **178 tests**, backend compilation and
 `git diff --check` passed. Frontend lint (zero errors; six existing warnings),
 typecheck, 24 Vitest tests and production build passed. The real-backend
-desktop/mobile workflow passed **8 cases** locally. Hosted verification remains
-pending, so #31 stays open.
+desktop/mobile workflow passed **8 cases** locally. Hosted run
+[40355682682](https://github.com/dooloe/backend-ready-frontend/actions/runs/40355682682)
+passed frontend, migration/model-drift, OpenAPI, backend and real-backend
+desktop/mobile checks. The initial hosted browser step was canceled when the
+#30 retry took priority; the hosted rerun passed. Issue #31 was closed with
+criterion-specific evidence.
