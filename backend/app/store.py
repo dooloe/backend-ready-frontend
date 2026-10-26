@@ -361,9 +361,9 @@ class DatabaseStore:
     def staff_queues(self, actor: StaffUser) -> list[StaffCounterQueue]:
         with self.db.session() as session:
             actor_row = self._actor_row(session, actor)
+            claimed_counter_ids = set(session.scalars(select(ActiveTicketRow.counter_id)))
             query = select(CounterRow).where(
                 CounterRow.organization_id == actor_row.organization_id,
-                CounterRow.deleted.is_(False), CounterRow.isActive.is_(True),
             )
             if actor_row.role != "admin":
                 query = query.join(
@@ -377,6 +377,10 @@ class DatabaseStore:
             now = self.clock()
             result = []
             for counter in session.scalars(query.order_by(CounterRow.id)):
+                # Keep a counter visible until its active visitor is finished, even
+                # if an administrator deactivates it while service is underway.
+                if (counter.deleted or not counter.isActive) and counter.id not in claimed_counter_ids:
+                    continue
                 service_ids = list(session.scalars(select(CounterServiceRow.service_id).where(
                     CounterServiceRow.organization_id == actor_row.organization_id,
                     CounterServiceRow.counter_id == counter.id,
@@ -420,8 +424,13 @@ class DatabaseStore:
                 if claim:
                     ticket = self._ticket_row(session, claim.ticket_id)
                     if (ticket.status in {"called", "serving"} and ticket.counterId == counter.id
-                            and ticket.serviceId in counter_services and ticket.dailyQueueId):
-                        service = counter_services[ticket.serviceId]
+                            and ticket.dailyQueueId):
+                        service = session.get(ServiceRow, ticket.serviceId)
+                        if service is None or service.organization_id != actor_row.organization_id:
+                            service = None
+                    else:
+                        service = None
+                    if service:
                         current = StaffCurrentTicket(
                             id=ticket.id, queueId=ticket.dailyQueueId, ticketNumber=ticket.code,
                             serviceName=service.name, status=ticket.status, position=None,
@@ -641,8 +650,8 @@ class DatabaseStore:
         with self.db.session() as session:
             actor_row = self._actor_row(session, actor)
             counter = self._get(session, CounterRow, counter_id, "Counter")
-            self._authorize_counter(session, counter, actor_row)
             claim = session.get(ActiveTicketRow, counter_id)
+            self._authorize_counter(session, counter, actor_row, require_active=claim is None)
             current = self._ticket_row(session, claim.ticket_id) if claim else None
             ids = list(session.scalars(select(CounterServiceRow.service_id).where(CounterServiceRow.counter_id == counter.id)))
             return QueueView(current=self._view(session, current) if current else None,
@@ -744,6 +753,8 @@ class DatabaseStore:
 
     @staticmethod
     def _validate_counter_links(session, counter: CounterCreate, organization_id: str = DEFAULT_ORGANIZATION_ID):
+        if len(counter.serviceIds) != len(set(counter.serviceIds)):
+            raise HTTPException(422, "serviceIds must not contain duplicates")
         for key in counter.serviceIds:
             row = session.get(ServiceRow, key)
             if row is None or row.deleted or row.organization_id != organization_id:
@@ -780,6 +791,9 @@ class DatabaseStore:
             row = self._organization_row(session, CounterRow, counter_id, "Counter", actor_row.organization_id)
             updated = Counter(**(self._counter(session, row).model_dump() | patch))
             self._validate_counter_links(session, updated, row.organization_id)
+            claim = session.get(ActiveTicketRow, counter_id)
+            if claim and "staffId" in patch and updated.staffId != row.staffId:
+                raise HTTPException(409, "Cannot reassign a counter while it has an active ticket")
             for key in patch:
                 if key != "serviceIds":
                     setattr(row, key, getattr(updated, key))

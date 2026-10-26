@@ -657,6 +657,41 @@ def test_admin_crud_patch_semantics_and_duplicate_username(client, admin):
     assert all("password" not in u and "password_hash" not in u for u in client.get("/api/admin/staff", headers=admin).json())
 
 
+def test_counter_changes_cannot_strand_an_active_ticket(client, admin, staff):
+    duplicate = client.post("/api/admin/counters", headers=admin, json={
+        "name": "Duplicate links", "serviceIds": ["svc-reg", "svc-reg"],
+        "isActive": True, "staffId": None,
+    })
+    assert duplicate.status_code == 422
+
+    ticket = join(client, name="Active counter visitor")
+    called = client.post("/api/counters/cnt-1/call-next", headers=staff)
+    assert called.status_code == 200 and called.json()["id"] == ticket["id"]
+
+    counter_path = "/api/admin/counters/cnt-1"
+    assert client.patch(counter_path, headers=admin, json={"staffId": None}).status_code == 409
+    changed = client.patch(counter_path, headers=admin, json={
+        "serviceIds": [], "isActive": False,
+    })
+    assert changed.status_code == 200, changed.text
+
+    # The active claim remains visible and actionable after unlinking the
+    # service and deactivating the counter. New visitors cannot be called.
+    queues = client.get("/api/staff/queues", headers=staff)
+    assert queues.status_code == 200
+    queue = next(item for item in queues.json() if item["counter"]["id"] == "cnt-1")
+    assert queue["current"]["id"] == ticket["id"]
+    assert client.get("/api/counters/cnt-1/queue", headers=staff).json()["current"]["id"] == ticket["id"]
+    assert client.post("/api/counters/cnt-1/call-next", headers=staff).status_code == 409
+    assert client.delete(counter_path, headers=admin).status_code == 204
+    assert next(item for item in client.get("/api/staff/queues", headers=staff).json()
+                if item["counter"]["id"] == "cnt-1")["current"]["id"] == ticket["id"]
+    assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 200
+    assert all(item["counter"]["id"] != "cnt-1"
+               for item in client.get("/api/staff/queues", headers=staff).json())
+    assert client.delete(counter_path, headers=admin).status_code == 204
+
+
 def test_admin_service_schedule_activation_and_existing_daily_queue_behavior(client, store, admin, staff, clock):
     created = client.post("/api/admin/services", headers=admin, json={
         "name": "Scheduled service", "description": "Configured hours", "prefix": "S",

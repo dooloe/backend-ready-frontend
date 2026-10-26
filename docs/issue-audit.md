@@ -82,8 +82,8 @@ required evidence; it does not mean all work on that issue is absent.
 | #24 | Open | Atomic FIFO and actor-attributed events are present; requested queue-scoped route is ambiguous for staff assigned to multiple counters. |
 | #25 | Open | Actor-attributed lifecycle events and rollback pass; strict transition requirement conflicts with recorded decision preserving called → completed. |
 | #26 | Closed (2026-10-26) | Independent-process file-backed same-key retries, joins, calls, cancellation races, bounded lock contention, and hosted verification pass. |
-| #27 | Open | Organization-scoped service listing and schedule/activation support are implemented locally; hosted verification pending. |
-| #28 | Open | Counter CRUD and service links pass; organization checks and active-work configuration-change safeguards are incomplete. |
+| #27 | Closed (2026-10-26) | Organization-scoped service listing, schedule/activation validation, history-preserving deactivation and stable daily queue prefixes passed hosted verification. |
+| #28 | Open | Counter updates reject duplicate links and unsafe active-ticket reassignment/deletion; active tickets remain visible/actionable after link removal or deactivation. Full suite and hosted verification pending. |
 | #29 | Open | Staff creation and password hashing pass; staff editing/deactivation, assignment lifecycle and session revocation are absent. |
 | #30 | Open | Service-level open/closed toggle exists; a scheduled daily-queue override does not. |
 | #31 | Open | Current UTC timestamp counts/averages pass; local-date filtering, organization isolation and mean service duration are absent. |
@@ -537,8 +537,8 @@ event. The focused process suite passed 6 cases; the full backend suite passed
 [40346781553](https://github.com/dooloe/backend-ready-frontend/actions/runs/40346781553)
 passed frontend, migration, backend, OpenAPI and real-backend desktop/mobile
 workflows for commit `fe997c3`. Issue #26 was closed with criterion-specific
-evidence. GitHub now has **33 closed and 20 open issues**; remaining open issues
-are #14–#15, #20–#21, #24–#25, #27–#32, #34–#36, #38–#41 and #43.
+evidence. GitHub now has **34 closed and 19 open issues**; remaining open issues
+are #14–#15, #20–#21, #24–#25, #28–#32, #34–#36, #38–#41 and #43.
 
 ## Issue #27 service configuration implementation — 2026-10-26
 
@@ -550,4 +550,19 @@ isolation, preserved ticket history, immediate schedule effects, existing daily
 queue prefix stability, and future queue prefixes. Focused checks passed 14
 tests; the full backend suite passed 166 tests, compileall and diff checks
 passed, and frontend lint/typecheck passed (six existing lint warnings).
-Hosted verification is pending; issue #27 remains open.
+Hosted run
+[40348816997](https://github.com/dooloe/backend-ready-frontend/actions/runs/40348816997)
+passed frontend lint/typecheck/tests/build, fresh migrations/model drift,
+OpenAPI checks, backend tests and the real-backend desktop/mobile workflows.
+Issue #27 was closed after all acceptance criteria passed.
+
+## Issue #28 counter configuration safeguards — 2026-10-26
+
+Counter creation/update now rejects duplicate service links. Staff assignment
+changes are blocked while a counter has an active ticket. A counter can be
+deactivated or soft-deleted without stranding its current visitor: assigned
+staff still see and finish that ticket after service links are removed, while
+the inactive counter cannot call another visitor. The focused regression test
+passed. The full backend suite passed (**167 passed**, six existing
+deprecation warnings), as did backend compileall and `git diff --check`. Hosted
+verification remains pending; issue #28 remains open.

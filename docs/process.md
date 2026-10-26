@@ -1007,5 +1007,18 @@ Focused API contract, organization isolation, role, schedule, activation/history
 and existing-daily-queue behavior checks passed (**14 passed**). The complete
 backend suite passed (**166 passed**, six existing deprecation warnings), as did
 compileall and `git diff --check`. `npm run lint` passed with six existing
-Fast Refresh warnings and no errors; `npm run typecheck` passed. Hosted
-verification is pending; issue #27 remains open.
+Fast Refresh warnings and no errors; `npm run typecheck` passed. Hosted run
+[40348816997](https://github.com/dooloe/backend-ready-frontend/actions/runs/40348816997)
+passed frontend lint/typecheck/tests/build, migration/model drift, OpenAPI,
+backend tests and real-backend desktop/mobile workflows. Issue #27 was closed.
+
+## 2026-10-26 — Issue #28 counter configuration safeguards
+
+Counter configuration now rejects duplicate service links. Staff reassignment
+is rejected while a counter has an active ticket. A counter can be deactivated
+or soft-deleted without stranding its current visitor: assigned staff continue
+seeing and completing that ticket after service links are removed, while
+call-next remains blocked on inactive counters. The focused regression test
+passed. The full backend suite passed (**167 passed**, six existing
+deprecation warnings), as did backend compileall and `git diff --check`.
+Hosted verification is pending, so issue #28 remains open.
