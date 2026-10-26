@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import multiprocessing
 import os
 
@@ -14,8 +14,9 @@ from app.auth import token_hash
 from app.database import Database
 from app.main import create_app
 from app.models import JoinQueueRequest, LoginRequest
-from app.orm import (ActiveTicketRow, Base, CounterRow, CounterServiceRow, OrganizationRow,
-                     ServiceRow, SessionRow, StaffAssignmentRow, StoreState, TicketRow, UserRow)
+from app.orm import (ActiveTicketRow, Base, CounterRow, CounterServiceRow, DailyQueueRow,
+                     OrganizationRow, ServiceRow, SessionRow, StaffAssignmentRow, StoreState,
+                     TicketEventRow, TicketRow, UserRow)
 from app.store import DatabaseStore
 
 
@@ -133,8 +134,8 @@ def test_fresh_file_database_is_initialized_at_alembic_head(tmp_path):
         names = set(inspect(connection).get_table_names())
         version = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
     assert names == set(Base.metadata.tables) | {"alembic_version"}
-    assert version == "e48f901cd256"
-    assert {"organizations", "staff_assignments"}.issubset(names)
+    assert version == "9ca12ef41d60"
+    assert {"organizations", "staff_assignments", "daily_queues", "ticket_events"}.issubset(names)
     store.close()
 
 
@@ -156,6 +157,11 @@ def test_pre_migration_file_database_is_stamped_without_losing_data(tmp_path):
             "INSERT INTO users (id,name,username,role,password_hash) "
             "VALUES ('legacy-user','Legacy Staff','legacy','staff','existing-hash')"
         )
+        session.add(SessionRow(
+            token_hash="f" * 64, user_id="legacy-user",
+            expires_at=datetime(2026, 10, 21, 10, tzinfo=timezone.utc),
+        ))
+        session.flush()
         session.connection().exec_driver_sql(
             "INSERT INTO counters (id,name,is_active,staff_id,deleted) "
             "VALUES ('legacy-counter','Legacy Counter',1,'legacy-user',0)"
@@ -178,12 +184,19 @@ def test_pre_migration_file_database_is_stamped_without_losing_data(tmp_path):
         ticket = session.scalar(select(TicketRow).where(TicketRow.id == "legacy-ticket"))
         assert user.organization_id == "org-demo" and user.email == "legacy@legacy.invalid"
         assert user.password_hash == "existing-hash" and user.is_active is True
+        assert session.get(SessionRow, "f" * 64).user_id == "legacy-user"
         assert counter.organization_id == "org-demo"
         assert session.get(StaffAssignmentRow, ("legacy-user", "legacy-counter")) is not None
         assert session.get(CounterServiceRow, ("legacy-counter", "legacy")) is not None
         assert ticket.serviceId == "legacy" and ticket.counterId == "legacy-counter"
+        assert ticket.dailyQueueId is not None and ticket.dailyNumber == 1
+        queue = session.get(DailyQueueRow, ticket.dailyQueueId)
+        assert queue.service_id == "legacy" and queue.business_date == date(2026, 10, 20)
+        assert queue.status == "closed" and queue.closed_at is not None
+        assert {event.event_type for event in session.scalars(select(TicketEventRow).where(
+            TicketEventRow.ticket_id == "legacy-ticket"))} == {"issued", "completed"}
     with migrated.db.engine.connect() as connection:
-        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "e48f901cd256"
+        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "9ca12ef41d60"
     migrated.close()
 
 
@@ -432,6 +445,89 @@ def test_portable_schema_compiles_for_postgresql_without_a_live_driver():
     engine = create_mock_engine("postgresql+psycopg://", lambda sql, *a, **kw: statements.append(str(sql.compile(dialect=engine.dialect))))
     Base.metadata.create_all(engine)
     ddl = "\n".join(statements)
-    assert "CREATE TABLE tickets" in ddl and "CREATE TABLE sessions" in ddl
+    assert all(f"CREATE TABLE {name}" in ddl for name in (
+        "tickets", "sessions", "daily_queues", "ticket_events",
+    ))
     assert "TIMESTAMP WITH TIME ZONE" in ddl
     assert "PRAGMA" not in ddl and "AUTOINCREMENT" not in ddl
+
+
+def test_daily_queue_ticket_hash_and_active_counter_constraints(store):
+    now = datetime(2026, 10, 20, 12, tzinfo=timezone.utc)
+    with store.db.session(write=True) as session:
+        first_queue = DailyQueueRow(
+            id="queue-first", organization_id="org-demo", service_id="svc-reg",
+            business_date=date(2026, 10, 20), status="open", opened_at=now,
+            ticket_prefix="A",
+        )
+        other_queue = DailyQueueRow(
+            id="queue-next", organization_id="org-demo", service_id="svc-reg",
+            business_date=date(2026, 10, 21), status="open", opened_at=now,
+            ticket_prefix="A",
+        )
+        session.add_all([first_queue, other_queue])
+        session.flush()
+
+        def ticket(identifier, *, queue="queue-first", number=1, code="A-001", token="a" * 64,
+                   key="b" * 64, status="waiting", counter=None, sequence=100):
+            return TicketRow(
+                id=identifier, serviceId="svc-reg", dailyQueueId=queue, dailyNumber=number,
+                accessTokenHash=token, idempotencyKeyHash=key, sequence=sequence,
+                code=code, customerName="Visitor", status=status, createdAt=now,
+                calledAt=now if status in {"called", "serving"} else None,
+                servedAt=now if status == "serving" else None, finishedAt=None,
+                counterId=counter,
+            )
+
+        session.add(ticket("ticket-first"))
+        session.flush()
+
+        for duplicate in (
+            ticket("duplicate-number", number=1, code="A-002", token="c" * 64, key="d" * 64, sequence=101),
+            ticket("duplicate-code", number=2, code="A-001", token="e" * 64, key="f" * 64, sequence=102),
+            ticket("duplicate-token", queue="queue-next", number=1, code="A-001", token="a" * 64, key="1" * 64, sequence=103),
+            ticket("duplicate-key", number=3, code="A-003", token="2" * 64, key="b" * 64, sequence=104),
+        ):
+            with pytest.raises(IntegrityError):
+                with session.begin_nested():
+                    session.add(duplicate)
+                    session.flush()
+
+        # The idempotency key is unique only inside one queue; a later daily
+        # queue may see the same client key without colliding with history.
+        session.add(ticket(
+            "next-day-retry-key", queue="queue-next", number=1, code="A-001",
+            token="3" * 64, key="b" * 64, sequence=105,
+        ))
+        session.add(ticket(
+            "active-one", number=4, code="A-004", token="4" * 64, key="4" * 64,
+            status="called", counter="cnt-1", sequence=106,
+        ))
+        session.flush()
+        with pytest.raises(IntegrityError):
+            with session.begin_nested():
+                session.add(ticket(
+                    "active-two", number=5, code="A-005", token="5" * 64, key="5" * 64,
+                    status="serving", counter="cnt-1", sequence=107,
+                ))
+                session.flush()
+
+
+def test_daily_queue_business_date_is_unique_per_service_and_hashes_are_persisted(store):
+    now = datetime(2026, 10, 20, 12, tzinfo=timezone.utc)
+    with store.db.session(write=True) as session:
+        queue = DailyQueueRow(
+            id="queue-unique", organization_id="org-demo", service_id="svc-reg",
+            business_date=date(2026, 10, 20), status="open", opened_at=now,
+            ticket_prefix="A",
+        )
+        session.add(queue)
+        session.flush()
+        with pytest.raises(IntegrityError):
+            with session.begin_nested():
+                session.add(DailyQueueRow(
+                    id="queue-duplicate", organization_id="org-demo", service_id="svc-reg",
+                    business_date=date(2026, 10, 20), status="open", opened_at=now,
+                    ticket_prefix="A",
+                ))
+                session.flush()

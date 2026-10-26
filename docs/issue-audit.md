@@ -67,7 +67,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #9 | Closed | Validated startup settings, safe structured errors, OpenAPI error responses and regression evidence are committed. |
 | #10 | Closed | Alembic runs automatically at startup; fresh, legacy and partial-schema behavior plus SQLite connection/transaction rules are tested. |
 | #11 | Verified | Organization-owned models, same-organization links, legacy data backfill, and history-preserving deletion are covered by migration and database tests. |
-| #12 | Open | Tickets, hashed bearer sessions and active-counter constraints exist; daily queues, events and private-token/idempotency constraints are absent. |
+| #12 | In progress | Additive migration now adds daily queues, ticket events, token/idempotency hashes and active-ticket uniqueness; local verification passed, hosted verification pending. See latest process entry. |
 | #13 | Open | Persistent seed runs once; planned organization/timezone fixture and Argon2id criterion are unmet (current passwords use scrypt). |
 | #14 | Open | Hashed expiring bearer sessions and login pass; inactive-user/current-identity/cookie criteria are unmet. |
 | #15 | Open | Explicit bearer CORS works; planned cookie CSRF and server-side logout/revocation are absent. |

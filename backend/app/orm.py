@@ -1,10 +1,10 @@
 """Database models, separate from the public Pydantic wire models."""
 
-from datetime import datetime, time, timezone
+from datetime import date, datetime, time, timezone
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, DateTime, Float, ForeignKey, ForeignKeyConstraint,
-    Index, Integer, String, Time, UniqueConstraint,
+    Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, ForeignKeyConstraint,
+    Index, Integer, String, Time, UniqueConstraint, text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
@@ -76,6 +76,28 @@ class SessionRow(Base):
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, index=True)
+
+
+class DailyQueueRow(Base):
+    __tablename__ = "daily_queues"
+    __table_args__ = (
+        CheckConstraint("status IN ('open','closed')", name="daily_queue_status"),
+        UniqueConstraint("organization_id", "service_id", "business_date", name="unique_service_business_date"),
+        UniqueConstraint("organization_id", "id", name="unique_daily_queue_org_identity"),
+        ForeignKeyConstraint(
+            ["organization_id", "service_id"], ["services.organization_id", "services.id"],
+            ondelete="RESTRICT", name="fk_daily_queue_service_org",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False)
+    service_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    business_date: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")
+    opened_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    closed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    ticket_prefix: Mapped[str] = mapped_column(String(32), nullable=False)
 
 
 class ServiceRow(Base):
@@ -154,15 +176,35 @@ class TicketRow(Base):
     __tablename__ = "tickets"
     __table_args__ = (
         UniqueConstraint("service_id", "sequence", name="unique_service_ticket_sequence"),
+        UniqueConstraint("daily_queue_id", "daily_number", name="unique_daily_ticket_number"),
+        UniqueConstraint("daily_queue_id", "code", name="unique_daily_ticket_code"),
+        UniqueConstraint("daily_queue_id", "idempotency_key_hash", name="unique_queue_idempotency_key_hash"),
+        UniqueConstraint("access_token_hash", name="unique_ticket_access_token_hash"),
+        ForeignKeyConstraint(
+            ["daily_queue_id"], ["daily_queues.id"], ondelete="RESTRICT",
+            name="fk_ticket_daily_queue",
+        ),
         CheckConstraint("sequence > 0", name="positive_ticket_sequence"),
+        CheckConstraint("daily_number IS NULL OR daily_number > 0", name="positive_daily_ticket_number"),
+        CheckConstraint("access_token_hash IS NULL OR length(access_token_hash) = 64", name="ticket_access_hash_length"),
+        CheckConstraint("idempotency_key_hash IS NULL OR length(idempotency_key_hash) = 64", name="ticket_idempotency_hash_length"),
         CheckConstraint("status IN ('waiting','called','serving','completed','cancelled','no_show')", name="ticket_status"),
         Index("ticket_waiting_order", "service_id", "status", "created_at", "ordinal"),
+        Index(
+            "unique_active_ticket_per_counter", "counter_id", unique=True,
+            sqlite_where=text("status IN ('called', 'serving')"),
+            postgresql_where=text("status IN ('called', 'serving')"),
+        ),
     )
 
     # The portable integer key provides stable FIFO tie-breaking across workers.
     ordinal: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     serviceId: Mapped[str] = mapped_column("service_id", ForeignKey("services.id"), nullable=False)
+    dailyQueueId: Mapped[str | None] = mapped_column("daily_queue_id", String(64))
+    dailyNumber: Mapped[int | None] = mapped_column("daily_number", Integer)
+    accessTokenHash: Mapped[str | None] = mapped_column("access_token_hash", String(64))
+    idempotencyKeyHash: Mapped[str | None] = mapped_column("idempotency_key_hash", String(64))
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     code: Mapped[str] = mapped_column(String, nullable=False)
     customerName: Mapped[str] = mapped_column("customer_name", String, nullable=False)
@@ -172,6 +214,24 @@ class TicketRow(Base):
     servedAt: Mapped[datetime | None] = mapped_column("served_at", UTCDateTime())
     finishedAt: Mapped[datetime | None] = mapped_column("finished_at", UTCDateTime())
     counterId: Mapped[str | None] = mapped_column("counter_id", ForeignKey("counters.id"))
+
+
+class TicketEventRow(Base):
+    __tablename__ = "ticket_events"
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('issued','called','started','completed','cancelled','no_show')",
+            name="ticket_event_type",
+        ),
+        Index("ticket_event_history", "ticket_id", "occurred_at", "id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.id", ondelete="RESTRICT"), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    actor_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    counter_id: Mapped[str | None] = mapped_column(ForeignKey("counters.id", ondelete="RESTRICT"))
 
 
 class ActiveTicketRow(Base):

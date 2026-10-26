@@ -729,3 +729,31 @@ password/query values did not appear in captured Uvicorn logs. Hosted CI run
 [40313472194](https://github.com/dooloe/backend-ready-frontend/actions/runs/40313472194)
 passed every job, including the real-backend desktop/mobile browser workflow.
 Issue #42 was closed with criterion-specific evidence after that success.
+
+## 2026-10-26 — Issue #12 daily queue and event schema
+
+Added migration `9ca12ef41d60` after the existing organization-directory
+revision. It creates organization/service/business-date queues with a unique
+service/date constraint, adds nullable daily queue/number and SHA-256 hash
+columns to tickets, enforces unique queue-scoped idempotency hashes and globally
+unique access-token hashes, and adds SQLite/PostgreSQL partial unique indexes that
+prevents two `called`/`serving` tickets from occupying one counter. The
+existing `active_tickets` claim table remains in place for transactional staff
+operations. Existing tickets are backfilled to deterministic queue IDs using
+their service organization's local date; stored issue/call/start/terminal
+timestamps are copied into appendable ticket event rows. Existing hashed
+bearer-session records are retained. The current ID-based join endpoint remains
+compatible while the later issuance issue (#19) adopts the new queue/token
+columns.
+
+Verification: targeted migration, legacy-data preservation, constraint and
+PostgreSQL DDL compilation checks passed (**5 passed**). The full backend suite
+passed (**135 passed**, five existing Starlette/sqlite adapter deprecation
+warnings). On a fresh temporary SQLite database, `alembic upgrade head` and
+`alembic check` succeeded with **no new upgrade operations**. Constraint tests
+confirm duplicate service/date queues, per-queue daily numbers, per-queue ticket
+codes, global access-token hashes, same-queue idempotency keys and concurrent
+active counter claims are rejected; a repeated idempotency hash in a different
+queue is allowed. The legacy migration test verifies timezone-aware business
+date assignment and imported issued/completed events. Issue #12 remains open
+until the hosted workflow for the pushed implementation passes.
