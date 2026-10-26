@@ -725,5 +725,7 @@ was absent. The response included `Referrer-Policy: no-referrer`. Twenty invalid
 login attempts returned 401, the 21st returned 429, and the database retained
 zero sessions. Thirty joins returned 200, the 31st returned 429, and ticket count
 stayed at 34 (four seeded examples plus exactly 30 accepted joins). The dummy
-password/query values did not appear in captured Uvicorn logs. Hosted CI is
-pending; issue #42 stays open until that workflow passes.
+password/query values did not appear in captured Uvicorn logs. Hosted CI run
+[40313472194](https://github.com/dooloe/backend-ready-frontend/actions/runs/40313472194)
+passed every job, including the real-backend desktop/mobile browser workflow.
+Issue #42 was closed with criterion-specific evidence after that success.

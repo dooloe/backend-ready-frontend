@@ -97,7 +97,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #39 | Open | Current counter/service/assignment controls exist; organization options, active-work safeguards and component tests are absent. |
 | #40 | Open | Staff creation exists; staff editing, deactivation and rejected active-work/assignment tests are absent. |
 | #41 | Open | Current stats come from real data when configured; date filters, service-duration metrics and full error-state coverage are absent. |
-| #42 | Open | Password and bearer hashes exist; private-ticket log/referrer protection and login/join rate limiting criteria are unmet. |
+| #42 | Closed (2026-10-26) | Secret-safe logs, no-referrer ticket access, login/join limits and hosted real-backend verification pass; see the latest audit entry below. |
 | #43 | Open | SQLite restart/seed/history tests pass; fresh Alembic migrations and event persistence cannot be verified. |
 | #44 | Closed | Real-backend customer/staff workflows pass on desktop and mobile with isolated migrated/seeded SQLite. |
 | #45 | Closed | Real-backend admin setup/assignment, access denial, expired-session UI/API and invalid private-link checks pass on desktop and mobile. |
@@ -310,3 +310,42 @@ daily queues/idempotent private ticket tokens, cookie/CSRF sessions, rate limits
 complete organization scoping, and other design-contract work do not match the
 currently shipped bearer-session API. The repository now has **22 closed and
 31 open issues**; open issues are #12–#32 and #34–#43.
+
+## Full issue review and next-phase backlog — 2026-10-26
+
+Refreshed all existing GitHub issues, including closed history and the full
+acceptance criteria for every open issue. Issue #42 was closed only after the
+hosted workflow passed: [run 40313472194](https://github.com/dooloe/backend-ready-frontend/actions/runs/40313472194).
+The run passed frontend lint, typecheck, tests and production build, fresh
+migrations/model-drift checks, OpenAPI consistency, backend tests and the
+real-backend desktop/mobile browser journey. Local and live-server evidence for
+rate limiting, ticket-token redaction and referrer policy is recorded in
+`docs/process.md`.
+
+GitHub currently has **23 closed and 30 open issues**. The remaining open
+issues are #12–#32, #34–#41 and #43. They still have incomplete acceptance
+criteria; in particular, #43 requires event persistence, which the current
+backend does not implement. No other issue was closed during this review.
+
+The revised customer-first experience is implemented and verified under #53,
+with the real customer/staff journey in #44, admin/access checks in #45,
+responsive/accessibility review in #46, CI in #47 and clean setup/delivery in
+#48. The remaining open issues already cover the remaining technical gaps:
+queue/ticket persistence and transactions (#12, #19–#21, #26, #43), public
+availability and authorization (#16, #18, #22–#25), administration and
+analytics (#27–#31), API facade and frontend integration (#32, #34–#41), and
+seed data (#13). These should be prioritized and reconciled with the revised
+scope rather than duplicated as new issues.
+
+Some older acceptance criteria are out of scope for the updated MVP, including
+cookie/CSRF migration (#14–#15) and manual daily queue opening/closing (#17,
+#30); current bearer authentication, private ticket links and operating-hours
+availability are retained. These issues remain open pending an explicit
+scope disposition; they are not represented as implemented. Account-based
+ticket history is also not proposed because the revised experience uses the
+existing secure private-ticket links and does not require customer accounts.
+
+No distinct uncovered requirement warrants a new issue today, so no issue was
+created. The existing `new-mvp` label is available for any genuinely new,
+approved backlog items; every newly created issue for this version will receive
+`new-mvp` and appropriate area labels. No existing labels were changed.
