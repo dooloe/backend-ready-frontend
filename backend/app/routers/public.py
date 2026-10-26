@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
-from ..models import AnonymousJoinRequest, JoinQueueRequest, JoinResponse, Organization, QueueSummary, Service, ServiceSummary, TicketView
+from ..models import AnonymousJoinRequest, IssuedTicket, JoinQueueRequest, JoinResponse, Organization, QueueSummary, Service, ServiceSummary, TicketView
 from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api", tags=["Customer"])
@@ -30,13 +30,19 @@ def issue_ticket(queueId: str, body: AnonymousJoinRequest, response: Response,
     return result
 
 
-@router.get("/tickets/{id}", response_model=TicketView, operation_id="getTicket")
-def get_ticket(id: str, store: Store):
+@router.get("/tickets/{token}", response_model=IssuedTicket, operation_id="readPrivateTicket")
+def read_private_ticket(token: str, store: Store, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return store.private_ticket(token)
+
+
+@router.get("/legacy/tickets/{id}", response_model=TicketView, operation_id="getTicket")
+def get_legacy_ticket(id: str, store: Store):
     return store.ticket(id)
 
 
-@router.post("/tickets/{id}/cancel", response_model=TicketView, operation_id="cancelTicket")
-def cancel_ticket(id: str, store: Store):
+@router.post("/legacy/tickets/{id}/cancel", response_model=TicketView, operation_id="cancelTicket")
+def cancel_legacy_ticket(id: str, store: Store):
     return store.cancel(id)
 
 

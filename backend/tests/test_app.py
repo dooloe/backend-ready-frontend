@@ -81,8 +81,8 @@ def test_http_errors_preserve_legacy_detail_and_add_safe_structured_fields(monke
         ticket = client.post("/api/tickets", json={
             "serviceId": "svc-reg", "customerName": "Conflict test"
         }).json()
-        assert client.post(f"/api/tickets/{ticket['id']}/cancel").status_code == 200
-        conflict = client.post(f"/api/tickets/{ticket['id']}/cancel")
+        assert client.post(f"/api/legacy/tickets/{ticket['id']}/cancel").status_code == 200
+        conflict = client.post(f"/api/legacy/tickets/{ticket['id']}/cancel")
         assert conflict.status_code == 409
         assert conflict.json() == {
             "code": "INVALID_STATE", "message": "Only waiting tickets can be cancelled",

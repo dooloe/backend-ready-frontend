@@ -29,7 +29,7 @@ def test_directory_is_public_aggregate_only_and_estimates_follow_queue(client, s
     assert 'customerName' not in directory.text and 'tickets' not in org
     assert client.get('/api/organizations/org-demo').json() == org
     assert client.get('/api/organizations/missing').status_code == 404
-    client.post(f"/api/tickets/{ticket['id']}/cancel")
+    client.post(f"/api/legacy/tickets/{ticket['id']}/cancel")
     service = next(s for s in client.get('/api/organizations').json()[0]['services'] if s['id'] == 'svc-reg')
     assert service['waitingCount'] == 0 and service['estimatedWaitMinutes'] == 0
     with store.db.session(write=True) as session:
@@ -112,7 +112,7 @@ def test_public_queue_status_tracks_ticket_changes_without_private_data(client, 
         "customerName", "accessToken", "ticketNumber", "staffId", "counterName",
     ))
 
-    cancelled = client.post(f"/api/tickets/{first['id']}/cancel")
+    cancelled = client.post(f"/api/legacy/tickets/{first['id']}/cancel")
     assert cancelled.status_code == 200
     after_cancel = client.get(f"/api/queues/{queue_id}/status").json()
     assert after_cancel["waiting"] == 0
@@ -158,7 +158,7 @@ def test_demo_directory_seed_is_idempotent_and_can_be_served(client, store):
             StaffAssignmentRow.organization_id.like("demo-%"))))) == 4
     ticket = client.post('/api/tickets', json={'serviceId': 'demo-svc-university', 'customerName': 'Visitor'}).json()
     seed(store)
-    assert client.get(f"/api/tickets/{ticket['id']}").json()["id"] == ticket["id"]
+    assert client.get(f"/api/legacy/tickets/{ticket['id']}").json()["id"] == ticket["id"]
     login = client.post('/api/auth/login', json={'username': 'demo-staff-university', 'password': 'staff123'}).json()
     headers = {'Authorization': 'Bearer ' + login['token']}
     counters = client.get('/api/counters', headers=headers).json()

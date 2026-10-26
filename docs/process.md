@@ -1068,9 +1068,29 @@ timezone-boundary, empty-range, tenant, authorization and OpenAPI checks pass.
 The full backend suite passed **178 tests**, backend compilation and
 `git diff --check` passed. Frontend lint (zero errors; six existing warnings),
 typecheck, 24 Vitest tests and production build passed. The real-backend
-desktop/mobile workflow passed **8 cases** locally. Hosted verification remains
-was initially canceled during the browser step when the #30 retry took priority.
+desktop/mobile workflow passed **8 cases** locally. The initial hosted browser
+step was canceled when the #30 retry took priority.
 Hosted rerun
 [40355682682](https://github.com/dooloe/backend-ready-frontend/actions/runs/40355682682)
 passed frontend, migration/model-drift, OpenAPI, backend and real-backend
 desktop/mobile checks. Issue #31 was closed with criterion-specific evidence.
+
+## 2026-10-26 — Issue #20 private ticket lookup
+
+Added canonical `GET /api/tickets/{token}` lookup using only the SHA-256 hash of
+the canonical 32-byte base64url access token. Malformed tokens, unknown tokens
+and internal ticket IDs receive identical no-store 404 responses. The response
+contains no token, private URL or customer name; it reports current lifecycle
+state, queue position, and an estimate only when a service-capable active
+counter exists. Tests cover all six states, position movement after an earlier
+ticket cancels, missing capacity, and internal-ID rejection. Existing browser
+ticket links keep working through explicit deprecated `/api/legacy/tickets/{id}`
+routes; the HTTP adapter now uses these paths for that legacy flow. Backend
+full suite (186 tests), frontend lint (zero errors; six existing warnings),
+typecheck, 25 Vitest tests, production build, compilation and `git diff --check`
+pass. The real-backend desktop/mobile browser workflow passes all 8 cases. #20
+remains open because AC-1 applies to customer ticket access as a whole, while
+existing browser links still use an ID-based deprecated lookup. The coordinated
+token migration in #35 (and private cancellation in #21) must remove that legacy
+access path before #20 can be closed. Hosted CI verification has not yet run
+for this partial implementation.

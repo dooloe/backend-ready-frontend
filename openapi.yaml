@@ -12,7 +12,9 @@ info:
     as 200; the adapter accepts any 2xx with the stated body, so 201 is compatible for creation. Empty
     DELETE success must be 204. Errors use the structured ApiError envelope with the legacy detail alias
     consumed by http.ts; the current FastAPI server implements these documented response components.
-    All nullable response properties are required keys with null values allowed.
+    All nullable response properties are required keys with null values allowed. Private anonymous-ticket reads
+    use canonical access-token hashes at /api/tickets/{token}; the old opaque-ID client flow remains isolated
+    under the deprecated /api/legacy/tickets paths until frontend ticket migration is complete.
 servers:
 - url: http://localhost:8000
   description: Example VITE_API_BASE_URL; replace with the configured backend base URL.
@@ -134,15 +136,44 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AnonymousJoinRequest'
-  /api/tickets/{id}:
+  /api/tickets/{token}:
+    get:
+      operationId: readPrivateTicket
+      tags:
+      - Customer
+      summary: Read a ticket with its private access token
+      description: Looks up only the SHA-256 hash of a canonical 32-byte base64url token. Internal ticket IDs are not accepted. The response never echoes the token and is not cacheable.
+      responses:
+        '200':
+          description: Authoritative private ticket state and queue position.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedTicket'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security: []
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+  /api/legacy/tickets/{id}:
     get:
       operationId: getTicket
       tags:
       - Customer
-      summary: Read a ticket
-      description: Public in the current client and mock. Lookup is by ticket ID; no bearer login or separate
-        ticket-access token is required. This describes existing behavior, not the future private-token
-        MVP design.
+      summary: Read a ticket through the deprecated ID-based client flow
+      description: Preserves already-issued opaque ticket links during migration. New private ticket links use the token-only /api/tickets/{token} operation.
       responses:
         '200':
           description: Success; JSON body required. The client also accepts another successful 2xx status
@@ -156,16 +187,16 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
       security: []
+      deprecated: true
       parameters:
       - $ref: '#/components/parameters/id'
-  /api/tickets/{id}/cancel:
+  /api/legacy/tickets/{id}/cancel:
     post:
       operationId: cancelTicket
       tags:
       - Customer
       summary: Cancel a waiting ticket
-      description: Public ID-based cancellation. No request body. Only waiting tickets can be cancelled;
-        finishedAt is set on success.
+      description: Deprecated ID-based cancellation preserved for existing client links. No request body. Only waiting tickets can be cancelled; finishedAt is set on success.
       responses:
         '200':
           description: Success; JSON body required. The client also accepts another successful 2xx status
@@ -181,6 +212,7 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
       security: []
+      deprecated: true
       parameters:
       - $ref: '#/components/parameters/id'
   /api/auth/login:

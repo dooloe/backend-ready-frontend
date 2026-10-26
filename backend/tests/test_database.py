@@ -115,7 +115,7 @@ def test_application_restart_preserves_every_data_category(tmp_path, monkeypatch
         current = second.get(f"/api/counters/{counter['id']}/queue", headers=headers).json()["current"]
         assert current["status"] == "serving" and current["servedAt"] == started["servedAt"]
         assert current["calledAt"] == started["calledAt"]
-        assert second.get(f"/api/tickets/{ticket['id']}").json() == current
+        assert second.get(f"/api/legacy/tickets/{ticket['id']}").json() == current
         assert second.post(f"/api/tickets/{ticket['id']}/complete", headers=headers).status_code == 200
         assert second.post("/api/auth/login", json={"username": "persistent", "password": "password"}).status_code == 200
         next_ticket = second.post("/api/tickets", json={"serviceId": service["id"], "customerName": "Next"}).json()
@@ -124,7 +124,7 @@ def test_application_restart_preserves_every_data_category(tmp_path, monkeypatch
         assert next(row for row in stats["byService"] if row["serviceId"] == service["id"])["total"] == 2
 
     with TestClient(create_app(database_url=url)) as third:
-        assert third.get(f"/api/tickets/{ticket['id']}").json()["status"] == "completed"
+        assert third.get(f"/api/legacy/tickets/{ticket['id']}").json()["status"] == "completed"
         assert third.get(f"/api/counters/{counter['id']}/queue", headers=headers).json()["current"] is None
 
 
@@ -142,7 +142,7 @@ def test_database_url_is_read_at_startup_and_selects_separate_files(tmp_path, mo
     assert second.exists()
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{first}")
     with TestClient(create_app()) as client:
-        assert client.get(f"/api/tickets/{ticket['id']}").status_code == 200
+        assert client.get(f"/api/legacy/tickets/{ticket['id']}").status_code == 200
 
 
 def test_fresh_file_database_is_initialized_at_alembic_head(tmp_path):
@@ -504,7 +504,7 @@ def test_sqlite_memory_url_is_usable_across_request_threads():
     store = DatabaseStore("sqlite:///:memory:", seed_tickets=False)
     with TestClient(create_app(store)) as client:
         ticket = client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": "Memory SQLite"}).json()
-        assert client.get(f"/api/tickets/{ticket['id']}").status_code == 200
+        assert client.get(f"/api/legacy/tickets/{ticket['id']}").status_code == 200
     store.close()
 
 

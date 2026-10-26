@@ -33,7 +33,11 @@ def install_error_handlers(application):
                     "INVALID_STATE" if message.startswith(("Ticket is ", "Only waiting tickets")) else code)
         if exc.status_code >= 500 and exc.status_code != 503:
             message = "Internal server error"
-        return envelope(exc.status_code, code, message, headers=exc.headers)
+        headers = dict(exc.headers or {})
+        segments = _request.url.path.split("/")
+        if _request.method == "GET" and len(segments) == 4 and segments[1:3] == ["api", "tickets"]:
+            headers["Cache-Control"] = "no-store"
+        return envelope(exc.status_code, code, message, headers=headers)
 
     @application.exception_handler(RequestValidationError)
     @application.exception_handler(ValidationError)

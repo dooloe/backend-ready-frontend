@@ -607,7 +607,7 @@ class DatabaseStore:
             session.flush()
             return self._issued_view(session, ticket, access_token), True
 
-    def _issued_view(self, session, ticket: TicketRow, access_token: str) -> JoinResponse:
+    def _issued_ticket_view(self, session, ticket: TicketRow) -> IssuedTicket:
         service = session.get(ServiceRow, ticket.serviceId)
         counter = session.get(CounterRow, ticket.counterId) if ticket.counterId else None
         waiting = list(session.scalars(select(TicketRow).where(
@@ -631,7 +631,24 @@ class DatabaseStore:
             cancelledAt=ticket.finishedAt if ticket.status == "cancelled" else None,
             noShowAt=ticket.finishedAt if ticket.status == "no_show" else None,
         )
-        return JoinResponse(ticket=item, ticketUrl=f"/ticket/{access_token}")
+        return item
+
+    def _issued_view(self, session, ticket: TicketRow, access_token: str) -> JoinResponse:
+        return JoinResponse(
+            ticket=self._issued_ticket_view(session, ticket),
+            ticketUrl=f"/ticket/{access_token}",
+        )
+
+    def private_ticket(self, access_token: str) -> IssuedTicket:
+        # Malformed and unknown values deliberately have the same response.
+        if not self._valid_proof(access_token):
+            raise HTTPException(404, "Ticket not found")
+        access_hash = hashlib.sha256(access_token.encode("ascii")).hexdigest()
+        with self.db.session() as session:
+            ticket = session.scalar(select(TicketRow).where(TicketRow.accessTokenHash == access_hash))
+            if ticket is None:
+                raise HTTPException(404, "Ticket not found")
+            return self._issued_ticket_view(session, ticket)
 
     @staticmethod
     def _queue_state(session, service: ServiceRow, instant: datetime, *, create: bool = False):
