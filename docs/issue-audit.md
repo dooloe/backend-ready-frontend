@@ -71,17 +71,17 @@ required evidence; it does not mean all work on that issue is absent.
 | #13 | Closed (2026-10-26) | Idempotent Asia/Almaty demo seed, assigned staff/counters, development-only credentials, Argon2id hashes, legacy scrypt verification and hosted checks pass. |
 | #14 | Open | Hashed expiring bearer sessions and login pass; inactive-user/current-identity/cookie criteria are unmet. |
 | #15 | Open | Explicit bearer CORS works; planned cookie CSRF and server-side logout/revocation are absent. |
-| #16 | Open | Anonymous, wrong-role and staff-counter assignment checks pass; organization-scope enforcement is absent. |
-| #17 | Open | No organization-local schedules, daily queue creation or manual daily closure model. |
-| #18 | Open | Current service list works; organization directory, daily queue IDs and scheduled availability are absent. |
-| #19 | Open | Atomic service-lifetime numbering passes; daily queues, private token hashes, events and idempotent retries are absent. |
+| #16 | Closed (2026-10-26) | Role, assignment, inactivity, and same-organization protections are implemented and hosted-verified. |
+| #17 | Closed (2026-10-26) | Organization-local schedules, daily queue creation, overnight dates, and hosted checks pass. |
+| #18 | Closed (2026-10-26) | Public organization/service directory with usable queue IDs and hosted checks passes. |
+| #19 | Closed (2026-10-26) | Anonymous idempotent ticket issuance, hashes, transactions and hosted checks pass. |
 | #20 | Open | ID-based view, position and estimates pass; required distinct hashed private-ticket-token access is absent. |
 | #21 | Open | Waiting-only cancellation and call race tests pass; private-token ownership and cancellation events are absent. |
-| #22 | Open | No public aggregate queue-status endpoint. |
-| #23 | Open | Counter queue lookup works; server-side assigned-counter/organization filtering is absent. |
-| #24 | Open | FIFO, busy/empty counter and atomic claims pass; authorization by assignment and ticket events are absent. |
-| #25 | Open | Current lifecycle actions pass; completion still permits called → completed and no actor/events or wrong-counter/organization checks exist. |
-| #26 | Open | Independent-process joins/calls, cancellation races and lock contention pass; same-key idempotency tests cannot pass without idempotent joins. |
+| #22 | Closed (2026-10-26) | Public aggregate queue status, availability/count estimates, private-data exclusion, and hosted checks pass. |
+| #23 | Closed (2026-10-26) | Assigned staff queue discovery, tenant isolation, multiple service assignments, and hosted checks pass. |
+| #24 | Open | Atomic FIFO and actor-attributed events are present; requested queue-scoped route is ambiguous for staff assigned to multiple counters. |
+| #25 | Open | Actor-attributed lifecycle events and rollback pass; strict transition requirement conflicts with recorded decision preserving called → completed. |
+| #26 | Open | Same-key retries and cancellation races now have independent-process file-backed coverage; hosted verification pending. |
 | #27 | Open | Current service CRUD and history preservation pass; schedules, organization isolation and daily-queue edit semantics are absent. |
 | #28 | Open | Counter CRUD and service links pass; organization checks and active-work configuration-change safeguards are incomplete. |
 | #29 | Open | Staff creation and password hashing pass; staff editing/deactivation, assignment lifecycle and session revocation are absent. |
@@ -512,12 +512,26 @@ Existing counter call-next and ticket lifecycle actions use transactional
 database writes and enforce FIFO, assignment, state-transition, closed-queue,
 and capacity-release rules. Added actor-attributed `called`, `started`,
 `completed`, and `no_show` events atomically; tests cover event persistence and
-rollback if audit persistence fails. Local focused checks passed. These issues
-remain open pending full hosted verification. #24 additionally names a new
+rollback if audit persistence fails. Hosted run
+[40345892516](https://github.com/dooloe/backend-ready-frontend/actions/runs/40345892516)
+passed for commit `9cb6216`. These issues remain open because the remaining
+acceptance discrepancies need resolution. #24 additionally names a new
 queue-scoped route that is not the current frontend's counter-scoped endpoint;
 because the queue-scoped path does not identify which counter to operate for a
 staff member assigned to multiple counters, #24 remains open pending a coherent
 contract resolution. The existing counter-scoped route remains available. The
 full local backend suite passed 161 tests after adding actor-attributed event
 assertions and injected event-write rollback checks; compileall and diff checks
-passed. Hosted verification for the event additions is pending.
+passed. #25's strict transition criterion conflicts with the recorded decision
+to preserve direct called-to-completed behavior, so it remains open pending a
+scope decision.
+
+## Issue #26 independent-process concurrency implementation — 2026-10-26
+
+Added spawned-worker checks against one temporary file-backed SQLite database
+for same-key private issuance, process-level cancellation versus call-next,
+parallel distinct joins, competing counters, two calls on one counter, and
+bounded lock contention. The same-key retry race produced a single ticket and
+event. The focused process suite passed 6 cases; the full backend suite passed
+163 tests, compileall passed, and diff checks passed. Hosted verification for
+these new concurrency cases is pending; issue #26 remains open.

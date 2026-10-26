@@ -964,8 +964,26 @@ write failures roll back both call-next claims and lifecycle transitions.
 
 Focused lifecycle, authorization, concurrency, and rollback checks passed. The
 full backend suite passed (**161 passed**, six existing deprecation warnings),
-as did compileall and `git diff --check`. Hosted verification is pending. Issue
-#25 remains open pending hosted checks and its #24 dependency. Issue #24 remains
-open because its requested queue-scoped path does not identify a counter when a
-staff member has multiple eligible counters; the current frontend API instead
-uses the explicit counter-scoped `/api/counters/{counterId}/call-next` route.
+as did compileall and `git diff --check`. Hosted run
+[40345892516](https://github.com/dooloe/backend-ready-frontend/actions/runs/40345892516)
+passed the frontend, migration, backend, OpenAPI, and real-backend desktop/mobile
+gates for commit `9cb6216`, including atomic actor-attributed event writes.
+Issue #25 remains open because its strict-transition criterion conflicts with
+the recorded decision to preserve direct called-to-completed behavior; hosted
+CI does not resolve that scope conflict. Issue #24 remains open because its
+requested queue-scoped path does not identify a counter when staff have multiple
+eligible counters; the current frontend API instead uses the explicit
+counter-scoped `/api/counters/{counterId}/call-next` route.
+
+## 2026-10-26 — Issue #26 independent-process concurrency
+
+Extended temporary file-backed SQLite tests using spawned workers with
+independent engines/sessions. Four same-key private-ticket requests produce one
+ticket and one issued event; competing process joins preserve unique numbers;
+competing counters and calls at one counter do not double-assign; a process-level
+cancellation/call-next race has only the valid serialized outcomes. Existing
+bounded busy-timeout tests verify retry after lock contention without corrupting
+state. The focused process suite passed (**6 passed**). The complete backend
+suite passed (**163 passed**, six existing deprecation warnings), as did
+compileall and `git diff --check`. Hosted verification for these new cases is
+pending; issue #26 remains open.

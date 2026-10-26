@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+import base64
 import multiprocessing
 import os
 
@@ -31,6 +32,20 @@ def _database_worker(url, action, barrier, output):
         barrier.wait(timeout=30)
         if action == "join":
             result = [store.join(JoinQueueRequest(serviceId="svc-reg", customerName="Parallel")).code for _ in range(4)]
+        elif isinstance(action, tuple) and action[0] == "issue":
+            issued, created = store.issue_ticket(action[1], action[2], action[3])
+            result = {"id": issued.ticket.id, "created": created}
+        elif isinstance(action, tuple) and action[0] == "cancel":
+            try:
+                result = {"status": 200, "id": store.cancel(action[1]).id}
+            except HTTPException as exc:
+                result = {"status": exc.status_code}
+        elif isinstance(action, tuple) and action[0] == "call":
+            try:
+                ticket = store.call_next(action[1], ADMIN_ACTOR)
+                result = {"status": 200, "id": ticket.id if ticket else None}
+            except HTTPException as exc:
+                result = {"status": exc.status_code}
         else:
             try:
                 ticket = store.call_next(action, ADMIN_ACTOR)
@@ -416,6 +431,29 @@ def test_separate_processes_allocate_unique_numbers(tmp_path):
     parent.close()
 
 
+def test_separate_processes_same_key_issue_one_private_ticket(tmp_path):
+    url = f"sqlite:///{tmp_path / 'same-key.db'}"
+    parent = DatabaseStore(url, seed_tickets=False)
+    parent.join(JoinQueueRequest(serviceId="svc-reg", customerName="Queue setup"))
+    with parent.db.session() as session:
+        queue_id = session.scalar(select(DailyQueueRow.id).where(
+            DailyQueueRow.organization_id == "org-demo", DailyQueueRow.service_id == "svc-reg",
+        ))
+    key = base64.urlsafe_b64encode(b"K" * 32).decode().rstrip("=")
+    token = base64.urlsafe_b64encode(b"T" * 32).decode().rstrip("=")
+    results = run_workers(url, [("issue", queue_id, key, token)] * 4)
+    assert len({result["id"] for result in results}) == 1
+    assert sum(result["created"] for result in results) == 1
+    with parent.db.session() as session:
+        assert session.scalar(select(func.count()).select_from(TicketRow).where(
+            TicketRow.id == results[0]["id"],
+        )) == 1
+        assert session.scalar(select(func.count()).select_from(TicketEventRow).where(
+            TicketEventRow.ticket_id == results[0]["id"],
+        )) == 1
+    parent.close()
+
+
 @pytest.mark.parametrize("counters", [("cnt-1", "cnt-2"), ("cnt-1", "cnt-1")])
 def test_separate_processes_never_double_assign(tmp_path, counters):
     url = f"sqlite:///{tmp_path / 'calls.db'}"
@@ -427,6 +465,21 @@ def test_separate_processes_never_double_assign(tmp_path, counters):
         assert {result["id"] for result in results} == {ticket.id for ticket in tickets}
     else:
         assert sorted(result["status"] for result in results) == [200, 409]
+    store.close()
+
+
+def test_separate_process_cancellation_race_with_call_next_is_consistent(tmp_path):
+    url = f"sqlite:///{tmp_path / 'cancel-race.db'}"
+    store = DatabaseStore(url, seed_tickets=False)
+    ticket = store.join(JoinQueueRequest(serviceId="svc-reg", customerName="Race"))
+    results = run_workers(url, [("cancel", ticket.id), ("call", "cnt-1")])
+    if {"status": 409} in results:
+        assert {"status": 200, "id": ticket.id} in results
+        assert store.ticket(ticket.id).status == "called"
+    else:
+        assert {"status": 200, "id": None} in results
+        assert {"status": 200, "id": ticket.id} in results
+        assert store.ticket(ticket.id).status == "cancelled"
     store.close()
 
 
