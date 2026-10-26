@@ -654,6 +654,11 @@ class DatabaseStore:
             ticket = waiting[0]
             ticket.status, ticket.counterId, ticket.calledAt = "called", counter_id, self.clock()
             session.add(ActiveTicketRow(counter_id=counter_id, ticket_id=ticket.id))
+            session.add(TicketEventRow(
+                id=new_id(), ticket_id=ticket.id, event_type="called",
+                occurred_at=ticket.calledAt, actor_user_id=actor_row.id,
+                counter_id=counter.id,
+            ))
             session.flush()
             return self._view(session, ticket)
 
@@ -678,6 +683,12 @@ class DatabaseStore:
                 raise HTTPException(409, f"Ticket is {ticket.status}")
             ticket.status = target
             setattr(ticket, timestamp, self.clock())
+            event_type = {"start": "started", "complete": "completed", "no-show": "no_show"}[action]
+            session.add(TicketEventRow(
+                id=new_id(), ticket_id=ticket.id, event_type=event_type,
+                occurred_at=getattr(ticket, timestamp), actor_user_id=actor_row.id,
+                counter_id=counter.id,
+            ))
             if target in ("completed", "no_show"):
                 session.execute(delete(ActiveTicketRow).where(ActiveTicketRow.ticket_id == ticket_id))
             session.flush()

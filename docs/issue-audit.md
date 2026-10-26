@@ -499,5 +499,25 @@ current counter ticket state, and excludes customer identity. Tests cover
 multiple services and assignments, inactive service/counter configuration,
 unassigned users, and cross-organization isolation. Focused checks passed and
 the full backend suite passed 160 tests after adding the endpoint to API
-operation-coverage checks; compileall and diff checks passed. Issue #23 remains
-open pending hosted verification.
+operation-coverage checks; compileall and diff checks passed. Hosted run
+[40344497196](https://github.com/dooloe/backend-ready-frontend/actions/runs/40344497196)
+passed every frontend, backend, migration, OpenAPI and real-backend browser
+workflow gate for commit `24bd4b4`. Issue #23 was closed with criterion-specific
+evidence. GitHub now has **32 closed and 21 open issues**; remaining open issues
+are #14–#15, #20–#21, #24–#32, #34–#36, #38–#41 and #43.
+
+## Issues #24 and #25 staff operations audit — 2026-10-26
+
+Existing counter call-next and ticket lifecycle actions use transactional
+database writes and enforce FIFO, assignment, state-transition, closed-queue,
+and capacity-release rules. Added actor-attributed `called`, `started`,
+`completed`, and `no_show` events atomically; tests cover event persistence and
+rollback if audit persistence fails. Local focused checks passed. These issues
+remain open pending full hosted verification. #24 additionally names a new
+queue-scoped route that is not the current frontend's counter-scoped endpoint;
+because the queue-scoped path does not identify which counter to operate for a
+staff member assigned to multiple counters, #24 remains open pending a coherent
+contract resolution. The existing counter-scoped route remains available. The
+full local backend suite passed 161 tests after adding actor-attributed event
+assertions and injected event-write rollback checks; compileall and diff checks
+passed. Hosted verification for the event additions is pending.

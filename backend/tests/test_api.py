@@ -10,8 +10,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.auth import hash_password, token_hash, verify_password
 from app.main import create_app
+from app.models import StaffUser
 from app.store import DatabaseStore
-from app.orm import (CounterRow, CounterServiceRow, OrganizationRow, ServiceRow,
+from app.orm import (ActiveTicketRow, CounterRow, CounterServiceRow, OrganizationRow, ServiceRow,
                      DailyQueueRow, SessionRow, StaffAssignmentRow, TicketEventRow, TicketRow, UserRow)
 
 
@@ -65,9 +66,11 @@ def test_private_ticket_issue_and_matching_retry_returns_current_ticket(client, 
     assert replay.json()["ticket"]["id"] == result["ticket"]["id"]
     assert replay.json()["ticket"]["status"] == "called"
     with store.db.session() as session:
-        assert session.scalar(select(func.count()).select_from(TicketEventRow).where(
+        events = list(session.scalars(select(TicketEventRow).where(
             TicketEventRow.ticket_id == result["ticket"]["id"],
-        )) == 1
+        )))
+    assert {event.event_type for event in events} == {"issued", "called"}
+    assert next(event for event in events if event.event_type == "called").actor_user_id == "stf-aigerim"
 
 
 def test_concurrent_same_key_issues_exactly_one_ticket(store):
@@ -450,7 +453,7 @@ def test_seeded_demo_is_useful_and_stores_are_isolated(clock, tmp_path):
     another.close()
 
 
-def test_ticket_positions_estimates_and_full_lifecycle(client, staff, clock):
+def test_ticket_positions_estimates_and_full_lifecycle(client, store, staff, clock):
     first, second = join(client, name="  First  "), join(client, name="Second")
     assert first["customerName"] == "First"
     assert first["code"] == "A-001" and second["code"] == "A-002"
@@ -474,6 +477,54 @@ def test_ticket_positions_estimates_and_full_lifecycle(client, staff, clock):
     missed = client.post(f"/api/tickets/{second['id']}/no-show", headers=staff).json()
     assert missed["status"] == "no_show" and missed["finishedAt"] is not None
     assert client.post("/api/counters/cnt-1/call-next", headers=staff).json() is None
+    with store.db.session() as session:
+        first_events = list(session.scalars(select(TicketEventRow).where(
+            TicketEventRow.ticket_id == first["id"],
+        )))
+        second_events = list(session.scalars(select(TicketEventRow).where(
+            TicketEventRow.ticket_id == second["id"],
+        )))
+    assert {event.event_type: (event.actor_user_id, event.counter_id) for event in first_events} == {
+        "issued": (None, None), "called": ("stf-aigerim", "cnt-1"),
+        "started": ("stf-aigerim", "cnt-1"), "completed": ("stf-aigerim", "cnt-1"),
+    }
+    assert {event.event_type: (event.actor_user_id, event.counter_id) for event in second_events} == {
+        "issued": (None, None), "called": ("stf-aigerim", "cnt-1"),
+        "no_show": ("stf-aigerim", "cnt-1"),
+    }
+
+
+def test_staff_lifecycle_rolls_back_when_audit_event_cannot_be_written(client, store, monkeypatch):
+    import app.store as store_module
+
+    ticket = join(client)
+    actor = StaffUser(id="stf-aigerim", name="Aigerim S.", username="aigerim", role="staff")
+    real_event = store_module.TicketEventRow
+    monkeypatch.setattr(
+        store_module, "TicketEventRow",
+        lambda **kwargs: real_event(**(kwargs | {"event_type": "invalid"})),
+    )
+    with pytest.raises(IntegrityError):
+        store.call_next("cnt-1", actor)
+    monkeypatch.setattr(store_module, "TicketEventRow", real_event)
+    assert client.get(f"/api/tickets/{ticket['id']}").json()["status"] == "waiting"
+    with store.db.session() as session:
+        assert session.get(ActiveTicketRow, "cnt-1") is None
+
+    store.call_next("cnt-1", actor)
+    monkeypatch.setattr(
+        store_module, "TicketEventRow",
+        lambda **kwargs: real_event(**(kwargs | {"event_type": "invalid"})),
+    )
+    with pytest.raises(IntegrityError):
+        store.transition(ticket["id"], "start", actor)
+    monkeypatch.setattr(store_module, "TicketEventRow", real_event)
+    assert client.get(f"/api/tickets/{ticket['id']}").json()["status"] == "called"
+    with store.db.session() as session:
+        event_types = set(session.scalars(select(TicketEventRow.event_type).where(
+            TicketEventRow.ticket_id == ticket["id"],
+        )))
+    assert event_types == {"issued", "called"}
 
 
 def test_cancelled_ticket_is_skipped_and_called_can_complete(client, staff):

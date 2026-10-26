@@ -945,5 +945,27 @@ Focused authorization, response-schema, multi-service/multi-assignment,
 inactive-config, empty-assignment and tenant-isolation checks passed. The full
 `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` suite
 passed (**160 passed**, six existing deprecation warnings), as did compileall
-and `git diff --check`. Hosted CI is pending. Issue #23 remains open pending
-hosted verification.
+and `git diff --check`. Hosted workflow
+[40344497196](https://github.com/dooloe/backend-ready-frontend/actions/runs/40344497196)
+passed all frontend, migration, backend, OpenAPI, and real-backend desktop/mobile
+gates for commit `24bd4b4`. Issue #23 was closed after verifying its acceptance
+criteria.
+
+## 2026-10-26 — Issues #24 and #25 staff lifecycle audit events
+
+The existing counter-scoped call-next and lifecycle endpoints already serialize
+queue selection and ticket transitions in database write transactions, enforce
+FIFO and counter/service assignment, preserve callable outstanding work on
+closed queues, reject invalid lifecycle states, and release active counter
+claims on completion/no-show. Added missing `called`, `started`, `completed`
+and `no_show` audit events with actor and counter IDs in the same transactions
+as their state changes. Tests verify event actor/counter data and that event
+write failures roll back both call-next claims and lifecycle transitions.
+
+Focused lifecycle, authorization, concurrency, and rollback checks passed. The
+full backend suite passed (**161 passed**, six existing deprecation warnings),
+as did compileall and `git diff --check`. Hosted verification is pending. Issue
+#25 remains open pending hosted checks and its #24 dependency. Issue #24 remains
+open because its requested queue-scoped path does not identify a counter when a
+staff member has multiple eligible counters; the current frontend API instead
+uses the explicit counter-scoped `/api/counters/{counterId}/call-next` route.
