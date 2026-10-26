@@ -989,3 +989,23 @@ compileall and `git diff --check`. Hosted run
 [40346781553](https://github.com/dooloe/backend-ready-frontend/actions/runs/40346781553)
 passed the complete frontend, migration, backend, OpenAPI and real-backend
 desktop/mobile workflow. Issue #26 was closed after those checks passed.
+
+## 2026-10-26 — Issue #27 organization service management
+
+Added authenticated `GET /api/admin/services`, returning active and inactive
+non-deleted services only for the admin's organization. Service create/update
+now supports activation and paired opening/closing hours alongside the current
+name, description, prefix, and duration fields. Invalid durations, malformed or
+partial schedules, wrong roles, and cross-organization updates are rejected.
+Deactivation is rejected while waiting/called/serving tickets remain, preserving
+the service and its history; those tickets remain operable. Prefix changes keep
+the existing daily queue's stored prefix and apply to future daily queues.
+Schedule changes affect current availability immediately while outstanding
+work remains callable.
+
+Focused API contract, organization isolation, role, schedule, activation/history,
+and existing-daily-queue behavior checks passed (**14 passed**). The complete
+backend suite passed (**166 passed**, six existing deprecation warnings), as did
+compileall and `git diff --check`. `npm run lint` passed with six existing
+Fast Refresh warnings and no errors; `npm run typecheck` passed. Hosted
+verification is pending; issue #27 remains open.

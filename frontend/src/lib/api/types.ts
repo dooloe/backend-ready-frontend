@@ -9,6 +9,10 @@ export interface Service {
   prefix: string; // e.g. "A" -> tickets A-001
   isOpen: boolean;
   avgServiceMinutes: number;
+  // Supported by the real backend; optional for compatibility with the browser demo.
+  isActive?: boolean;
+  opensAt?: string | null;
+  closesAt?: string | null;
 }
 
 export interface Counter {

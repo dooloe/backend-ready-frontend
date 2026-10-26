@@ -439,12 +439,35 @@ paths:
       parameters:
       - $ref: '#/components/parameters/id'
   /api/admin/services:
+    get:
+      operationId: listAdminServices
+      tags: [Admin]
+      summary: List services for the authenticated organization
+      description: Includes active and inactive, non-deleted services so organization admins can configure them. Other organizations are excluded.
+      responses:
+        '200':
+          description: Organization services.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles: [admin]
     post:
       operationId: createService
       tags:
       - Admin
       summary: Create a service
-      description: 'Every Service field other than id is supplied in the JSON body.
+      description: 'Name, description, prefix, open state and average duration are required. Activation and schedule are optional; schedule hours must both be null or both configured.
 
         Requires an authenticated admin.'
       responses:
@@ -459,6 +482,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
         default:
           $ref: '#/components/responses/UnexpectedError'
       security:
@@ -477,7 +502,7 @@ paths:
       tags:
       - Admin
       summary: Update a service
-      description: 'All mutable Service fields are optional; id comes from the path.
+      description: 'All mutable Service fields are optional; both schedule hours must be updated or cleared together. Deactivation conflicts while tickets remain waiting, called or serving.
 
         Requires an authenticated admin.'
       responses:
@@ -494,6 +519,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
         default:
           $ref: '#/components/responses/UnexpectedError'
       security:
@@ -920,6 +949,9 @@ components:
       - prefix
       - isOpen
       - avgServiceMinutes
+      - isActive
+      - opensAt
+      - closesAt
       properties:
         id:
           type: string
@@ -935,6 +967,16 @@ components:
         avgServiceMinutes:
           type: number
           description: Typical service duration in minutes.
+        isActive:
+          type: boolean
+        opensAt:
+          type: string
+          format: time
+          nullable: true
+        closesAt:
+          type: string
+          format: time
+          nullable: true
     ServiceCreate:
       type: object
       required:
@@ -956,7 +998,18 @@ components:
         avgServiceMinutes:
           type: number
           description: Typical service duration in minutes.
-      description: Omit<Service, "id">. Every property is required.
+        isActive:
+          type: boolean
+          default: true
+        opensAt:
+          type: string
+          format: time
+          nullable: true
+        closesAt:
+          type: string
+          format: time
+          nullable: true
+      description: Schedule hours must both be null or both be configured. Omitted activity and hours use defaults.
     ServiceUpdate:
       type: object
       properties:
@@ -972,6 +1025,16 @@ components:
         avgServiceMinutes:
           type: number
           description: Typical service duration in minutes.
+        isActive:
+          type: boolean
+        opensAt:
+          type: string
+          format: time
+          nullable: true
+        closesAt:
+          type: string
+          format: time
+          nullable: true
       description: Partial<Omit<Service, "id">>. Any subset, including an empty object, is representable
         by the client.
     Counter:

@@ -314,6 +314,14 @@ class DatabaseStore:
             return [self._service(row) for row in session.scalars(
                 select(ServiceRow).where(ServiceRow.deleted.is_(False)).order_by(ServiceRow.id))]
 
+    def list_admin_services(self, actor: StaffUser) -> list[Service]:
+        with self.db.session() as session:
+            actor_row = self._actor_row(session, actor, admin=True)
+            return [self._service(row) for row in session.scalars(select(ServiceRow).where(
+                ServiceRow.organization_id == actor_row.organization_id,
+                ServiceRow.deleted.is_(False),
+            ).order_by(ServiceRow.id))]
+
     @staticmethod
     def _actor_row(session, actor: StaffUser, *, admin: bool = False) -> UserRow:
         row = session.get(UserRow, actor.id) if actor is not None else None
@@ -699,7 +707,7 @@ class DatabaseStore:
             actor_row = self._actor_row(session, actor, admin=True)
             data = request.model_dump()
             row = ServiceRow(id=new_id(), organization_id=actor_row.organization_id,
-                             durationMinutes=data["avgServiceMinutes"], isActive=True, **data)
+                             durationMinutes=data["avgServiceMinutes"], **data)
             session.add(row)
             session.flush()
             return self._service(row)
@@ -709,6 +717,15 @@ class DatabaseStore:
             actor_row = self._actor_row(session, actor, admin=True)
             row = self._organization_row(session, ServiceRow, service_id, "Service", actor_row.organization_id)
             updated = Service(**(self._service(row).model_dump() | patch))
+            if (updated.opensAt is None) != (updated.closesAt is None):
+                raise HTTPException(422, "Both opening and closing hours must be configured")
+            if row.isActive and not updated.isActive:
+                active_work = session.scalar(select(func.count()).select_from(TicketRow).where(
+                    TicketRow.serviceId == row.id,
+                    TicketRow.status.in_(("waiting", "called", "serving")),
+                )) or 0
+                if active_work:
+                    raise HTTPException(409, "Finish or cancel outstanding tickets before deactivating this service")
             for key in patch:
                 setattr(row, key, getattr(updated, key))
             if "avgServiceMinutes" in patch:

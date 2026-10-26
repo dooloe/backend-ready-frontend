@@ -1,9 +1,9 @@
 """Public wire models use the frontend's exact camelCase field names."""
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Role = Literal["staff", "admin"]
 TicketStatus = Literal["waiting", "called", "serving", "completed", "cancelled", "no_show"]
@@ -19,6 +19,15 @@ class ServiceCreate(Model):
     prefix: str
     isOpen: bool
     avgServiceMinutes: float = Field(gt=0)
+    isActive: bool = True
+    opensAt: time | None = None
+    closesAt: time | None = None
+
+    @model_validator(mode="after")
+    def require_complete_schedule(self):
+        if (self.opensAt is None) != (self.closesAt is None):
+            raise ValueError("Both opening and closing hours must be configured")
+        return self
 
 
 class Service(ServiceCreate):
@@ -32,6 +41,9 @@ class ServiceUpdate(Model):
     prefix: str = Field(default=None)
     isOpen: bool = Field(default=None)
     avgServiceMinutes: float = Field(default=None, gt=0)
+    isActive: bool = Field(default=None)
+    opensAt: time | None = None
+    closesAt: time | None = None
 
 
 class CounterCreate(Model):

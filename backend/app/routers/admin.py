@@ -15,6 +15,11 @@ AdminActor = Annotated[StaffUser, Depends(require_admin)]
 roles = {"x-required-roles": ["admin"]}
 
 
+@router.get("/services", response_model=list[Service], operation_id="listAdminServices", openapi_extra=roles)
+def list_services(store: Store, actor: AdminActor):
+    return store.list_admin_services(actor)
+
+
 @router.post("/services", response_model=Service, operation_id="createService", openapi_extra=roles)
 def create_service(body: ServiceCreate, store: Store, actor: AdminActor):
     return store.create_service(body, actor)

@@ -142,7 +142,7 @@ STAFF_ENDPOINTS = [
     ("POST", "/api/tickets/missing/no-show"),
 ]
 ADMIN_ENDPOINTS = [
-    ("POST", "/api/admin/services"), ("PATCH", "/api/admin/services/svc-reg"),
+    ("GET", "/api/admin/services"), ("POST", "/api/admin/services"), ("PATCH", "/api/admin/services/svc-reg"),
     ("DELETE", "/api/admin/services/svc-reg"), ("POST", "/api/admin/counters"),
     ("PATCH", "/api/admin/counters/cnt-1"), ("DELETE", "/api/admin/counters/cnt-1"),
     ("GET", "/api/admin/staff"), ("POST", "/api/admin/staff"), ("GET", "/api/admin/stats"),
@@ -231,6 +231,7 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
     check("POST", f"/api/tickets/{cancelled['id']}/cancel", "/api/tickets/{id}/cancel")
     login = check("POST", "/api/auth/login", "/api/auth/login", json={"username": "admin", "password": "admin123"})
     headers = {"Authorization": "Bearer " + login["token"]}
+    check("GET", "/api/admin/services", "/api/admin/services", headers=headers)
     check("GET", "/api/counters", "/api/counters", headers=headers)
     check("GET", "/api/staff/queues", "/api/staff/queues", headers=headers)
     check("GET", "/api/counters/cnt-1/queue", "/api/counters/{counterId}/queue", headers=headers)
@@ -583,6 +584,12 @@ def test_protected_operations_are_organization_scoped(client, store, admin, staf
          "isActive": True, "staffId": "stf-aigerim"},
     ]
     assert client.get("/api/counters", headers=other_staff).json()[0]["id"] == "other-counter"
+    assert {service["id"] for service in client.get("/api/admin/services", headers=admin).json()} == {
+        "svc-reg", "svc-fin", "svc-it",
+    }
+    assert {service["id"] for service in client.get("/api/admin/services", headers=other_admin).json()} == {
+        "other-service",
+    }
     assert client.get("/api/organizations/org-other").status_code == 200
     assert client.get("/api/counters/other-counter/queue", headers=staff).status_code == 404
     assert client.post("/api/counters/other-counter/call-next", headers=staff).status_code == 404
@@ -648,6 +655,60 @@ def test_admin_crud_patch_semantics_and_duplicate_username(client, admin):
     assert client.delete(counter_path, headers=admin).status_code == 204
     assert client.delete(counter_path, headers=admin).content == b""
     assert all("password" not in u and "password_hash" not in u for u in client.get("/api/admin/staff", headers=admin).json())
+
+
+def test_admin_service_schedule_activation_and_existing_daily_queue_behavior(client, store, admin, staff, clock):
+    created = client.post("/api/admin/services", headers=admin, json={
+        "name": "Scheduled service", "description": "Configured hours", "prefix": "S",
+        "isOpen": True, "isActive": False, "avgServiceMinutes": 7,
+        "opensAt": "08:00", "closesAt": "17:00",
+    })
+    assert created.status_code == 200, created.text
+    assert created.json()["isActive"] is False
+    assert created.json()["opensAt"].startswith("08:00")
+    assert created.json()["closesAt"].startswith("17:00")
+
+    first = join(client, name="Existing queue visitor")
+    updated = client.patch("/api/admin/services/svc-reg", headers=admin, json={
+        "prefix": "Z", "opensAt": "09:00", "closesAt": "18:00",
+    })
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["prefix"] == "Z"
+    assert updated.json()["opensAt"].startswith("09:00")
+    assert updated.json()["closesAt"].startswith("18:00")
+    second = join(client, name="Same daily queue")
+    assert first["code"] == "A-001" and second["code"] == "A-002"
+
+    assert client.patch("/api/admin/services/svc-reg", headers=admin,
+                        json={"isActive": False}).status_code == 409
+    for ticket in (first, second):
+        called = client.post("/api/counters/cnt-1/call-next", headers=staff).json()
+        assert called["id"] == ticket["id"]
+        assert client.post(f"/api/tickets/{ticket['id']}/start", headers=staff).status_code == 200
+        assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 200
+
+    deactivated = client.patch("/api/admin/services/svc-reg", headers=admin, json={"isActive": False})
+    assert deactivated.status_code == 200 and deactivated.json()["isActive"] is False
+    assert client.get(f"/api/tickets/{first['id']}").json()["status"] == "completed"
+    assert client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": "New visitor"}).status_code == 409
+
+    assert client.patch("/api/admin/services/svc-reg", headers=admin, json={"isActive": True}).status_code == 200
+    invalid_duration = client.patch("/api/admin/services/svc-reg", headers=admin, json={"avgServiceMinutes": 0})
+    invalid_schedule = client.patch("/api/admin/services/svc-reg", headers=admin, json={"closesAt": None})
+    invalid_time = client.patch("/api/admin/services/svc-reg", headers=admin, json={"opensAt": "25:00"})
+    assert invalid_duration.status_code == invalid_schedule.status_code == invalid_time.status_code == 422
+    assert client.post("/api/admin/services", headers=admin, json={
+        "name": "Incomplete hours", "description": "Invalid", "prefix": "I",
+        "isOpen": True, "avgServiceMinutes": 5, "opensAt": "09:00",
+    }).status_code == 422
+
+    closed_schedule = client.patch("/api/admin/services/svc-reg", headers=admin, json={"closesAt": "16:00"})
+    assert closed_schedule.status_code == 200
+    assert client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": "After hours"}).status_code == 409
+    client.patch("/api/admin/services/svc-reg", headers=admin, json={"closesAt": "18:00"})
+    clock.advance(days=1)
+    next_day = join(client, name="Next daily queue")
+    assert next_day["code"] == "Z-001"
 
 
 def test_admin_can_create_another_admin(client, admin):

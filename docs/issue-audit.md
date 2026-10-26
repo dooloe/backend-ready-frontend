@@ -82,7 +82,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #24 | Open | Atomic FIFO and actor-attributed events are present; requested queue-scoped route is ambiguous for staff assigned to multiple counters. |
 | #25 | Open | Actor-attributed lifecycle events and rollback pass; strict transition requirement conflicts with recorded decision preserving called → completed. |
 | #26 | Closed (2026-10-26) | Independent-process file-backed same-key retries, joins, calls, cancellation races, bounded lock contention, and hosted verification pass. |
-| #27 | Open | Current service CRUD and history preservation pass; schedules, organization isolation and daily-queue edit semantics are absent. |
+| #27 | Open | Organization-scoped service listing and schedule/activation support are implemented locally; hosted verification pending. |
 | #28 | Open | Counter CRUD and service links pass; organization checks and active-work configuration-change safeguards are incomplete. |
 | #29 | Open | Staff creation and password hashing pass; staff editing/deactivation, assignment lifecycle and session revocation are absent. |
 | #30 | Open | Service-level open/closed toggle exists; a scheduled daily-queue override does not. |
@@ -539,3 +539,15 @@ passed frontend, migration, backend, OpenAPI and real-backend desktop/mobile
 workflows for commit `fe997c3`. Issue #26 was closed with criterion-specific
 evidence. GitHub now has **33 closed and 20 open issues**; remaining open issues
 are #14–#15, #20–#21, #24–#25, #27–#32, #34–#36, #38–#41 and #43.
+
+## Issue #27 service configuration implementation — 2026-10-26
+
+Added organization-scoped admin service listing including inactive records,
+schedule and activation fields to service create/update, paired-hours
+validation, and protection from deactivating services with outstanding tickets.
+Tests cover valid/invalid schedules, invalid duration, role and organization
+isolation, preserved ticket history, immediate schedule effects, existing daily
+queue prefix stability, and future queue prefixes. Focused checks passed 14
+tests; the full backend suite passed 166 tests, compileall and diff checks
+passed, and frontend lint/typecheck passed (six existing lint warnings).
+Hosted verification is pending; issue #27 remains open.
