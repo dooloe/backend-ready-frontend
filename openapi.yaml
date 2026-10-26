@@ -763,6 +763,30 @@ paths:
         required: true
         schema:
           type: string
+  /api/queues/{queueId}/status:
+    get:
+      tags:
+      - Customer
+      operationId: getQueueStatus
+      security: []
+      summary: Read aggregate availability without private ticket or staff data
+      responses:
+        '200':
+          description: Current organization-local queue counts and availability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      parameters:
+      - name: queueId
+        in: path
+        required: true
+        schema:
+          type: string
 components:
   securitySchemes:
     BearerAuth:

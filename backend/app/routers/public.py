@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
-from ..models import AnonymousJoinRequest, JoinQueueRequest, JoinResponse, Organization, Service, ServiceSummary, TicketView
+from ..models import AnonymousJoinRequest, JoinQueueRequest, JoinResponse, Organization, QueueSummary, Service, ServiceSummary, TicketView
 from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api", tags=["Customer"])
@@ -57,3 +57,9 @@ def get_organization(id: str, store: Store):
             operation_id="listOrganizationServices")
 def list_organization_services(orgId: str, store: Store):
     return store.list_organization_services(orgId)
+
+
+@router.get("/queues/{queueId}/status", response_model=QueueSummary,
+            operation_id="getQueueStatus")
+def get_queue_status(queueId: str, store: Store):
+    return store.queue_status(queueId)

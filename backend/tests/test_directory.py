@@ -2,7 +2,7 @@ import base64
 
 from sqlalchemy import delete, select
 
-from app.orm import (CounterRow, CounterServiceRow, OrganizationRow, ServiceRow,
+from app.orm import (CounterRow, CounterServiceRow, DailyQueueRow, OrganizationRow, ServiceRow,
                      StaffAssignmentRow, UserRow)
 from seed_directory import seed
 
@@ -94,6 +94,43 @@ def test_contract_directory_handles_unknown_empty_and_closed_catalogs(client, st
     assert registrar["queue"]["isOpen"] is False
     assert registrar["queue"]["activeCounters"] == 0
     assert registrar["queue"]["estimatedWaitMinutes"] is None
+
+
+def test_public_queue_status_tracks_ticket_changes_without_private_data(client, store):
+    catalog = client.get("/api/organizations/org-demo/services").json()
+    queue_id = next(item["queue"]["id"] for item in catalog if item["id"] == "svc-reg")
+    unknown = client.get("/api/queues/missing/status")
+    assert unknown.status_code == 404 and unknown.json()["code"] == "NOT_FOUND"
+
+    empty = client.get(f"/api/queues/{queue_id}/status")
+    assert empty.status_code == 200
+    assert empty.json()["waiting"] == 0
+    first = client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": "Private visitor"}).json()
+    after_join = client.get(f"/api/queues/{queue_id}/status").json()
+    assert after_join["waiting"] == 1 and after_join["estimatedWaitMinutes"] == 3
+    assert all(field not in str(after_join) for field in (
+        "customerName", "accessToken", "ticketNumber", "staffId", "counterName",
+    ))
+
+    cancelled = client.post(f"/api/tickets/{first['id']}/cancel")
+    assert cancelled.status_code == 200
+    after_cancel = client.get(f"/api/queues/{queue_id}/status").json()
+    assert after_cancel["waiting"] == 0
+
+    second = client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": "Another visitor"}).json()
+    staff_token = client.post("/api/auth/login", json={
+        "username": "aigerim", "password": "staff123",
+    }).json()["token"]
+    headers = {"Authorization": "Bearer " + staff_token}
+    called = client.post("/api/counters/cnt-1/call-next", headers=headers)
+    assert called.status_code == 200 and called.json()["id"] == second["id"]
+    completed = client.post(f"/api/tickets/{second['id']}/complete", headers=headers)
+    assert completed.status_code == 200
+    after_complete = client.get(f"/api/queues/{queue_id}/status").json()
+    assert after_complete["waiting"] == 0 and after_complete["isOpen"] is True
+    with store.db.session(write=True) as session:
+        session.get(DailyQueueRow, queue_id).status = "closed"
+    assert client.get(f"/api/queues/{queue_id}/status").json()["isOpen"] is False
 
 
 def test_demo_directory_seed_is_idempotent_and_can_be_served(client, store):

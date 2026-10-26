@@ -900,3 +900,19 @@ backend compilation/tests, OpenAPI consistency, and real-backend desktop/mobile
 workflows for commit `2b89a2a`. Issue #18 was closed after verifying the public
 organization/service schemas, usable current queue IDs and aggregate
 availability, plus unknown/empty/closed catalog behavior.
+
+## 2026-10-26 — Issue #22 public aggregate queue status
+
+Added public `GET /api/queues/{queueId}/status`. It reports current queue date,
+schedule/manual open state, daily waiting count, active service-capable counters,
+and an estimated wait (null when no active counter is available). Queue IDs that
+do not exist return the standard 404 envelope. The response is restricted to
+aggregate values and contains no ticket, visitor, credential, or staff identity
+fields.
+
+Focused directory/API contract checks passed (**8 passed**); the manual-closure
+queue-status case passed (**1 passed**). The full
+`backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` suite
+passed (**157 passed**, six existing deprecation warnings).
+`backend/.venv/bin/python -m compileall -q backend/app backend/tests` and
+`git diff --check` passed. Hosted CI is pending; issue #22 remains open.

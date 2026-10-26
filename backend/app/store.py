@@ -271,6 +271,44 @@ class DatabaseStore:
     def _format_time(value):
         return value.strftime("%H:%M") if value else None
 
+    def queue_status(self, queue_id: str) -> QueueSummary:
+        with self.db.session() as session:
+            queue = session.get(DailyQueueRow, queue_id)
+            if queue is None:
+                raise HTTPException(404, "Queue not found")
+            service = session.get(ServiceRow, queue.service_id)
+            organization = session.get(OrganizationRow, queue.organization_id)
+            if service is None or organization is None:
+                raise HTTPException(404, "Queue not found")
+            now = self.clock()
+            try:
+                schedule = resolve_queue_schedule(
+                    organization.timezone, service.opensAt, service.closesAt, now,
+                )
+            except ValueError:
+                is_open = False
+            else:
+                is_open = (
+                    not service.deleted and service.isActive and service.isOpen
+                    and queue.business_date == schedule.business_date
+                    and schedule.within_hours and queue.status == "open"
+                )
+            waiting = session.scalar(select(func.count()).select_from(TicketRow).where(
+                TicketRow.dailyQueueId == queue.id, TicketRow.status == "waiting",
+            )) or 0
+            capacity = session.scalar(select(func.count()).select_from(CounterRow).join(
+                CounterServiceRow, CounterServiceRow.counter_id == CounterRow.id).where(
+                CounterServiceRow.organization_id == queue.organization_id,
+                CounterServiceRow.service_id == queue.service_id,
+                CounterRow.organization_id == queue.organization_id,
+                CounterRow.deleted.is_(False), CounterRow.isActive.is_(True),
+            )) or 0
+            return QueueSummary(
+                id=queue.id, serviceId=queue.service_id, queueDate=queue.business_date,
+                isOpen=is_open, waiting=waiting, activeCounters=capacity,
+                estimatedWaitMinutes=math.ceil(waiting * service.avgServiceMinutes / capacity) if capacity else None,
+            )
+
     def list_services(self) -> list[Service]:
         with self.db.session() as session:
             return [self._service(row) for row in session.scalars(

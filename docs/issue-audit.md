@@ -463,3 +463,12 @@ desktop/mobile workflow gate for commit `2b89a2a`. Combined with the 156-test
 local backend suite, this verifies all #18 acceptance criteria. Issue #18 was
 closed with criterion-specific evidence. GitHub now has **30 closed and 23 open
 issues**; remaining open issues are #14–#15, #20–#32, #34–#36, #38–#41 and #43.
+
+## Issue #22 public queue status — 2026-10-26
+
+Added the contracted aggregate queue-status endpoint with availability,
+organization-local date, daily waiting count, active-counter count and nullable
+wait estimate. Unknown queues return 404; tests verify join/cancel/complete and
+manual-close changes without exposing private ticket or staff data. Focused
+checks passed; the full backend suite passed 157 tests, plus compileall and diff
+checks. Hosted CI remains pending. Issue #22 is open.
