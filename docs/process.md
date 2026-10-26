@@ -664,3 +664,22 @@ passed every gate, including the hosted desktop/mobile real-backend journey.
 The login hydration wait added after the first hosted run made the keyboard
 login tests deterministic. Issue #47 was closed after the successful hosted
 run; GitHub now has 21 closed and 32 open issues (#12–#32, #34–#43, #48).
+
+## 2026-10-26 — Issue #48 delivery evidence in progress
+
+Updated the root README to describe the shipped customer-first journey, link the
+demo/setup guide and limitations, and point to the hosted verification workflow.
+The redesign guide already records demo-only organizations and credentials,
+manual startup/seed instructions, limitations, and committed desktop/mobile
+preview images. The issue audit and decision record distinguish the current
+implementation from the still-open planned API/security work.
+
+Evidence from clean hosted run [40308941320](https://github.com/dooloe/backend-ready-frontend/actions/runs/40308941320): the runner checked out a fresh revision, ran `npm ci`, created a Python 3.12 virtual environment and installed pinned backend requirements, applied migrations to a new temporary SQLite database, and passed the complete frontend/backend/build/OpenAPI/browser pipeline. The real-backend browser suite passed all 8 desktop/mobile cases. Its complete visitor path discovered a Demo organization, joined a real queue, tracked FIFO position, was called/served/completed by staff, canceled another ticket, verified browser-local history and a working private link, and exercised staff no-show plus admin configuration.
+
+Failure/rejection cases verified by the same suite include: an unmatched search returns an empty state; a closed queue disables joining; a queue closed between availability check and submission returns an announced 409 without issuing a ticket; expired credentials receive HTTP 401 and the staff UI reports the load failure; invalid credentials are rejected; an invalid private ticket link shows safe unavailable feedback; and staff are denied the admin page. Desktop and mobile assertions found no horizontal overflow in customer, login, staff or admin views. Screenshot previews are committed under `docs/redesign-previews/`; Playwright also generated ignored run screenshots under `frontend/test-results/`.
+
+The end-to-end browser workflow provides repeatable real-API journey evidence,
+but it is automated rather than a separately recorded human-run manual session.
+Issue #48 therefore remains open until a manual run is observed and recorded and
+the remaining checklist is reconciled against the open dependencies; no manual
+observation is claimed here.

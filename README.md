@@ -1,10 +1,14 @@
-# Backend Ready Frontend — Kezek
+# Kezek — virtual queues for Kazakhstan
 
-Virtual queue demo with a React/TypeScript frontend, TanStack Router/Start,
-FastAPI and SQLAlchemy. SQLite persists tickets, configuration and hashed bearer
-sessions. The current client contract works; the full organization/private-ticket/
-cookie-session MVP is still being implemented. See [requirements](docs/plan.md),
-[architecture](docs/architecture.md) and [verified issue audit](docs/issue-audit.md).
+Kezek helps visitors discover participating organizations, check service queues,
+join without an account, and follow a private digital ticket. The customer
+experience and staff queue workflow use the existing React/TanStack frontend,
+FastAPI API and persistent SQLite backend. Development startup includes clearly
+labeled demo organizations; they are examples, not real service providers.
+
+See the [customer journey and demo credentials](docs/redesign.md),
+[current implementation and known limitations](docs/issue-audit.md),
+[architecture](docs/architecture.md), and [product plan](docs/plan.md).
 
 ## Local setup
 
@@ -57,6 +61,12 @@ python3 -m unittest discover -s scripts/tests -v
 Tests isolate their SQLite files from development data. Frontend route/mock tests
 and API tests do not replace required browser workflows. See
 [process and actual results](docs/process.md) and [decisions](docs/decisions.md).
+
+The hosted [GitHub Actions workflow](https://github.com/dooloe/backend-ready-frontend/actions/workflows/ci.yml)
+installs locked dependencies on a clean runner, checks migrations and API
+contracts, runs frontend/backend checks, and exercises the real-backend visitor
+journey in desktop and mobile Chromium. The customer-first pages are also shown
+in the [redesign previews](docs/redesign-previews/).
 
 Read [AGENTS.md](AGENTS.md) first. Find an existing
 [MVP issue](https://github.com/dooloe/backend-ready-frontend/issues?q=is%3Aopen+label%3Amvp)
