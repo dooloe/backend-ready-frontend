@@ -923,5 +923,8 @@ fixed-count Tab assumption. Updated those checks to focus the tab before testing
 arrow navigation and to tab until the cancel action is focused. `npm run lint`
 passed with zero errors and six existing warnings; `npm run typecheck` passed.
 `LD_LIBRARY_PATH=/tmp/kezek-browser-libs/usr/lib/x86_64-linux-gnu PLAYWRIGHT_BROWSERS_PATH=/home/asus/.cache/ms-playwright npm run test:e2e`
-passed (**8 passed**) on desktop and mobile. Hosted verification for this fix
-and #22 is pending.
+passed (**8 passed**) on desktop and mobile. Hosted run
+[40342641484](https://github.com/dooloe/backend-ready-frontend/actions/runs/40342641484)
+passed frontend lint/typecheck/tests/build, fresh migrations/model-drift,
+backend compilation/tests, OpenAPI consistency, and real-backend desktop/mobile
+workflows for commit `5c68685`. Issue #22 was closed after these checks passed.

@@ -476,4 +476,16 @@ checks. Hosted CI remains pending. Issue #22 is open.
 The CI run before the fix caught an intermittent admin keyboard-focus test
 failure. The test now follows roving-tab focus correctly and waits for the
 cancel button instead of assuming a fixed tab count. Frontend lint/typecheck and
-all 8 local desktop/mobile E2E checks passed; hosted verification is pending.
+all 8 local desktop/mobile E2E checks passed.
+
+## Issue #22 hosted verification and closure — 2026-10-26
+
+Hosted run [40342641484](https://github.com/dooloe/backend-ready-frontend/actions/runs/40342641484)
+passed frontend lint/typecheck/tests/build, migration/model-drift, backend
+compilation/tests, OpenAPI consistency, and real-backend desktop/mobile
+workflows for commit `5c68685`. Together with 157 passing local backend tests,
+this verifies the aggregate availability, accurate queue counts/estimates,
+unknown-queue 404 and private-data exclusion criteria. Issue #22 was closed
+with criterion-specific evidence. GitHub now has **31 closed and 22 open
+issues**; remaining open issues are #14–#15, #20–#21, #23–#32, #34–#36,
+#38–#41 and #43.
