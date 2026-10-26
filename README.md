@@ -22,15 +22,27 @@ Ctrl+C stops both servers. `make help` lists commands; custom ports work with
 
 For separate terminals and all configuration details, see
 [backend setup](backend/README.md) and [frontend development](frontend/README.md).
-The combined Makefile command sets `VITE_API_BASE_URL`; launching Vite without
-that variable still uses the separate browser-local mock data.
+The frontend uses the real backend at `http://localhost:8000` by default.
+`VITE_API_BASE_URL` overrides this origin. Browser-local mock mode requires
+explicit `VITE_USE_MOCK=true` for isolated UI development.
 
 `DATABASE_URL` selects the database, defaulting to `backend/data/kezek.db`.
 Export environment settings from [the example](backend/.env.example); it is not
 automatically loaded. SQLite is tested; PostgreSQL driver integration is future
-work. Existing databases are not reset at startup. Development-only seed accounts:
-`admin / admin123` and `aigerim / staff123`; seeding happens once for a new DB.
-Current schema initialization uses SQLAlchemy; Alembic migration work is #10.
+work. Startup applies Alembic migrations without resetting existing data. With
+`APP_ENV=development` and `SEED_DEMO_DATA=true`, startup adds any missing Demo
+organizations and staff accounts to new and existing databases.
+
+The customer-first redesign adds Explore, organization services, confirmed joining,
+digital tickets and browser-local My Tickets. See [redesign setup and verification](docs/redesign.md).
+To add the four-category demo directory to your development database manually:
+
+```sh
+cd backend
+.venv/bin/python seed_directory.py
+```
+
+All sample organizations are labeled Demo. Existing organizations and tickets remain intact. Staff demo accounts are listed in [the local demo guide](docs/redesign.md).
 
 ## Verification and contributor workflow
 

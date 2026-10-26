@@ -25,8 +25,103 @@ interface DB {
 const KEY = "kezek-mock-db-v1";
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
+const demoOrganizations = [
+  {
+    id: "mock-university",
+    name: "Almaty University · Demo",
+    description: "Demonstration university services. This is not a real provider.",
+    category: "Universities",
+    location: "Almaty, Kazakhstan",
+    timezone: "Asia/Almaty",
+    serviceId: "mock-svc-university",
+    serviceName: "Student services",
+    serviceDescription: "Transcripts, enrollment, and student records.",
+    prefix: "U",
+    duration: 6,
+    staffName: "University demo staff",
+  },
+  {
+    id: "mock-clinic",
+    name: "City Health Clinic · Demo",
+    description: "Demonstration clinic services. This is not a real provider.",
+    category: "Clinics",
+    location: "Astana, Kazakhstan",
+    timezone: "Asia/Almaty",
+    serviceId: "mock-svc-clinic",
+    serviceName: "General consultation",
+    serviceDescription: "A demonstration clinic queue.",
+    prefix: "H",
+    duration: 12,
+    staffName: "Clinic demo staff",
+  },
+  {
+    id: "mock-government",
+    name: "Citizen Service Office · Demo",
+    description: "Demonstration government service. This is not a real provider.",
+    category: "Government Services",
+    location: "Shymkent, Kazakhstan",
+    timezone: "Asia/Almaty",
+    serviceId: "mock-svc-government",
+    serviceName: "Documents & applications",
+    serviceDescription: "A demonstration document service queue.",
+    prefix: "G",
+    duration: 8,
+    staffName: "Government demo staff",
+  },
+  {
+    id: "mock-center",
+    name: "Community Service Center · Demo",
+    description: "Demonstration service center. This is not a real provider.",
+    category: "Service Centers",
+    location: "Karaganda, Kazakhstan",
+    timezone: "Asia/Almaty",
+    serviceId: "mock-svc-center",
+    serviceName: "Customer support",
+    serviceDescription: "A demonstration customer service queue.",
+    prefix: "S",
+    duration: 5,
+    staffName: "Service center demo staff",
+  },
+] as const;
+
+function ensureDemoDirectory(data: DB): DB {
+  for (const organization of demoOrganizations) {
+    if (!data.services.some((service) => service.id === organization.serviceId)) {
+      data.services.push({
+        id: organization.serviceId,
+        name: organization.serviceName,
+        description: organization.serviceDescription,
+        prefix: organization.prefix,
+        isOpen: true,
+        avgServiceMinutes: organization.duration,
+      });
+    }
+    const staffId = `demo-staff-${organization.id.slice("mock-".length)}`;
+    if (!data.staff.some((staff) => staff.id === staffId)) {
+      data.staff.push({
+        id: staffId,
+        name: organization.staffName,
+        username: staffId,
+        role: "staff",
+        password: "staff123",
+      });
+    }
+    const counterId = `demo-counter-${organization.id.slice("mock-".length)}`;
+    if (!data.counters.some((counter) => counter.id === counterId)) {
+      data.counters.push({
+        id: counterId,
+        name: "Service counter",
+        serviceIds: [organization.serviceId],
+        isActive: true,
+        staffId,
+      });
+    }
+  }
+  return data;
+}
+
 function seed(): DB {
-  return {
+  return ensureDemoDirectory({
     services: [
       {
         id: "svc-reg",
@@ -82,7 +177,7 @@ function seed(): DB {
     tickets: [],
     seq: {},
     sessions: {},
-  };
+  });
 }
 
 let db: DB | null = null;
@@ -92,10 +187,10 @@ export function setTokenProvider(fn: () => string | null) {
 }
 
 function load(): DB {
-  if (db) return db;
+  if (db) return ensureDemoDirectory(db);
   if (typeof window !== "undefined") {
     const raw = localStorage.getItem(KEY);
-    if (raw) return (db = JSON.parse(raw) as DB);
+    if (raw) return (db = ensureDemoDirectory(JSON.parse(raw) as DB));
   }
   return (db = seed());
 }
@@ -166,6 +261,42 @@ function transition(id: string, from: Ticket["status"][], patch: Partial<Ticket>
 const now = () => new Date().toISOString();
 
 export const mockApi: KezekApi = {
+  listOrganizations: () => {
+    const data = load();
+    const organizations = demoOrganizations.map((organization) => {
+      const service = data.services.find((item) => item.id === organization.serviceId)!;
+      const waiting = data.tickets.filter(
+        (ticket) => ticket.serviceId === service.id && ticket.status === "waiting",
+      );
+      const activeCounters = data.counters.filter(
+        (counter) => counter.isActive && counter.serviceIds.includes(service.id),
+      ).length;
+      return {
+        id: organization.id,
+        name: organization.name,
+        description: organization.description,
+        category: organization.category,
+        location: organization.location,
+        timezone: organization.timezone,
+        services: [
+          {
+            ...service,
+            waitingCount: waiting.length,
+            estimatedWaitMinutes: activeCounters
+              ? Math.ceil((waiting.length * service.avgServiceMinutes) / activeCounters)
+              : null,
+            operatingHours: null,
+          },
+        ],
+      };
+    });
+    return delay(organizations);
+  },
+  async getOrganization(id) {
+    const org = (await mockApi.listOrganizations()).find((o) => o.id === id);
+    if (!org) throw new ApiError(404, "Organization not found");
+    return org;
+  },
   listServices: () => delay(load().services),
 
   joinQueue({ serviceId, customerName }) {

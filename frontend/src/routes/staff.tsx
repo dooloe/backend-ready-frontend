@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
+import { ConfirmAction } from "@/components/confirm-action";
+import { LoadError, LoadingCards } from "@/components/customer-ui";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/staff")({
@@ -35,30 +37,47 @@ function StaffPage() {
 
 function Dashboard({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
   const qc = useQueryClient();
-  const { data: counters } = useQuery({ queryKey: ["counters"], queryFn: api.listCounters });
-  const mine = counters?.filter((c) => isAdmin || c.staffId === userId || c.staffId === null) ?? [];
+  const {
+    data: counters,
+    isPending: countersLoading,
+    error: countersError,
+    refetch: reloadCounters,
+  } = useQuery({ queryKey: ["counters"], queryFn: api.listCounters });
+  const mine = useMemo(
+    () => counters?.filter((c) => isAdmin || c.staffId === userId || c.staffId === null) ?? [],
+    [counters, isAdmin, userId],
+  );
   const [counterId, setCounterId] = useState<string>("");
   useEffect(() => {
     if (!counterId && mine[0]) setCounterId(mine[0].id);
   }, [mine, counterId]);
 
-  const { data: queue } = useQuery({
+  const {
+    data: queue,
+    isPending: queueLoading,
+    error: queueError,
+    refetch: reloadQueue,
+  } = useQuery({
     queryKey: ["queue", counterId],
     queryFn: () => api.getQueue(counterId),
     enabled: !!counterId,
-    refetchInterval: 3000,
+    refetchInterval: 5000,
   });
   const act = useMutation({
     mutationFn: (fn: () => Promise<unknown>) => fn(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["queue"] }),
+    onSuccess: () => {
+      toast.success("Queue updated");
+      return qc.invalidateQueries({ queryKey: ["queue"] });
+    },
     onError: (e) => toast.error(e.message),
   });
 
   const current = queue?.current;
+  const disabled = act.isPending || !!queueError || queueLoading;
   return (
     <div>
       <div className="mb-8 flex flex-wrap items-center gap-3">
-        <h1 className="mr-auto text-3xl font-bold">Counter dashboard</h1>
+        <h1 className="mr-auto text-3xl font-bold">Service desk</h1>
         {mine.map((c) => (
           <Button
             key={c.id}
@@ -70,6 +89,22 @@ function Dashboard({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
           </Button>
         ))}
       </div>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Call the next visitor, then start and complete their service. Queue order is automatic.
+      </p>
+      {countersLoading && <LoadingCards />}
+      {countersError && (
+        <LoadError message="Couldn’t load your counters." retry={() => void reloadCounters()} />
+      )}
+      {!countersLoading && !countersError && mine.length === 0 && (
+        <p className="surface p-6">No counters available. Ask your administrator for access.</p>
+      )}
+      {queueError && (
+        <LoadError
+          message="Queue updates paused. Refresh before taking another action."
+          retry={() => void reloadQueue()}
+        />
+      )}
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <div className="ticket-card p-8">
           <p className="text-sm uppercase tracking-widest text-muted-foreground">Now serving</p>
@@ -85,23 +120,33 @@ function Dashboard({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
               <div className="mt-6 flex flex-wrap gap-2">
                 {current.status === "called" && (
                   <>
-                    <Button onClick={() => act.mutate(() => api.startService(current.id))}>
+                    <Button
+                      disabled={disabled}
+                      onClick={() => act.mutate(() => api.startService(current.id))}
+                    >
                       Start service
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => act.mutate(() => api.markNoShow(current.id))}
+                    <ConfirmAction
+                      title="Mark this visitor as a no-show?"
+                      description="This ends their ticket. Confirm they are not at the counter."
+                      onConfirm={() => act.mutate(() => api.markNoShow(current.id))}
+                      disabled={disabled}
                     >
-                      No-show
-                    </Button>
+                      <Button variant="outline" disabled={disabled}>
+                        Mark No-show
+                      </Button>
+                    </ConfirmAction>
                   </>
                 )}
-                <Button
-                  variant="secondary"
-                  onClick={() => act.mutate(() => api.completeTicket(current.id))}
-                >
-                  Complete
-                </Button>
+                {current.status === "serving" && (
+                  <Button
+                    disabled={disabled}
+                    variant="secondary"
+                    onClick={() => act.mutate(() => api.completeTicket(current.id))}
+                  >
+                    Complete Service
+                  </Button>
+                )}
               </div>
             </>
           ) : (
@@ -110,7 +155,12 @@ function Dashboard({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
               <Button
                 size="lg"
                 className="mt-6"
-                disabled={!counterId || act.isPending}
+                disabled={
+                  !counterId ||
+                  disabled ||
+                  !mine.find((c) => c.id === counterId)?.isActive ||
+                  !queue?.waiting.length
+                }
                 onClick={() =>
                   act.mutate(async () => {
                     const t = await api.callNext(counterId);
@@ -118,13 +168,19 @@ function Dashboard({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
                   })
                 }
               >
-                Call next customer
+                Call Next
               </Button>
             </>
           )}
         </div>
         <div className="rounded-2xl border bg-card p-6">
-          <h2 className="text-lg font-semibold">Waiting ({queue?.waiting.length ?? 0})</h2>
+          <h2 className="text-lg font-semibold">Waiting ({queue?.waiting.length ?? "—"})</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Next ticket:{" "}
+            <strong className="text-primary">
+              {queue?.waiting[0]?.code ?? "No visitors waiting"}
+            </strong>
+          </p>
           <ul className="mt-4 divide-y">
             {queue?.waiting.map((t) => (
               <li key={t.id} className="flex items-center justify-between py-3">

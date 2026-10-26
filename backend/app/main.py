@@ -28,6 +28,12 @@ def create_app(store: DatabaseStore | None = None, *, database_url: str | None =
             settings.database_url, seed_demo=settings.seed_demo,
         )
         try:
+            # Provision sample organizations even when this database predates
+            # the directory. The seed only adds missing records.
+            if store is None and settings.seed_demo and settings.environment in {"development", "test"}:
+                from seed_directory import seed
+
+                seed(application.state.store)
             yield
         finally:
             if store is None:

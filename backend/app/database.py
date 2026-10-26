@@ -91,7 +91,22 @@ class Database:
         config = Config(str(config_path))
         with self.engine.connect().execution_options(kezek_write=True) as connection:
             config.attributes["connection"] = connection
-            command.upgrade(config, "head")
+            sqlite_connection = connection.connection.driver_connection if self.is_sqlite else None
+            if self.is_sqlite:
+                # Alembic's SQLite batch mode replaces tables. SQLite's FK pragma
+                # cannot be toggled inside a transaction, so suspend enforcement
+                # on this migration connection and verify all references before
+                # restoring it. Request connections always keep FK enforcement on.
+                sqlite_connection.execute("PRAGMA foreign_keys=OFF")
+            try:
+                command.upgrade(config, "head")
+                if self.is_sqlite:
+                    violations = sqlite_connection.execute("PRAGMA foreign_key_check").fetchall()
+                    if violations:
+                        raise RuntimeError(f"Migration produced foreign-key violations: {violations!r}")
+            finally:
+                if self.is_sqlite:
+                    sqlite_connection.execute("PRAGMA foreign_keys=ON")
 
     def close(self):
         self.engine.dispose()

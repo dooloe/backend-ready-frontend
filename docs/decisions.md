@@ -83,3 +83,39 @@ unimplemented endpoints. Contract-only issues validate schemas/examples; runtime
 and integration issues remain open until implemented. api-migration.md maps the
 current client calls/fields to the planned facade and documents coordinated
 private-token cutover without public ID fallback.
+
+## 2026-10-20 — Organization ownership for configuration (#11)
+
+Add organization IDs and database-enforced same-organization composite
+references for counter-service links and staff assignments. Preserve the current
+client API by assigning its existing records and new configuration to the seeded
+`org-demo`; organization-aware APIs and request-scoped isolation remain separate
+work under #16 and later integration issues. During migration, existing rows are
+backfilled to this organization, and users receive stable synthetic
+`@legacy.invalid` email addresses until real email provisioning exists.
+
+Services retain the current wire fields while storing planned duration, schedule
+and active metadata. `avgServiceMinutes` and `duration_minutes` stay aligned on
+current API writes. Service/counter deletion remains a soft delete and removes
+configuration links while ticket rows retain their foreign keys and history.
+Organization-owned records use restrictive foreign keys; historical data is
+never cascade-deleted with configuration.
+
+## 2026-10-26 — Customer-first redesign (#53)
+
+Retain the existing React/TanStack/FastAPI/SQLAlchemy stack and all lifecycle
+endpoints. Add a public organization directory with only per-service aggregates;
+add category/location metadata through an additive migration after the existing
+local organization ownership revision. Seed additional organizations only with
+an explicit, idempotent development command; label all four as Demo and provide
+organization-specific staff accounts. Preserve pre-existing uncommitted backend
+work rather than replacing it.
+
+Use the real HTTP client by default and require explicit `VITE_USE_MOCK=true` for
+mock development. Keep API calls behind the facade. Preserve existing opaque,
+high-entropy ticket links as bearer capabilities; My Tickets only indexes links
+received on this browser. Do not claim account history, hash-only token storage,
+new cookie authentication, or the broader planned-contract migration is complete.
+Remove mandatory name entry by sending `Visitor` to the compatible existing join
+endpoint. Staff completion is presented after start, retaining backend transition
+compatibility. Preserve all admin tabs while prioritizing services and queues.

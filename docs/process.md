@@ -473,3 +473,109 @@ Verification:
 Issue #10 was closed through approved GitHub CLI only after commit
 `16b3232` and its tests were pushed. The closing comment records the acceptance
 evidence. Remote issue state was refreshed: 38 open and 14 closed (52 total).
+
+## 2026-10-20 — Issue #11 organization-owned configuration models
+
+Added normalized `organizations` and `staff_assignments` ORM models and ownership
+fields on users, services, counters, and counter-service links. The Alembic
+revision backfills existing records into `org-demo`, preserves password hashes
+and tickets, gives legacy users non-deliverable `@legacy.invalid` addresses, and
+creates uniqueness and same-organization association constraints. SQLite
+migrations temporarily disable foreign-key enforcement only on their migration
+connection because Alembic batch mode replaces tables; the migration connection
+runs `foreign_key_check` before restoring enforcement, and application/request
+connections continue to enable foreign keys. Current API-created configuration
+remains in the seeded organization; request-scoped tenant authorization remains
+open in #16.
+
+AC-1: ORM and Alembic schema include organization, user, service, counter,
+counter-service and staff-assignment fields, plus schedule/duration and active
+metadata from `docs/plan.md`. AC-2: tests reject duplicate organization slugs,
+duplicate email addresses, invalid foreign keys, and counter-service or staff
+assignment links across organizations. AC-3: migration tests preserve existing
+users, password hashes, service sequence, relationships and ticket history;
+soft-deletion tests confirm service deletion does not erase tickets. Same-org
+constraints are enforced by composite foreign keys; application-level
+organization request scoping is intentionally tracked separately in #16.
+
+Verification: backend suite passes with 126 tests; fresh and populated legacy
+SQLite migrations pass; Alembic reports no schema drift; dependency, compile and
+whitespace checks pass. One existing Starlette/httpx deprecation warning remains.
+Manual browser/E2E cases remain unrun as recorded in `qa-engineer.md`.
+
+## 2026-10-26 — Customer-first UI/UX redesign (#53)
+
+Assessed the current project guidance, architecture/plan/specification, API facade,
+React routes, persistent backend/model/migration implementation and relevant open
+GitHub backlog. Existing working endpoints implement the older compatible API;
+separate planned-contract issues remain incomplete. Preserved pre-existing user
+changes to the organization ownership models/migration, backend, tests and docs.
+
+Implemented shared Inter/blue/navy styling and customer-first navigation; searchable
+organization Explore with category filters; organization details and live service
+summaries; focused name-free confirmed joining; six-state digital tickets with
+people ahead, timestamps, counter, last refresh and confirmed cancellation; and
+browser-local My Tickets using only received private links. Staff retain automatic
+FIFO selection with focused actions and confirmed no-shows; all admin configuration
+is retained with services/queues first, accessible fields, request feedback and
+confirmed deletion. Sign-in/out clears query caches. UI calls remain behind `api`.
+
+Added public organization list/detail operations and synchronized `KezekApi`, HTTP,
+development mock and implemented `openapi.yaml`. They expose metadata and aggregates
+only. Added an additive category/location migration after the user's existing local
+organization revision, plus an explicit idempotent four-category Demo seed command
+with organization-specific staff/counters. Real HTTP is now the default; mock mode
+requires explicit opt-in. Existing ticket/auth/lifecycle operations remain intact.
+
+Verification: frontend lint passes with six existing shared-component Fast Refresh
+warnings; typecheck passes; 17 frontend tests pass; production client/SSR build
+passes. Backend suite passes 129 tests with one existing deprecation warning.
+Six real-backend Playwright scenarios pass (desktop/mobile Chromium), exercising
+customer discovery/join/live position/call/start/complete/cancel/no-show, private
+history isolation/recovery, search/closed states, keyboard navigation and admin
+service creation/queue closure/confirmed deletion. The isolated fixture migrates
+and seeds temporary SQLite files rather than touching development data. Inspected
+desktop/mobile Explore and mobile ticket screenshots. Compile and diff checks pass.
+
+Initial browser checks found an SSR pre-hydration interaction issue; controls now
+stay disabled until React can accept input, and all six cases passed on a clean
+rerun. Sandbox/local-browser dependency obstacles and exact check commands are
+recorded in `verification-evidence/KEZEK-REDESIGN-053.txt`. Setup, API additions,
+optional seed accounts and retained limitations are documented in `redesign.md`.
+
+Created redesign issue #53 and updated it with evidence. Broader existing cookie,
+hash-only access-token, idempotency, daily queue and tenant-admin requirements are
+not marked complete. No existing issue was closed, no user changes were discarded,
+and no commits/pushes or history rewrites were performed; #53 remains open for
+review and delivery of the working tree.
+
+
+## 2026-10-26 — Make demo organizations available on startup
+
+Follow-up: the client could not see organizations because the four-directory seed
+was only documented as an optional one-off script. FastAPI startup now invokes
+the idempotent seed in development and test environments, whether the SQLite
+database is new or already initialized. Existing data is never cleared. Production
+settings continue to reject demo seeding. Explicit mock mode now includes the same
+four organizations, their services/counters, and organization-specific staff users.
+The login screen lists mock credentials; real-development credentials are in
+`docs/redesign.md`. Startup coverage asserts the public categories and successful
+login with an assigned counter.
+
+Provisioned the configured local SQLite development database using
+`cd backend && .venv/bin/python seed_directory.py`. Read-only inspection confirmed
+five organizations total (the existing Kezek Demo plus four sample organizations),
+four distinct service categories, one service and counter per sample organization,
+and the four expected assigned demo staff usernames. No ticket history or existing
+organization was removed.
+
+Provisioning follow-up verification: the complete backend suite from repository
+root (`backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider`)
+passes 129 tests with one existing Starlette/httpx deprecation warning. The
+startup-entrypoint test verifies all four directory categories, successful
+`demo-staff-university` login and its assigned demo counter. The frontend suite
+passes 18 tests, including demo discovery, staff login and a full mock ticket
+lifecycle; frontend lint and typecheck pass. This follow-up changes no prior
+Playwright evidence; the earlier six real-backend desktop/mobile workflows remain
+recorded above. The default local SQLite file was absent before seeding; the
+explicit development seed command created it and added the four demo organizations.

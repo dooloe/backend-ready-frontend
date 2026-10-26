@@ -1,0 +1,87 @@
+Kezek customer-first redesign — 2026-10-26 — GitHub #53
+
+Scope: existing React/TanStack frontend and FastAPI/SQLAlchemy backend.
+Existing user changes (organization ownership migration, backend/database/model
+work, documentation and deleted backend/.gitkeep) were preserved. No history was
+rewritten, no development database was opened by the test fixtures, and no
+commit/push was performed.
+
+Frontend checks:
+  npm --prefix frontend run lint
+  npm --prefix frontend run typecheck
+  npm --prefix frontend test
+  npm --prefix frontend run build
+Lint reports six pre-existing Fast Refresh warnings in shared UI components.
+TypeScript, Vitest (17 tests / 6 files) and client/SSR production build pass.
+
+Backend:
+  backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider
+129 tests pass, including migrations, persistence, concurrency, all existing
+operations and responses, directory privacy, aggregate estimates, organization
+service isolation, empty/deleted records and idempotent demo directory seeding.
+One pre-existing Starlette/httpx deprecation warning.
+
+Browser:
+  cd frontend
+  LD_LIBRARY_PATH=/tmp/kezek-browser-libs/usr/lib/x86_64-linux-gnu npm run test:e2e
+6 passed (1.2m): three scenarios each on desktop Chromium and iPhone 13-sized
+mobile Chromium. Fixture starts actual FastAPI on 18765, Vite on 15173, a fresh
+migrated temporary SQLite database and organization-specific demo staff.
+No HTTP response mocking or reuse of the developer database/server.
+
+Scenarios:
+- Category discovery, service navigation, confirmation without name/account,
+  real ticket creation, people-ahead updates across two visitors, staff FIFO
+  call/start/complete and customer polling through WAITING/CALLED/SERVING/COMPLETED.
+- Confirmed cancellation, disabled Call Next after cancelled queue empties,
+  browser-local active/history links, fresh-browser empty history, valid private
+  link recovery and invalid private-link errors.
+- Service search and no-results reset, closed queue details/disabled joining,
+  horizontal-overflow checks on home/details, keyboard skip navigation.
+- Called-ticket no-show with dismiss/confirm behavior, NO_SHOW polling,
+  anonymous admin rejection, invalid login, admin real service creation,
+  queue closure, dismissed deletion and confirmed deletion.
+Customer journey captures no browser pageerror events.
+
+Visual review: desktop Explore, mobile Explore, mobile ticket screenshots.
+Tracked previews in docs/redesign-previews/ contain demo metadata and a demo
+number only, not ticket URL capabilities or staff credentials.
+
+Other checks:
+  backend/.venv/bin/python -m compileall -q backend/app backend/migrations backend/seed_directory.py backend/e2e_server.py
+  git diff --check
+Both pass.
+
+Environment troubleshooting (not passing evidence):
+- The initial frontend test expected the replaced service catalog; it was
+  adapted to the organization API. Initial backend checks detected undocumented
+  directory routes and old migration-head assertions; contracts/checks updated.
+- A sandbox TestClient-only run stalled and was interrupted; the complete suite
+  ran successfully with approved execution outside sandbox.
+- Browser setup first needed downloaded Chromium, libnspr4/libnss3/libasound2t64.
+  Libraries were unpacked under /tmp; no OS package installation was required.
+- The first interactive browser run found a pre-hydration click/input issue.
+  A hydration hook now disables SSR search/filter/login controls until ready.
+  That run was stopped, the fix applied, and all six browser cases passed on
+  the subsequent clean run. No failed or interrupted run counts as a pass.
+
+Limits: mobile emulation in Chromium, not native Safari/Android device testing.
+Existing future API/cookie/hash-only token/idempotency/daily numbering/rate-limit
+and broad tenant-admin backlog requirements are not claimed complete. Ticket
+links remain existing high-entropy random bearer capabilities. My Tickets is
+browser-local only. Additional demo directory seeding is an explicit operation.
+Issue #53 remains open for source review/delivery; no older backlog issue closed.
+
+Follow-up: the default local SQLite file was absent before the requested demo
+provisioning. `backend/.venv/bin/python seed_directory.py` created it and added
+four organizations. Startup now also idempotently provisions the directory for
+new and previously initialized development databases. Frontend mock mode mirrors
+the four organizations and working assigned staff accounts. Frontend Vitest now
+has 18 passing tests (including mock staff lifecycle); lint/typecheck pass.
+Backend rerun from the repository root: 129 passed, one existing warning.
+The startup-entrypoint test verifies real demo staff login and assigned-counter
+access. One first test attempt used the backend directory, where a pre-existing
+Alembic test assumes repository-root paths; the correct repository-root rerun
+passes. The initial new startup test assertion was updated to include the four
+intentionally seeded services. Neither failed intermediate attempt counts as a
+pass.

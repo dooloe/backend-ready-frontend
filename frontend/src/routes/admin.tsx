@@ -2,8 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ArrowRight, Building2, MapPin } from "lucide-react";
 import { api, type Role } from "@/lib/api";
 import { useSession } from "@/lib/session";
+import { ConfirmAction } from "@/components/confirm-action";
+import { LoadError, LoadingCards } from "@/components/customer-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,7 +33,10 @@ function useAct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (fn: () => Promise<unknown>) => fn(),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      toast.success("Changes saved");
+      return qc.invalidateQueries();
+    },
     onError: (e) => toast.error(e.message),
   });
 }
@@ -50,13 +56,20 @@ function AdminPage() {
   return (
     <div>
       <h1 className="mb-6 text-3xl font-bold">Administration</h1>
-      <Tabs defaultValue="stats">
-        <TabsList>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Manage services, queue availability, and counters. Monitor today’s operations.
+      </p>
+      <Tabs defaultValue="organizations">
+        <TabsList className="flex h-auto flex-wrap justify-start">
+          <TabsTrigger value="organizations">Organizations</TabsTrigger>
           <TabsTrigger value="stats">Analytics</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="counters">Counters</TabsTrigger>
-          <TabsTrigger value="staff">Staff</TabsTrigger>
+          <TabsTrigger value="staff">Staff settings</TabsTrigger>
         </TabsList>
+        <TabsContent value="organizations">
+          <OrganizationsTab />
+        </TabsContent>
         <TabsContent value="stats">
           <StatsTab />
         </TabsContent>
@@ -74,14 +87,113 @@ function AdminPage() {
   );
 }
 
-const card = "rounded-2xl border bg-card p-6";
+const card = "surface p-5 sm:p-6 overflow-x-auto";
+
+export function OrganizationsTab() {
+  const { data, isPending, error, refetch } = useQuery({
+    queryKey: ["organizations"],
+    queryFn: api.listOrganizations,
+    refetchInterval: 15000,
+  });
+
+  if (isPending) return <LoadingCards />;
+  if (error) {
+    return (
+      <LoadError
+        message="Couldn’t load organizations. Check the backend connection and retry."
+        retry={() => void refetch()}
+      />
+    );
+  }
+  if (!data?.length) {
+    return (
+      <p className={`${card} mt-4 text-center text-muted-foreground`}>
+        No organizations are available yet.
+      </p>
+    );
+  }
+
+  return (
+    <section aria-label="All organizations" className="mt-4">
+      <p className="mb-4 text-sm text-muted-foreground">
+        {data.length} participating organization{data.length === 1 ? "" : "s"} across Kezek
+      </p>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {data.map((organization) => {
+          const openServices = organization.services.filter((service) => service.isOpen);
+          const waiting = organization.services.reduce(
+            (total, service) => total + service.waitingCount,
+            0,
+          );
+          return (
+            <article key={organization.id} className="surface flex flex-col p-5">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-primary">
+                  <Building2 size={22} />
+                </span>
+                <span
+                  className="status-pill"
+                  data-status={openServices.length ? "completed" : "cancelled"}
+                >
+                  {openServices.length ? `${openServices.length} queues open` : "Queues closed"}
+                </span>
+              </div>
+              <p className="text-xs font-medium text-primary">{organization.category}</p>
+              <h2 className="mt-1 text-lg font-semibold">{organization.name}</h2>
+              {organization.location && (
+                <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <MapPin size={15} /> {organization.location}
+                </p>
+              )}
+              <p className="mt-4 text-sm text-muted-foreground">
+                {organization.services.length} service
+                {organization.services.length === 1 ? "" : "s"} · {waiting} waiting
+              </p>
+              <ul className="mt-3 flex-1 space-y-1 text-sm">
+                {organization.services.slice(0, 3).map((service) => (
+                  <li key={service.id} className="flex justify-between gap-3">
+                    <span className="truncate">{service.name}</span>
+                    <span className="shrink-0 text-muted-foreground">
+                      {service.isOpen ? `${service.waitingCount} waiting` : "Closed"}
+                    </span>
+                  </li>
+                ))}
+                {organization.services.length > 3 && (
+                  <li className="text-xs text-muted-foreground">
+                    +{organization.services.length - 3} more services
+                  </li>
+                )}
+              </ul>
+              <a
+                href={`/organizations/${encodeURIComponent(organization.id)}`}
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+              >
+                View organization <ArrowRight size={16} />
+              </a>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 function StatsTab() {
-  const { data: s } = useQuery({
+  const {
+    data: s,
+    isPending,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["stats"],
     queryFn: api.getStats,
     refetchInterval: 5000,
   });
+  if (isPending) return <LoadingCards />;
+  if (error)
+    return (
+      <LoadError message="Couldn’t load operational statistics." retry={() => void refetch()} />
+    );
   if (!s) return null;
   const max = Math.max(1, ...s.byHour.map((h) => h.count));
   const kpis = [
@@ -147,7 +259,12 @@ function StatsTab() {
 }
 
 export function ServicesTab() {
-  const { data } = useQuery({ queryKey: ["services"], queryFn: api.listServices });
+  const {
+    data,
+    isPending: loading,
+    error,
+    refetch,
+  } = useQuery({ queryKey: ["services"], queryFn: api.listServices });
   const act = useAct();
   const [f, setF] = useState({ name: "", description: "", prefix: "", avgServiceMinutes: 5 });
   return (
@@ -167,11 +284,13 @@ export function ServicesTab() {
       >
         <Input
           required
+          aria-label="Name"
           placeholder="Name"
           value={f.name}
           onChange={(e) => setF({ ...f, name: e.target.value })}
         />
         <Input
+          aria-label="Description"
           placeholder="Description"
           value={f.description}
           onChange={(e) => setF({ ...f, description: e.target.value })}
@@ -179,6 +298,7 @@ export function ServicesTab() {
         <Input
           required
           maxLength={2}
+          aria-label="Prefix"
           placeholder="Prefix"
           value={f.prefix}
           onChange={(e) => setF({ ...f, prefix: e.target.value })}
@@ -186,14 +306,22 @@ export function ServicesTab() {
         <Input
           type="number"
           min={1}
+          aria-label="Average service duration in minutes"
           title="Avg minutes"
           value={f.avgServiceMinutes}
           onChange={(e) => setF({ ...f, avgServiceMinutes: +e.target.value })}
         />
-        <Button>Add service</Button>
+        <Button disabled={act.isPending}>Add service</Button>
       </form>
+      {loading && <LoadingCards />}
+      {error && <LoadError message="Couldn’t load services." retry={() => void refetch()} />}
+      {data?.length === 0 && (
+        <p className="surface p-6 text-muted-foreground">
+          No services configured. Add your first service above.
+        </p>
+      )}
       {data?.map((s) => (
-        <div key={s.id} className={`${card} flex items-center gap-4`}>
+        <div key={s.id} className={`${card} flex flex-wrap items-center gap-4`}>
           <span className="ticket-code text-2xl">{s.prefix}</span>
           <div className="flex-1">
             <p className="font-semibold">{s.name}</p>
@@ -202,14 +330,22 @@ export function ServicesTab() {
             </p>
           </div>
           <Button
+            disabled={act.isPending}
             variant="outline"
             onClick={() => act.mutate(() => api.updateService(s.id, { isOpen: !s.isOpen }))}
           >
             {s.isOpen ? "Close queue" : "Open queue"}
           </Button>
-          <Button variant="ghost" onClick={() => act.mutate(() => api.deleteService(s.id))}>
-            Delete
-          </Button>
+          <ConfirmAction
+            title="Delete this service?"
+            description="Visitors will no longer be able to join this service. Existing ticket history is preserved."
+            onConfirm={() => act.mutate(() => api.deleteService(s.id))}
+            disabled={act.isPending}
+          >
+            <Button variant="ghost" disabled={act.isPending}>
+              Delete
+            </Button>
+          </ConfirmAction>
         </div>
       ))}
     </div>
@@ -217,7 +353,8 @@ export function ServicesTab() {
 }
 
 function CountersTab() {
-  const { data: counters } = useQuery({ queryKey: ["counters"], queryFn: api.listCounters });
+  const countersQuery = useQuery({ queryKey: ["counters"], queryFn: api.listCounters });
+  const counters = countersQuery.data;
   const { data: services } = useQuery({ queryKey: ["services"], queryFn: api.listServices });
   const { data: staff } = useQuery({ queryKey: ["staff"], queryFn: api.listStaff });
   const act = useAct();
@@ -227,7 +364,7 @@ function CountersTab() {
   return (
     <div className="mt-4 space-y-4">
       <form
-        className={`${card} flex gap-2`}
+        className={`${card} flex flex-wrap gap-2`}
         onSubmit={(e) => {
           e.preventDefault();
           act.mutate(
@@ -238,17 +375,28 @@ function CountersTab() {
       >
         <Input
           required
+          aria-label="Counter name"
           placeholder="Counter name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <Button>Add counter</Button>
+        <Button disabled={act.isPending}>Add counter</Button>
       </form>
+      {countersQuery.isPending && <LoadingCards />}
+      {countersQuery.isError && (
+        <LoadError message="Couldn’t load counters." retry={() => void countersQuery.refetch()} />
+      )}
+      {counters?.length === 0 && (
+        <p className="surface p-6 text-muted-foreground">
+          No counters configured. Add a service counter above.
+        </p>
+      )}
       {counters?.map((c) => (
         <div key={c.id} className={`${card} space-y-3`}>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <p className="flex-1 font-semibold">{c.name}</p>
             <select
+              aria-label="Assigned staff member"
               className="h-9 rounded-md border bg-background px-2 text-sm"
               value={c.staffId ?? ""}
               onChange={(e) =>
@@ -263,14 +411,22 @@ function CountersTab() {
               ))}
             </select>
             <Button
+              disabled={act.isPending}
               variant="outline"
               onClick={() => act.mutate(() => api.updateCounter(c.id, { isActive: !c.isActive }))}
             >
               {c.isActive ? "Deactivate" : "Activate"}
             </Button>
-            <Button variant="ghost" onClick={() => act.mutate(() => api.deleteCounter(c.id))}>
-              Delete
-            </Button>
+            <ConfirmAction
+              title="Delete this counter?"
+              description="This counter will be removed from service configuration. Existing ticket history is preserved."
+              onConfirm={() => act.mutate(() => api.deleteCounter(c.id))}
+              disabled={act.isPending}
+            >
+              <Button variant="ghost" disabled={act.isPending}>
+                Delete
+              </Button>
+            </ConfirmAction>
           </div>
           <div className="flex flex-wrap gap-2">
             {services?.map((s) => (
@@ -295,7 +451,12 @@ function CountersTab() {
 }
 
 function StaffTab() {
-  const { data } = useQuery({ queryKey: ["staff"], queryFn: api.listStaff });
+  const {
+    data,
+    isPending: loading,
+    error,
+    refetch,
+  } = useQuery({ queryKey: ["staff"], queryFn: api.listStaff });
   const act = useAct();
   const [f, setF] = useState({ name: "", username: "", password: "", role: "staff" as Role });
   return (
@@ -311,12 +472,14 @@ function StaffTab() {
       >
         <Input
           required
+          aria-label="Full name"
           placeholder="Full name"
           value={f.name}
           onChange={(e) => setF({ ...f, name: e.target.value })}
         />
         <Input
           required
+          aria-label="Username"
           placeholder="Username"
           value={f.username}
           onChange={(e) => setF({ ...f, username: e.target.value })}
@@ -324,11 +487,13 @@ function StaffTab() {
         <Input
           required
           type="password"
+          aria-label="Password"
           placeholder="Password"
           value={f.password}
           onChange={(e) => setF({ ...f, password: e.target.value })}
         />
         <select
+          aria-label="Staff role"
           className="h-9 rounded-md border bg-background px-2 text-sm"
           value={f.role}
           onChange={(e) => setF({ ...f, role: e.target.value as Role })}
@@ -336,8 +501,10 @@ function StaffTab() {
           <option value="staff">Staff</option>
           <option value="admin">Admin</option>
         </select>
-        <Button>Add staff</Button>
+        <Button disabled={act.isPending}>Add staff</Button>
       </form>
+      {loading && <LoadingCards />}
+      {error && <LoadError message="Couldn’t load staff settings." retry={() => void refetch()} />}
       <div className={card}>
         <ul className="divide-y">
           {data?.map((u) => (

@@ -13,10 +13,13 @@ from .auth import hash_password, token_hash, verify_password
 from .database import Database, configured_database_url
 from .models import (
     Counter, CounterCreate, HourlyStats, JoinQueueRequest, LoginRequest, LoginResponse,
-    QueueView, Service, ServiceCreate, ServiceStats, StaffCreate, StaffUser, Stats,
+    Organization, PublicService, QueueView, Service, ServiceCreate, ServiceStats, StaffCreate, StaffUser, Stats,
     Ticket, TicketView,
 )
-from .orm import ActiveTicketRow, CounterRow, CounterServiceRow, ServiceRow, SessionRow, StoreState, TicketRow, UserRow
+from .orm import (ActiveTicketRow, CounterRow, CounterServiceRow, OrganizationRow,
+                  ServiceRow, SessionRow, StaffAssignmentRow, StoreState, TicketRow, UserRow)
+
+DEFAULT_ORGANIZATION_ID = "org-demo"
 
 
 def utc_now() -> datetime:
@@ -67,26 +70,33 @@ class DatabaseStore:
                     raise
 
     def _seed(self, session, seed_tickets: bool):
+        if session.get(OrganizationRow, DEFAULT_ORGANIZATION_ID) is None:
+            session.add(OrganizationRow(id=DEFAULT_ORGANIZATION_ID, name="Kezek Demo", slug="kezek-demo",
+                                        description="Demo queue organization", timezone="Asia/Almaty"))
+            session.flush()
         for user_id, name, username, role, password in [
             ("stf-admin", "Admin", "admin", "admin", "admin123"),
             ("stf-aigerim", "Aigerim S.", "aigerim", "staff", "staff123"),
         ]:
-            session.add(UserRow(id=user_id, name=name, username=username, role=role, password_hash=hash_password(password)))
+            session.add(UserRow(id=user_id, organization_id=DEFAULT_ORGANIZATION_ID, name=name,
+                                username=username, email=f"{username}@example.invalid", role=role,
+                                password_hash=hash_password(password), is_active=True))
         session.flush()
         for item in [
-            ServiceRow(id="svc-reg", name="Registrar Office", description="Documents, transcripts, enrollment", prefix="A", isOpen=True, avgServiceMinutes=6),
-            ServiceRow(id="svc-fin", name="Finance & Payments", description="Tuition, scholarships, refunds", prefix="B", isOpen=True, avgServiceMinutes=8),
-            ServiceRow(id="svc-it", name="IT Help Desk", description="Accounts, Wi-Fi, devices", prefix="C", isOpen=False, avgServiceMinutes=10),
+            ServiceRow(id="svc-reg", organization_id=DEFAULT_ORGANIZATION_ID, name="Registrar Office", description="Documents, transcripts, enrollment", prefix="A", isOpen=True, avgServiceMinutes=6, durationMinutes=6, isActive=True),
+            ServiceRow(id="svc-fin", organization_id=DEFAULT_ORGANIZATION_ID, name="Finance & Payments", description="Tuition, scholarships, refunds", prefix="B", isOpen=True, avgServiceMinutes=8, durationMinutes=8, isActive=True),
+            ServiceRow(id="svc-it", organization_id=DEFAULT_ORGANIZATION_ID, name="IT Help Desk", description="Accounts, Wi-Fi, devices", prefix="C", isOpen=False, avgServiceMinutes=10, durationMinutes=10, isActive=False),
         ]:
             session.add(item)
         session.flush()
         session.add_all([
-            CounterRow(id="cnt-1", name="Counter 1", isActive=True, staffId="stf-aigerim"),
-            CounterRow(id="cnt-2", name="Counter 2", isActive=True, staffId=None),
+            CounterRow(id="cnt-1", organization_id=DEFAULT_ORGANIZATION_ID, name="Counter 1", isActive=True, staffId="stf-aigerim"),
+            CounterRow(id="cnt-2", organization_id=DEFAULT_ORGANIZATION_ID, name="Counter 2", isActive=True, staffId=None),
         ])
         session.flush()
-        session.add_all([CounterServiceRow(counter_id=c, service_id=s) for c, s in [
+        session.add_all([CounterServiceRow(organization_id=DEFAULT_ORGANIZATION_ID, counter_id=c, service_id=s) for c, s in [
             ("cnt-1", "svc-reg"), ("cnt-2", "svc-reg"), ("cnt-2", "svc-fin")]])
+        session.add(StaffAssignmentRow(organization_id=DEFAULT_ORGANIZATION_ID, user_id="stf-aigerim", counter_id="cnt-1"))
         if seed_tickets:
             now = self.clock()
             for service_id, name, age, status in [
@@ -137,7 +147,7 @@ class DatabaseStore:
         with self.db.session(write=True) as session:
             row = session.scalar(select(UserRow).where(UserRow.username == request.username))
             valid = verify_password(request.password, row.password_hash if row else _DUMMY_PASSWORD_HASH)
-            if row is None or not valid:
+            if row is None or not row.is_active or not valid:
                 raise HTTPException(401, "Invalid username or password", headers={"WWW-Authenticate": "Bearer"})
             token = secrets.token_urlsafe(32)
             session.add(SessionRow(token_hash=token_hash(token), user_id=row.id,
@@ -155,6 +165,27 @@ class DatabaseStore:
             user = session.get(UserRow, row.user_id)
             return self._user(user) if user else None
 
+    def list_organizations(self) -> list[Organization]:
+        # Public aggregates deliberately contain no ticket IDs or visitor data.
+        with self.db.session() as session:
+            result = []
+            for org in session.scalars(select(OrganizationRow).order_by(OrganizationRow.name)):
+                services = []
+                for row in session.scalars(select(ServiceRow).where(
+                    ServiceRow.organization_id == org.id, ServiceRow.deleted.is_(False))):
+                    count = session.scalar(select(func.count()).select_from(TicketRow).where(
+                        TicketRow.serviceId == row.id, TicketRow.status == "waiting"))
+                    capacity = session.scalar(select(func.count()).select_from(CounterRow).join(
+                        CounterServiceRow, CounterServiceRow.counter_id == CounterRow.id).where(
+                        CounterServiceRow.service_id == row.id, CounterRow.deleted.is_(False),
+                        CounterRow.isActive.is_(True)))
+                    services.append(PublicService(**self._service(row).model_dump(), waitingCount=count,
+                        estimatedWaitMinutes=math.ceil(count * row.avgServiceMinutes / capacity) if capacity and row.isOpen else None,
+                        operatingHours=f"{row.opensAt:%H:%M}–{row.closesAt:%H:%M}" if row.opensAt and row.closesAt else None))
+                result.append(Organization(id=org.id, name=org.name, description=org.description,
+                    category=org.category, location=org.location, timezone=org.timezone, services=services))
+            return result
+
     def list_services(self) -> list[Service]:
         with self.db.session() as session:
             return [self._service(row) for row in session.scalars(
@@ -165,8 +196,10 @@ class DatabaseStore:
             rows = session.scalars(
                 select(CounterRow).where(CounterRow.deleted.is_(False)).order_by(CounterRow.id)
             )
+            actor_row = session.get(UserRow, actor.id) if actor is not None else None
             return [self._counter(session, row) for row in rows
-                    if actor is None or actor.role == "admin" or row.staffId is None or row.staffId == actor.id]
+                    if actor is None or (actor_row is not None and row.organization_id == actor_row.organization_id
+                    and (actor.role == "admin" or row.staffId is None or row.staffId == actor.id))]
 
     def list_staff(self) -> list[StaffUser]:
         with self.db.session() as session:
@@ -226,14 +259,16 @@ class DatabaseStore:
             return self._view(session, ticket)
 
     @staticmethod
-    def _authorize_counter(counter: CounterRow, actor: StaffUser | None) -> None:
+    def _authorize_counter(counter: CounterRow, actor: StaffUser | None, actor_row: UserRow | None = None) -> None:
+        if actor is not None and actor_row is not None and actor_row.organization_id != counter.organization_id:
+            raise HTTPException(403, "Counter belongs to another organization")
         if actor is not None and actor.role != "admin" and counter.staffId not in (None, actor.id):
             raise HTTPException(403, "Counter is not assigned to this staff member")
 
     def queue(self, counter_id: str, actor: StaffUser | None = None) -> QueueView:
         with self.db.session() as session:
             counter = self._get(session, CounterRow, counter_id, "Counter")
-            self._authorize_counter(counter, actor)
+            self._authorize_counter(counter, actor, session.get(UserRow, actor.id) if actor else None)
             claim = session.get(ActiveTicketRow, counter_id)
             current = self._ticket_row(session, claim.ticket_id) if claim else None
             ids = list(session.scalars(select(CounterServiceRow.service_id).where(CounterServiceRow.counter_id == counter.id)))
@@ -243,7 +278,7 @@ class DatabaseStore:
     def call_next(self, counter_id: str, actor: StaffUser | None = None) -> TicketView | None:
         with self.db.session(write=True) as session:
             counter = self._get(session, CounterRow, counter_id, "Counter")
-            self._authorize_counter(counter, actor)
+            self._authorize_counter(counter, actor, session.get(UserRow, actor.id) if actor else None)
             if not counter.isActive:
                 raise HTTPException(409, "Counter is inactive")
             if session.get(ActiveTicketRow, counter_id) is not None:
@@ -266,7 +301,7 @@ class DatabaseStore:
             ticket = self._ticket_row(session, ticket_id)
             if actor is not None and actor.role != "admin" and ticket.counterId is not None:
                 counter = self._get(session, CounterRow, ticket.counterId, "Counter")
-                self._authorize_counter(counter, actor)
+                self._authorize_counter(counter, actor, session.get(UserRow, actor.id))
             allowed, target, timestamp = rules[action]
             if ticket.status not in allowed:
                 raise HTTPException(409, f"Ticket is {ticket.status}")
@@ -279,7 +314,9 @@ class DatabaseStore:
 
     def create_service(self, request: ServiceCreate) -> Service:
         with self.db.session(write=True) as session:
-            row = ServiceRow(id=new_id(), **request.model_dump())
+            data = request.model_dump()
+            row = ServiceRow(id=new_id(), organization_id=DEFAULT_ORGANIZATION_ID,
+                             durationMinutes=data["avgServiceMinutes"], isActive=True, **data)
             session.add(row)
             session.flush()
             return self._service(row)
@@ -290,6 +327,8 @@ class DatabaseStore:
             updated = Service(**(self._service(row).model_dump() | patch))
             for key in patch:
                 setattr(row, key, getattr(updated, key))
+            if "avgServiceMinutes" in patch:
+                row.durationMinutes = updated.avgServiceMinutes
             return updated
 
     def delete_service(self, service_id: str) -> None:
@@ -300,37 +339,48 @@ class DatabaseStore:
                 session.execute(delete(CounterServiceRow).where(CounterServiceRow.service_id == service_id))
 
     @staticmethod
-    def _validate_counter_links(session, counter: CounterCreate):
+    def _validate_counter_links(session, counter: CounterCreate, organization_id: str = DEFAULT_ORGANIZATION_ID):
         for key in counter.serviceIds:
             row = session.get(ServiceRow, key)
-            if row is None or row.deleted:
+            if row is None or row.deleted or row.organization_id != organization_id:
                 raise HTTPException(422, "Unknown service in serviceIds")
-        if counter.staffId is not None and session.get(UserRow, counter.staffId) is None:
+        staff = session.get(UserRow, counter.staffId) if counter.staffId is not None else None
+        if counter.staffId is not None and (staff is None or staff.organization_id != organization_id):
             raise HTTPException(422, "Unknown staffId")
 
     @staticmethod
     def _replace_links(session, counter_id, service_ids):
+        counter = session.get(CounterRow, counter_id)
         session.execute(delete(CounterServiceRow).where(CounterServiceRow.counter_id == counter_id))
-        session.add_all([CounterServiceRow(counter_id=counter_id, service_id=key) for key in dict.fromkeys(service_ids)])
+        session.add_all([CounterServiceRow(organization_id=counter.organization_id, counter_id=counter_id, service_id=key) for key in dict.fromkeys(service_ids)])
         session.flush()
 
     def create_counter(self, request: CounterCreate) -> Counter:
         with self.db.session(write=True) as session:
             self._validate_counter_links(session, request)
-            row = CounterRow(id=new_id(), **request.model_dump(exclude={"serviceIds"}))
+            row = CounterRow(id=new_id(), organization_id=DEFAULT_ORGANIZATION_ID,
+                             **request.model_dump(exclude={"serviceIds"}))
             session.add(row)
             session.flush()
             self._replace_links(session, row.id, request.serviceIds)
+            if row.staffId:
+                session.add(StaffAssignmentRow(organization_id=row.organization_id,
+                                               user_id=row.staffId, counter_id=row.id))
             return self._counter(session, row)
 
     def update_counter(self, counter_id: str, patch: dict) -> Counter:
         with self.db.session(write=True) as session:
             row = self._get(session, CounterRow, counter_id, "Counter")
             updated = Counter(**(self._counter(session, row).model_dump() | patch))
-            self._validate_counter_links(session, updated)
+            self._validate_counter_links(session, updated, row.organization_id)
             for key in patch:
                 if key != "serviceIds":
                     setattr(row, key, getattr(updated, key))
+                    if key == "staffId":
+                        session.execute(delete(StaffAssignmentRow).where(StaffAssignmentRow.counter_id == counter_id))
+                        if updated.staffId:
+                            session.add(StaffAssignmentRow(organization_id=row.organization_id,
+                                                           user_id=updated.staffId, counter_id=counter_id))
             if "serviceIds" in patch:
                 self._replace_links(session, counter_id, updated.serviceIds)
             session.flush()
@@ -349,7 +399,10 @@ class DatabaseStore:
             with self.db.session(write=True) as session:
                 if session.scalar(select(UserRow.id).where(UserRow.username == request.username)):
                     raise HTTPException(409, "Username already taken")
-                row = UserRow(id=new_id(), password_hash=encoded, **request.model_dump(exclude={"password"}))
+                data = request.model_dump(exclude={"password"})
+                row = UserRow(id=new_id(), organization_id=DEFAULT_ORGANIZATION_ID,
+                              email=f"{data['username']}@example.invalid", is_active=True,
+                              password_hash=encoded, **data)
                 session.add(row)
                 session.flush()
                 return self._user(row)

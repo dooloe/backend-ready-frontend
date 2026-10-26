@@ -137,3 +137,19 @@ class Stats(Model):
     avgWaitMinutes: float | None
     byService: list[ServiceStats]
     byHour: list[HourlyStats]
+
+
+class PublicService(Service):
+    waitingCount: int
+    estimatedWaitMinutes: int | None
+    operatingHours: str | None
+
+
+class Organization(Model):
+    id: str
+    name: str
+    description: str
+    category: str
+    location: str | None
+    timezone: str
+    services: list[PublicService]

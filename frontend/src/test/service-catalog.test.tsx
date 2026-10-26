@@ -10,8 +10,8 @@ describe("customer service catalog", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("shows a recoverable error and loads services after retry", async () => {
-    const listServices = vi
-      .spyOn(api, "listServices")
+    const listOrganizations = vi
+      .spyOn(api, "listOrganizations")
       .mockRejectedValueOnce(new Error("API unavailable"))
       .mockResolvedValueOnce([]);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -21,10 +21,12 @@ describe("customer service catalog", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load services");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't reach the organization service",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    await waitFor(() => expect(listServices).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText("No services are available right now.")).toBeInTheDocument();
+    await waitFor(() => expect(listOrganizations).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("No organizations available yet")).toBeInTheDocument();
   });
 });

@@ -63,6 +63,8 @@ def test_every_operation_and_response_matches_contract(client, contract):
         return response.json() if expected != "204" else None
 
     check("GET", "/api/services", "/api/services")
+    check("GET", "/api/organizations", "/api/organizations")
+    check("GET", "/api/organizations/org-demo", "/api/organizations/{id}")
     ticket = check("POST", "/api/tickets", "/api/tickets", json={"serviceId": "svc-reg", "customerName": "Customer"})
     check("GET", f"/api/tickets/{ticket['id']}", "/api/tickets/{id}")
     cancelled = join(client)

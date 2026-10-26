@@ -9,9 +9,25 @@ def test_default_entry_point_serves_seeded_frontend_data(monkeypatch, tmp_path):
     monkeypatch.setenv("SEED_DEMO_DATA", "true")
     with TestClient(app) as client:
         response = client.get("/api/services")
+        directory = client.get("/api/organizations")
+        login = client.post("/api/auth/login", json={
+            "username": "demo-staff-university", "password": "staff123",
+        })
+        assert login.status_code == 200
+        counters = client.get("/api/counters", headers={
+            "Authorization": "Bearer " + login.json()["token"],
+        })
 
     assert response.status_code == 200
-    assert {service["id"] for service in response.json()} == {"svc-reg", "svc-fin", "svc-it"}
+    assert {service["id"] for service in response.json()} == {
+        "svc-reg", "svc-fin", "svc-it", "demo-svc-university", "demo-svc-clinic",
+        "demo-svc-government", "demo-svc-center",
+    }
+    assert {organization["category"] for organization in directory.json()} >= {
+        "Universities", "Clinics", "Government Services", "Service Centers",
+    }
+    assert counters.status_code == 200
+    assert [counter["id"] for counter in counters.json()] == ["demo-counter-university"]
 
 
 @pytest.mark.parametrize("variable,value", [

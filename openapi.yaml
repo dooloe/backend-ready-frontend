@@ -7,7 +7,7 @@ info:
     is an origin/base prefix; mapped paths already include /api. All request/response JSON uses camelCase.
     Protected calls use opaque bearer tokens, not cookies; role requirements come from mock.ts because
     TypeScript alone cannot specify authorization. The mock checks roles but does not establish organization/counter-assignment
-    authorization. No query parameters, pagination, idempotency header, organization routes, logout/current-user
+    authorization. No query parameters, pagination, idempotency header, logout/current-user
     endpoint or separate assignment endpoint is sent by this client. Successful JSON responses are documented
     as 200; the adapter accepts any 2xx with the stated body, so 201 is compatible for creation. Empty
     DELETE success must be 204. Errors use the structured ApiError envelope with the legacy detail alias
@@ -637,6 +637,44 @@ paths:
       - BearerAuth: []
       x-required-roles:
       - admin
+  /api/organizations:
+    get:
+      tags:
+      - Customer
+      operationId: listOrganizations
+      security: []
+      summary: Public organization directory with aggregate queue data only
+      responses:
+        '200':
+          description: Organization directory
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+  /api/organizations/{id}:
+    get:
+      tags:
+      - Customer
+      operationId: getOrganization
+      security: []
+      summary: Public organization directory with aggregate queue data only
+      responses:
+        '200':
+          description: Organization directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '404':
+          description: Organization not found
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
 components:
   securitySchemes:
     BearerAuth:
@@ -1211,3 +1249,49 @@ components:
           description: Backwards-compatible alias consumed by the existing http.ts adapter; always equals message.
           example: Ticket not found
       description: Structured public error plus legacy detail alias. Validation field lists contain only allow-listed schema paths. Unexpected errors never expose tracebacks, database/SQL details or request values. Authentication challenge headers remain present for 401.
+    PublicService:
+      allOf:
+      - $ref: '#/components/schemas/Service'
+      - type: object
+        required:
+        - waitingCount
+        - estimatedWaitMinutes
+        - operatingHours
+        properties:
+          waitingCount:
+            type: integer
+            minimum: 0
+          estimatedWaitMinutes:
+            type: integer
+            nullable: true
+          operatingHours:
+            type: string
+            nullable: true
+    Organization:
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - category
+      - location
+      - timezone
+      - services
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        timezone:
+          type: string
+        location:
+          type: string
+          nullable: true
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicService'

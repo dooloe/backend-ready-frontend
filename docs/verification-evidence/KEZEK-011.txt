@@ -1,0 +1,19 @@
+Issue: #11 — Add organization and configuration models
+Date: 2026-10-20
+
+Acceptance criteria
+- AC-1: Organization, user, service, counter, counter-service, and staff-assignment models include planned fields.
+- AC-2: Unique and foreign-key constraints reject invalid and cross-organization relationships.
+- AC-3: Legacy migration and deletion preserve ticket history; same-organization service checks are enforced by composite constraints and store validation.
+
+Verification
+- `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` — exit 0; 126 passed in 63.81s; one existing Starlette/httpx deprecation warning.
+- `backend/.venv/bin/pytest backend/tests/test_database.py::test_pre_migration_file_database_is_stamped_without_losing_data backend/tests/test_database.py::test_fresh_file_database_is_initialized_at_alembic_head -q -p no:cacheprovider` — exit 0; 2 passed.
+- `backend/.venv/bin/pytest backend/tests/test_database.py::test_soft_deleting_configuration_keeps_ticket_history backend/tests/test_database.py::test_organization_configuration_constraints_and_cross_org_links -q -p no:cacheprovider` — exit 0; 2 passed.
+- `DATABASE_URL=sqlite:////tmp/kezek-issue11-final-mig.db backend/.venv/bin/alembic -c backend/alembic.ini current` — reports `d0dce8f73d88 (head)`.
+- `DATABASE_URL=sqlite:////tmp/kezek-issue11-final-mig.db backend/.venv/bin/alembic -c backend/alembic.ini check` — no new upgrade operations detected.
+- `backend/.venv/bin/python -m pip check` — no broken requirements.
+- `backend/.venv/bin/python -m compileall -q backend/app backend/migrations backend/tests` — exit 0.
+- `git diff --check` — exit 0.
+
+Manual browser/E2E cases remain outstanding; they are not claimed as verified by this issue's backend acceptance criteria.

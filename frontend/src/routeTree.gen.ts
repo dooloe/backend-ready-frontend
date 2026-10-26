@@ -13,7 +13,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as StaffRouteImport } from './routes/staff'
+import { Route as TicketsRouteImport } from './routes/tickets'
+import { Route as OrganizationsIdRouteImport } from './routes/organizations.$id'
 import { Route as TicketIdRouteImport } from './routes/ticket.$id'
+import { Route as JoinOrganizationIdServiceIdRouteImport } from './routes/join.$organizationId.$serviceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,25 +38,47 @@ const StaffRoute = StaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TicketsRoute = TicketsRouteImport.update({
+  id: '/tickets',
+  path: '/tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrganizationsIdRoute = OrganizationsIdRouteImport.update({
+  id: '/organizations/$id',
+  path: '/organizations/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TicketIdRoute = TicketIdRouteImport.update({
   id: '/ticket/$id',
   path: '/ticket/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JoinOrganizationIdServiceIdRoute =
+  JoinOrganizationIdServiceIdRouteImport.update({
+    id: '/join/$organizationId/$serviceId',
+    path: '/join/$organizationId/$serviceId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/staff': typeof StaffRoute
+  '/tickets': typeof TicketsRoute
+  '/organizations/$id': typeof OrganizationsIdRoute
   '/ticket/$id': typeof TicketIdRoute
+  '/join/$organizationId/$serviceId': typeof JoinOrganizationIdServiceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/staff': typeof StaffRoute
+  '/tickets': typeof TicketsRoute
+  '/organizations/$id': typeof OrganizationsIdRoute
   '/ticket/$id': typeof TicketIdRoute
+  '/join/$organizationId/$serviceId': typeof JoinOrganizationIdServiceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -61,14 +86,42 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/staff': typeof StaffRoute
+  '/tickets': typeof TicketsRoute
+  '/organizations/$id': typeof OrganizationsIdRoute
   '/ticket/$id': typeof TicketIdRoute
+  '/join/$organizationId/$serviceId': typeof JoinOrganizationIdServiceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/login' | '/staff' | '/ticket/$id'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/staff'
+    | '/tickets'
+    | '/organizations/$id'
+    | '/ticket/$id'
+    | '/join/$organizationId/$serviceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/login' | '/staff' | '/ticket/$id'
-  id: '__root__' | '/' | '/admin' | '/login' | '/staff' | '/ticket/$id'
+  to:
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/staff'
+    | '/tickets'
+    | '/organizations/$id'
+    | '/ticket/$id'
+    | '/join/$organizationId/$serviceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/staff'
+    | '/tickets'
+    | '/organizations/$id'
+    | '/ticket/$id'
+    | '/join/$organizationId/$serviceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,7 +129,10 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   LoginRoute: typeof LoginRoute
   StaffRoute: typeof StaffRoute
+  TicketsRoute: typeof TicketsRoute
+  OrganizationsIdRoute: typeof OrganizationsIdRoute
   TicketIdRoute: typeof TicketIdRoute
+  JoinOrganizationIdServiceIdRoute: typeof JoinOrganizationIdServiceIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -109,11 +165,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tickets': {
+      id: '/tickets'
+      path: '/tickets'
+      fullPath: '/tickets'
+      preLoaderRoute: typeof TicketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/organizations/$id': {
+      id: '/organizations/$id'
+      path: '/organizations/$id'
+      fullPath: '/organizations/$id'
+      preLoaderRoute: typeof OrganizationsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ticket/$id': {
       id: '/ticket/$id'
       path: '/ticket/$id'
       fullPath: '/ticket/$id'
       preLoaderRoute: typeof TicketIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join/$organizationId/$serviceId': {
+      id: '/join/$organizationId/$serviceId'
+      path: '/join/$organizationId/$serviceId'
+      fullPath: '/join/$organizationId/$serviceId'
+      preLoaderRoute: typeof JoinOrganizationIdServiceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -124,7 +201,10 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   LoginRoute: LoginRoute,
   StaffRoute: StaffRoute,
+  TicketsRoute: TicketsRoute,
+  OrganizationsIdRoute: OrganizationsIdRoute,
   TicketIdRoute: TicketIdRoute,
+  JoinOrganizationIdServiceIdRoute: JoinOrganizationIdServiceIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

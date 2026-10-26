@@ -126,16 +126,24 @@ At narrow mobile width and desktop width, complete customer join/cancel and staf
 
 Follow the documented clean-checkout setup with supported Node.js and Python versions, configure a fresh database URL, install dependencies, start both services, open the UI and API docs, and run all checks. Expect setup to complete without undocumented manual edits and the frontend to use the configured local API.
 
+### QA-015 — Organization ownership migration preserves existing configuration and history
+
+**Preconditions:** An isolated database at the previous Alembic revision with users, services, counters, assignments, and tickets.
+
+**Steps:** Upgrade to the current Alembic head; inspect the backfilled organization IDs, synthetic legacy email, active flags, duration values, counter-service links, staff assignments, and historical tickets. Attempt duplicate organization slugs/emails and cross-organization counter-service/staff-assignment links.
+
+**Expected:** Existing records and password hashes remain intact and belong to the seeded demo organization; planned configuration fields receive compatible values; ticket history remains linked; unique and foreign-key constraints reject invalid records. Service and counter soft deletion leaves ticket history intact.
+
 ## Current verification record
 
 | Check | Result | Evidence |
 | --- | --- | --- |
 | Frontend unit tests | Pass | `npm --prefix frontend test` — 15 tests passed across 5 files, including catalog recovery, polling policy, and service form preservation. |
 | Frontend production build | Pass | `npm --prefix frontend run build` — client, SSR, and Nitro builds completed. Existing Vite config emitted advisory warnings about `vite-tsconfig-paths` and `inlineDynamicImports`. |
-| Backend suite | Pass | `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` — 124 passed in 70.20s. One Starlette/httpx deprecation warning. |
+| Backend suite | Pass | `backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` — 126 passed; one Starlette/httpx deprecation warning. |
 | Typecheck | Pass | `npm --prefix frontend run typecheck` — passed with the new regression tests included. |
 | Lint | Pass with warnings | `npm --prefix frontend run lint` — exit 0, 7 warnings (6 UI fast-refresh warnings and one staff hook dependency warning). |
-| Manual browser/E2E cases | Not run | Cases QA-001 through QA-014 require interactive browser and/or an integrated live application. |
+| Manual browser/E2E cases | Not run | Cases QA-001 through QA-015 require interactive browser and/or an integrated live application. |
 
 ## Defects found and current disposition
 

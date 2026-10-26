@@ -7,18 +7,27 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
     const res = await fetch(baseUrl + path, {
       method,
       headers: {
-        "Content-Type": "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: body === undefined ? null : JSON.stringify(body),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new ApiError(res.status, data.detail ?? res.statusText);
+      throw new ApiError(
+        res.status,
+        typeof data.message === "string"
+          ? data.message
+          : typeof data.detail === "string"
+            ? data.detail
+            : "Please check your input and try again.",
+      );
     }
     return res.status === 204 ? (undefined as T) : res.json();
   }
   return {
+    listOrganizations: () => req("GET", "/api/organizations"),
+    getOrganization: (id) => req("GET", `/api/organizations/${encodeURIComponent(id)}`),
     listServices: () => req("GET", "/api/services"),
     joinQueue: (i) => req("POST", "/api/tickets", i),
     getTicket: (id) => req("GET", `/api/tickets/${id}`),

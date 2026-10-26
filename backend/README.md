@@ -48,13 +48,25 @@ in tracked files. Local SQLite databases and journal files are ignored by Git.
 
 Alembic migrations run automatically against the configured database during
 backend startup. `backend/alembic.ini` and `backend/migrations/` hold the
-migration history; a fresh database receives the baseline schema and an
-`alembic_version` row. A complete database created by the pre-Alembic app is
-stamped at the baseline without rewriting its data. A partial unversioned schema
-is rejected so startup cannot silently overwrite it. SQLite connections enable
+migration history; a fresh database receives the baseline and current schema
+revisions and an `alembic_version` row. A complete database created by the
+pre-Alembic app is stamped at the baseline without rewriting its data. A partial
+unversioned schema is rejected so startup cannot silently overwrite it. SQLite connections enable
 foreign keys, WAL and the bounded busy timeout before migrations or requests.
-The baseline downgrade intentionally retains tables/data; later schema revisions
-should provide explicit reversible operations where rollback is safe.
+The baseline and organization ownership downgrades intentionally retain schema
+and data because removing ownership fields would erase data semantics.
+
+The configuration model includes organizations, organization-owned users,
+services and counters, counter-service links, and staff assignments. Existing
+records migrate into the seeded `org-demo`; legacy users receive synthetic
+`@legacy.invalid` addresses. Composite foreign keys prevent links across
+organizations, and soft deletion preserves ticket history. In development,
+startup also adds four sample Demo organizations with services, assigned staff,
+and counters to new or existing databases, and ensures the shared demo admin is
+available. Sign in as `admin` / `admin123` to open the admin page's Organizations
+tab and view all directory entries with their public queue summaries. See
+`docs/redesign.md` for staff demo credentials. `SEED_DEMO_DATA=false` disables
+sample seeding; production mode rejects sample seeding.
 
 To inspect or run migrations manually, use the same `DATABASE_URL` as the
 application:
@@ -66,10 +78,9 @@ DATABASE_URL=sqlite:///backend/data/kezek.db backend/.venv/bin/alembic -c backen
 
 An in-memory server's transient data is not imported into a new database.
 
-Demo data is inserted only during the database's first initialization. Later
-startups preserve user edits, deleted services/counters, tickets, password hashes
-and unexpired sessions. `SEED_DEMO_DATA=false` skips demo provisioning for a fresh,
-externally provisioned database; changing it later does not reseed or reset data.
+Base demo data is inserted during first initialization. The four directory
+organizations are then added idempotently at startup when demo seeding is enabled,
+including on existing databases. This never resets existing records.
 
 The ORM models, normalized relationships, UTC timestamp type and store queries
 use portable SQLAlchemy constructs. Driver configuration and SQLite-specific
@@ -101,7 +112,7 @@ the frontend already adds that prefix. Restart Vite if its environment changes.
 
 | Role | Username | Password |
 | --- | --- | --- |
-| Admin | `admin` | `admin123` |
+| Platform admin (all organizations directory) | `admin` | `admin123` |
 | Staff | `aigerim` | `staff123` |
 
 These are development-only credentials. The seed includes three services (one

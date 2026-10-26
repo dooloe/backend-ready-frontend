@@ -66,7 +66,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #8 | Closed | Eight page/state contracts and shared failure/loading behaviors are documented and checked. |
 | #9 | Closed | Validated startup settings, safe structured errors, OpenAPI error responses and regression evidence are committed. |
 | #10 | Closed | Alembic runs automatically at startup; fresh, legacy and partial-schema behavior plus SQLite connection/transaction rules are tested. |
-| #11 | Open | Configuration ORM and constraints exist; organization fields, organization ownership and assignment models are absent. |
+| #11 | Verified | Organization-owned models, same-organization links, legacy data backfill, and history-preserving deletion are covered by migration and database tests. |
 | #12 | Open | Tickets, hashed bearer sessions and active-counter constraints exist; daily queues, events and private-token/idempotency constraints are absent. |
 | #13 | Open | Persistent seed runs once; planned organization/timezone fixture and Argon2id criterion are unmet (current passwords use scrypt). |
 | #14 | Open | Hashed expiring bearer sessions and login pass; inactive-user/current-identity/cookie criteria are unmet. |

@@ -22,6 +22,32 @@ describe("Kezek mock API", () => {
     expect([a.code, b.code].sort()).toEqual(["A-001", "A-002"]);
   });
 
+  it("lists the four demo organizations and serves their queues through demo staff login", async () => {
+    const organizations = await mockApi.listOrganizations();
+    expect(organizations.map((organization) => organization.category).sort()).toEqual([
+      "Clinics",
+      "Government Services",
+      "Service Centers",
+      "Universities",
+    ]);
+    const university = await mockApi.getOrganization("mock-university");
+    const service = university.services[0]!;
+    expect(university.name).toContain("Demo");
+
+    const ticket = await mockApi.joinQueue({
+      serviceId: service.id,
+      customerName: "Visitor",
+    });
+    token = (await mockApi.login("demo-staff-university", "staff123")).token;
+    const counter = (await mockApi.listCounters()).find(
+      (item) => item.staffId === "demo-staff-university",
+    );
+    expect(counter).toBeDefined();
+    expect((await mockApi.callNext(counter!.id))?.id).toBe(ticket.id);
+    expect((await mockApi.startService(ticket.id)).status).toBe("serving");
+    expect((await mockApi.completeTicket(ticket.id)).status).toBe("completed");
+  });
+
   it("calls the oldest waiting ticket and never twice", async () => {
     const first = await mockApi.joinQueue({ serviceId: "svc-reg", customerName: "A" });
     await new Promise((r) => setTimeout(r, 5));

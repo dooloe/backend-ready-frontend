@@ -81,6 +81,8 @@ export class ApiError extends Error {
 }
 
 export interface KezekApi {
+  listOrganizations(): Promise<Organization[]>;
+  getOrganization(id: string): Promise<Organization>;
   // Public (customer)
   listServices(): Promise<Service[]>;
   joinQueue(input: { serviceId: string; customerName: string }): Promise<TicketView>;
@@ -105,4 +107,25 @@ export interface KezekApi {
   listStaff(): Promise<StaffUser[]>;
   createStaff(input: Omit<StaffUser, "id"> & { password: string }): Promise<StaffUser>;
   getStats(): Promise<Stats>;
+}
+
+export const categories = [
+  "Universities",
+  "Clinics",
+  "Government Services",
+  "Service Centers",
+] as const;
+export interface PublicService extends Service {
+  waitingCount: number;
+  estimatedWaitMinutes: number | null;
+  operatingHours: string | null;
+}
+export interface Organization {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  location: string | null;
+  timezone: string;
+  services: PublicService[];
 }

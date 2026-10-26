@@ -5,6 +5,8 @@ import os
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_mock_engine, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 
@@ -12,7 +14,8 @@ from app.auth import token_hash
 from app.database import Database
 from app.main import create_app
 from app.models import JoinQueueRequest, LoginRequest
-from app.orm import ActiveTicketRow, Base, CounterServiceRow, ServiceRow, SessionRow, StoreState, TicketRow, UserRow
+from app.orm import (ActiveTicketRow, Base, CounterRow, CounterServiceRow, OrganizationRow,
+                     ServiceRow, SessionRow, StaffAssignmentRow, StoreState, TicketRow, UserRow)
 from app.store import DatabaseStore
 
 
@@ -130,27 +133,57 @@ def test_fresh_file_database_is_initialized_at_alembic_head(tmp_path):
         names = set(inspect(connection).get_table_names())
         version = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
     assert names == set(Base.metadata.tables) | {"alembic_version"}
-    assert version == "af7168bb27f8"
+    assert version == "e48f901cd256"
+    assert {"organizations", "staff_assignments"}.issubset(names)
     store.close()
 
 
 def test_pre_migration_file_database_is_stamped_without_losing_data(tmp_path):
     url = f"sqlite:///{tmp_path / 'legacy.db'}"
     legacy = Database(url)
-    Base.metadata.create_all(legacy.engine)
+    config = Config("backend/alembic.ini")
+    with legacy.engine.connect().execution_options(kezek_write=True) as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "af7168bb27f8")
     with legacy.session(write=True) as session:
         session.add(StoreState(id=1, initialized=True))
-        session.add(ServiceRow(
-            id="legacy", name="Preserved", description="Existing data", prefix="L",
-            isOpen=True, avgServiceMinutes=4, next_sequence=7, deleted=False,
-        ))
+        session.flush()
+        session.connection().exec_driver_sql(
+            "INSERT INTO services (id,name,description,prefix,is_open,avg_service_minutes,next_sequence,deleted) "
+            "VALUES ('legacy','Preserved','Existing data','L',1,4,7,0)"
+        )
+        session.connection().exec_driver_sql(
+            "INSERT INTO users (id,name,username,role,password_hash) "
+            "VALUES ('legacy-user','Legacy Staff','legacy','staff','existing-hash')"
+        )
+        session.connection().exec_driver_sql(
+            "INSERT INTO counters (id,name,is_active,staff_id,deleted) "
+            "VALUES ('legacy-counter','Legacy Counter',1,'legacy-user',0)"
+        )
+        session.connection().exec_driver_sql(
+            "INSERT INTO counter_services (counter_id,service_id) VALUES ('legacy-counter','legacy')"
+        )
+        session.connection().exec_driver_sql(
+            "INSERT INTO tickets (id,service_id,sequence,code,customer_name,status,created_at,counter_id) "
+            "VALUES ('legacy-ticket','legacy',1,'L-001','Historic','completed','2026-10-20 10:00:00','legacy-counter')"
+        )
     legacy.close()
 
     migrated = DatabaseStore(url)
     assert [service.id for service in migrated.list_services()] == ["legacy"]
     assert migrated.join(JoinQueueRequest(serviceId="legacy", customerName="Next")).code == "L-008"
+    with migrated.db.session() as session:
+        user = session.get(UserRow, "legacy-user")
+        counter = session.get(CounterRow, "legacy-counter")
+        ticket = session.scalar(select(TicketRow).where(TicketRow.id == "legacy-ticket"))
+        assert user.organization_id == "org-demo" and user.email == "legacy@legacy.invalid"
+        assert user.password_hash == "existing-hash" and user.is_active is True
+        assert counter.organization_id == "org-demo"
+        assert session.get(StaffAssignmentRow, ("legacy-user", "legacy-counter")) is not None
+        assert session.get(CounterServiceRow, ("legacy-counter", "legacy")) is not None
+        assert ticket.serviceId == "legacy" and ticket.counterId == "legacy-counter"
     with migrated.db.engine.connect() as connection:
-        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "af7168bb27f8"
+        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "e48f901cd256"
     migrated.close()
 
 
@@ -262,10 +295,10 @@ def test_transaction_rollback_restores_data_and_sequence(store):
 def test_database_foreign_keys_and_unique_constraints_are_enforced(store):
     with pytest.raises(IntegrityError):
         with store.db.session(write=True) as session:
-            session.add(UserRow(id="duplicate", name="Duplicate", username="admin", role="admin", password_hash="hash"))
+            session.add(UserRow(id="duplicate", organization_id="org-demo", name="Duplicate", username="admin", email="duplicate@example.invalid", role="admin", password_hash="hash", is_active=True))
     with pytest.raises(IntegrityError):
         with store.db.session(write=True) as session:
-            session.add(CounterServiceRow(counter_id="cnt-1", service_id="missing"))
+            session.add(CounterServiceRow(organization_id="org-demo", counter_id="cnt-1", service_id="missing"))
     first = store.join(JoinQueueRequest(serviceId="svc-reg", customerName="One"))
     second = store.join(JoinQueueRequest(serviceId="svc-reg", customerName="Two"))
     with pytest.raises(IntegrityError):
@@ -280,6 +313,53 @@ def test_database_foreign_keys_and_unique_constraints_are_enforced(store):
         with store.db.session(write=True) as session:
             session.add(ActiveTicketRow(counter_id="cnt-2", ticket_id=first.id))
     assert store.queue("cnt-1").current.id == first.id
+
+
+def test_organization_configuration_constraints_and_cross_org_links(store):
+    with store.db.session(write=True) as session:
+        session.add(OrganizationRow(id="org-other", name="Other", slug="other", description="", timezone="UTC"))
+        session.flush()
+        session.add(UserRow(id="other-user", organization_id="org-other", name="Other", username="other",
+                            email="other@example.invalid", role="staff", password_hash="hash", is_active=True))
+        session.add(ServiceRow(id="other-service", organization_id="org-other", name="Other", description="",
+                               prefix="X", isOpen=True, avgServiceMinutes=5, durationMinutes=5,
+                               opensAt=None, closesAt=None, isActive=True))
+        session.flush()
+        session.add(CounterRow(id="other-counter", organization_id="org-other", name="Other",
+                               isActive=True, staffId="other-user"))
+    with pytest.raises(IntegrityError):
+        with store.db.session(write=True) as session:
+            session.add(OrganizationRow(id="duplicate-slug", name="Duplicate", slug="kezek-demo",
+                                        description="", timezone="UTC"))
+    with pytest.raises(IntegrityError):
+        with store.db.session(write=True) as session:
+            session.add(CounterServiceRow(organization_id="org-demo", counter_id="cnt-1",
+                                          service_id="other-service"))
+    with pytest.raises(IntegrityError):
+        with store.db.session(write=True) as session:
+            session.add(StaffAssignmentRow(organization_id="org-demo", user_id="stf-admin",
+                                           counter_id="other-counter"))
+    with pytest.raises(IntegrityError):
+        with store.db.session(write=True) as session:
+            session.add(UserRow(id="duplicate-email", organization_id="org-demo", name="Duplicate",
+                                username="another", email="admin@example.invalid", role="staff",
+                                password_hash="hash", is_active=True))
+
+
+def test_soft_deleting_configuration_keeps_ticket_history(store):
+    ticket = store.join(JoinQueueRequest(serviceId="svc-reg", customerName="Historical"))
+    store.call_next("cnt-1")
+    store.delete_service("svc-reg")
+    with store.db.session() as session:
+        saved_ticket = session.scalar(select(TicketRow).where(TicketRow.id == ticket.id))
+        assert saved_ticket is not None
+        assert saved_ticket.serviceId == "svc-reg"
+        assert saved_ticket.counterId == "cnt-1"
+        assert session.get(ServiceRow, "svc-reg").deleted is True
+    store.delete_counter("cnt-1")
+    with store.db.session() as session:
+        assert session.scalar(select(TicketRow).where(TicketRow.id == ticket.id)).counterId == "cnt-1"
+        assert session.get(CounterRow, "cnt-1").deleted is True
 
 
 def test_timestamp_normalization_and_expired_token_survive_reopen(tmp_path, clock):
