@@ -44,7 +44,7 @@ def test_private_ticket_issue_and_matching_retry_returns_current_ticket(client, 
     assert first.headers["cache-control"] == "no-store"
     result = first.json()
     assert result["ticket"]["queueId"] == queue_id
-    assert result["ticket"]["ticketNumber"] == "A-001"
+    assert result["ticket"]["ticketNumber"] == "A-002"
     assert result["ticketUrl"] == f"/ticket/{proof(2)}"
     assert "customerName" not in result["ticket"]
 
@@ -99,6 +99,10 @@ def test_ticket_issue_rejects_key_conflict_and_token_reuse(client, store):
 
 def test_ticket_issue_closed_queue_and_invalid_proofs_do_not_allocate(client, store):
     queue_id = daily_queue_id(store)
+    with store.db.session() as session:
+        existing_numbered = session.scalar(select(func.count()).select_from(TicketRow).where(
+            TicketRow.dailyQueueId == queue_id, TicketRow.dailyNumber.is_not(None),
+        ))
     with store.db.session(write=True) as session:
         session.get(DailyQueueRow, queue_id).status = "closed"
     closed = anonymous_join(client, queue_id)
@@ -107,7 +111,7 @@ def test_ticket_issue_closed_queue_and_invalid_proofs_do_not_allocate(client, st
     with store.db.session() as session:
         assert session.scalar(select(func.count()).select_from(TicketRow).where(
             TicketRow.dailyQueueId == queue_id, TicketRow.dailyNumber.is_not(None),
-        )) == 0
+        )) == existing_numbered
 
 
 def test_ticket_issue_rolls_back_number_ticket_and_event_on_event_failure(client, store, monkeypatch):
@@ -120,7 +124,7 @@ def test_ticket_issue_rolls_back_number_ticket_and_event_on_event_failure(client
         store.issue_ticket(queue_id, proof(5), proof(6))
     monkeypatch.setattr(store_module, "TicketEventRow", real_event)
     retry = store.issue_ticket(queue_id, proof(5), proof(6))[0]
-    assert retry.ticket.ticketNumber == "A-001"
+    assert retry.ticket.ticketNumber == "A-002"
     with store.db.session() as session:
         assert session.scalar(select(func.count()).select_from(TicketEventRow).where(
             TicketEventRow.ticket_id == retry.ticket.id,
@@ -214,6 +218,7 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
     check("GET", "/api/services", "/api/services")
     check("GET", "/api/organizations", "/api/organizations")
     check("GET", "/api/organizations/org-demo", "/api/organizations/{id}")
+    check("GET", "/api/organizations/org-demo/services", "/api/organizations/{orgId}/services")
     ticket = check("POST", "/api/tickets", "/api/tickets", json={"serviceId": "svc-reg", "customerName": "Customer"})
     check("GET", f"/api/tickets/{ticket['id']}", "/api/tickets/{id}")
     cancelled = join(client)

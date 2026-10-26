@@ -736,6 +736,33 @@ paths:
         required: true
         schema:
           type: string
+  /api/organizations/{orgId}/services:
+    get:
+      tags:
+      - Customer
+      operationId: listOrganizationServices
+      security: []
+      summary: List active services with current daily queue availability
+      description: Returns current local queue IDs and aggregate waiting/counter counts, without ticket identity or private fields.
+      responses:
+        '200':
+          description: Active service catalog for the organization
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
 components:
   securitySchemes:
     BearerAuth:
@@ -1414,6 +1441,7 @@ components:
       required:
       - id
       - name
+      - slug
       - description
       - category
       - location
@@ -1423,6 +1451,8 @@ components:
         id:
           type: string
         name:
+          type: string
+        slug:
           type: string
         description:
           type: string
@@ -1437,3 +1467,57 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PublicService'
+    QueueSummary:
+      type: object
+      required: [id, serviceId, queueDate, isOpen, waiting, activeCounters, estimatedWaitMinutes]
+      properties:
+        id:
+          type: string
+        serviceId:
+          type: string
+        queueDate:
+          type: string
+          format: date
+        isOpen:
+          type: boolean
+        waiting:
+          type: integer
+          minimum: 0
+        activeCounters:
+          type: integer
+          minimum: 0
+        estimatedWaitMinutes:
+          type: integer
+          minimum: 0
+          nullable: true
+    ServiceSummary:
+      type: object
+      required: [id, organizationId, name, description, prefix, durationMinutes, opensAt, closesAt, timezone, queue]
+      properties:
+        id:
+          type: string
+        organizationId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        prefix:
+          type: string
+        durationMinutes:
+          type: number
+          exclusiveMinimum: 0
+        opensAt:
+          type: string
+          nullable: true
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        closesAt:
+          type: string
+          nullable: true
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        timezone:
+          type: string
+        queue:
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/QueueSummary'

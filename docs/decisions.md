@@ -136,8 +136,11 @@ schedule or invalid timezone is a configuration error and fails closed.
 Effective availability requires an active service, its existing `isOpen` setting,
 an in-hours instant and a daily queue whose status is not manually closed. An
 existing closed queue is never implicitly reopened by a schedule check. Public
-directory reads calculate availability without writing. A customer join creates
-the open daily queue on demand in the same SQLite writer-reserved transaction as
-the current join; the database uniqueness constraint is the cross-process
-backstop. Issue #19 will attach the newly issued ticket to this queue as part of
-the full daily issuance transaction.
+legacy aggregate directory reads calculate availability without writing. The
+contract service-catalog endpoint materializes the current daily queue in its
+writer-reserved read transaction so customers receive a usable queue ID before
+joining. The compatible legacy join and the anonymous #19 issuance endpoint
+both attach new tickets to that daily queue and assign its next display number;
+the database uniqueness constraint is the cross-process backstop. Queue status
+remains a manual-closure flag, while schedule availability is calculated per
+request.

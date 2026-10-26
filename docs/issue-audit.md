@@ -442,3 +442,15 @@ including concurrency, replay-after-close and rollback coverage, this verifies
 all #19 acceptance criteria. Issue #19 was closed with criterion-specific
 evidence. GitHub now has **29 closed and 24 open issues**; remaining open issues
 are #14–#15, #18, #20–#32, #34–#36 and #38–#41 and #43.
+
+## Issue #18 public directory implementation — 2026-10-26
+
+Implemented organization slugs and the public per-organization active service
+catalog, including a joinable current daily queue ID, organization-local date,
+authoritative schedule/manual availability, aggregate waiting/counter counts
+and estimates. Current UI directory fields are preserved. Legacy joins now link
+to their daily queue so the new aggregate catalog counts both compatible and
+anonymous-protocol tickets. Unknown organization, empty catalog, closed service,
+cross-organization isolation, and absence of private ticket fields are covered.
+Focused tests passed 18 cases and the complete backend suite passed 156 tests;
+compileall and diff checks passed. Issue #18 remains open pending hosted CI.

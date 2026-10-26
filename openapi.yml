@@ -2067,13 +2067,17 @@ components:
           minimum: 0
         opensAt:
           type: string
+          nullable: true
           pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
         closesAt:
           type: string
+          nullable: true
           pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
         timezone: *id008
         queue:
-          $ref: '#/components/schemas/QueueSummary'
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/QueueSummary'
       required:
       - id
       - organizationId

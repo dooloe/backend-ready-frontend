@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
-from ..models import AnonymousJoinRequest, JoinQueueRequest, JoinResponse, Organization, Service, TicketView
+from ..models import AnonymousJoinRequest, JoinQueueRequest, JoinResponse, Organization, Service, ServiceSummary, TicketView
 from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api", tags=["Customer"])
@@ -51,3 +51,9 @@ def get_organization(id: str, store: Store):
     if org is None:
         raise HTTPException(404, "Organization not found")
     return org
+
+
+@router.get("/organizations/{orgId}/services", response_model=list[ServiceSummary],
+            operation_id="listOrganizationServices")
+def list_organization_services(orgId: str, store: Store):
+    return store.list_organization_services(orgId)

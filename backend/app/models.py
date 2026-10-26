@@ -1,6 +1,6 @@
 """Public wire models use the frontend's exact camelCase field names."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -172,9 +172,33 @@ class PublicService(Service):
     operatingHours: str | None
 
 
+class QueueSummary(Model):
+    id: str
+    serviceId: str
+    queueDate: date
+    isOpen: bool
+    waiting: int
+    activeCounters: int
+    estimatedWaitMinutes: int | None
+
+
+class ServiceSummary(Model):
+    id: str
+    organizationId: str
+    name: str
+    description: str
+    prefix: str
+    durationMinutes: float
+    opensAt: str | None
+    closesAt: str | None
+    timezone: str
+    queue: QueueSummary | None
+
+
 class Organization(Model):
     id: str
     name: str
+    slug: str
     description: str
     category: str
     location: str | None

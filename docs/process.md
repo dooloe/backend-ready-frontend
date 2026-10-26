@@ -870,3 +870,26 @@ passed locked dependency setup, frontend lint/typecheck/tests/build, fresh
 migrations/model-drift, backend compilation/tests, OpenAPI consistency, and
 real-backend desktop/mobile workflows for commit `1f6456b`. Issue #19 was closed
 after this hosted verification.
+
+## 2026-10-26 — Issue #18 public organization and service catalogs
+
+Added the public `GET /api/organizations/{orgId}/services` catalog with active
+service details, current organization-local queue IDs, schedule/manual
+availability, daily waiting counts, active counter counts, and estimates. The
+legacy aggregate directory now includes each organization's slug while keeping
+its existing category/location/service fields for the current UI. The new
+catalog materializes missing daily queue rows in its transaction so their IDs
+can be used by the customer join endpoint. Legacy customer joins now also
+attach to the daily queue and record their daily number/event, keeping aggregate
+counts accurate across both current and anonymous-protocol clients. Unknown
+organizations return 404; empty catalogs return `[]`; inactive services are
+omitted; unavailable active services remain visible with `isOpen: false`.
+
+`backend/.venv/bin/python -m pytest backend/tests/test_directory.py backend/tests/test_scheduling.py backend/tests/test_api.py::test_private_ticket_issue_and_matching_retry_returns_current_ticket backend/tests/test_api.py::test_ticket_issue_closed_queue_and_invalid_proofs_do_not_allocate backend/tests/test_api.py::test_ticket_issue_rolls_back_number_ticket_and_event_on_event_failure -q -p no:cacheprovider`
+passed (**18 passed**). The complete
+`backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider` run
+passed (**156 passed**, six existing deprecation warnings).
+`backend/.venv/bin/python -m compileall -q backend/app backend/tests` and
+`git diff --check` passed. The tests exercised the public routes against an
+isolated SQLite backend and confirmed queue IDs can be used for actual issuance.
+Issue #18 remains open until hosted CI passes for the pushed revision.

@@ -180,7 +180,11 @@ def test_pre_migration_file_database_is_stamped_without_losing_data(tmp_path):
 
     migrated = DatabaseStore(url)
     assert [service.id for service in migrated.list_services()] == ["legacy"]
-    assert migrated.join(JoinQueueRequest(serviceId="legacy", customerName="Next")).code == "L-008"
+    next_ticket = migrated.join(JoinQueueRequest(serviceId="legacy", customerName="Next"))
+    assert next_ticket.code == "L-001"
+    with migrated.db.session() as session:
+        row = session.scalar(select(TicketRow).where(TicketRow.id == next_ticket.id))
+        assert row.sequence == 8
     with migrated.db.session() as session:
         user = session.get(UserRow, "legacy-user")
         counter = session.get(CounterRow, "legacy-counter")

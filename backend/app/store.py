@@ -17,7 +17,7 @@ from .auth import hash_password, token_hash, verify_password
 from .database import Database, configured_database_url
 from .models import (
     Counter, CounterCreate, HourlyStats, JoinQueueRequest, LoginRequest, LoginResponse,
-    IssuedTicket, JoinResponse, Organization, PublicService, QueueView, Service, ServiceCreate, ServiceStats, StaffCreate, StaffUser, Stats,
+    IssuedTicket, JoinResponse, Organization, PublicService, QueueSummary, QueueView, Service, ServiceCreate, ServiceStats, ServiceSummary, StaffCreate, StaffUser, Stats,
     Ticket, TicketView,
 )
 from .scheduling import QueueSchedule, resolve_queue_schedule
@@ -112,6 +112,7 @@ class DatabaseStore:
                 ("svc-fin", "Demo cancelled", 10, "cancelled"),
             ]:
                 ticket = self._issue(session, session.get(ServiceRow, service_id), name, now - timedelta(minutes=age))
+                self._attach_daily_ticket(session, session.get(ServiceRow, service_id), ticket, ticket.createdAt)
                 ticket.status = status
                 if status == "completed":
                     ticket.counterId = "cnt-1"
@@ -198,9 +199,77 @@ class DatabaseStore:
                     services.append(PublicService(**(self._service(row).model_dump() | {"isOpen": is_open}), waitingCount=count,
                         estimatedWaitMinutes=math.ceil(count * row.avgServiceMinutes / capacity) if capacity and is_open else None,
                         operatingHours=f"{row.opensAt:%H:%M}–{row.closesAt:%H:%M}" if row.opensAt and row.closesAt else None))
-                result.append(Organization(id=org.id, name=org.name, description=org.description,
+                result.append(Organization(id=org.id, name=org.name, slug=org.slug, description=org.description,
                     category=org.category, location=org.location, timezone=org.timezone, services=services))
             return result
+
+    def list_organization_services(self, organization_id: str) -> list[ServiceSummary]:
+        with self.db.session(write=True) as session:
+            organization = session.get(OrganizationRow, organization_id)
+            if organization is None:
+                raise HTTPException(404, "Organization not found")
+            now = self.clock()
+            summaries = []
+            services = session.scalars(select(ServiceRow).where(
+                ServiceRow.organization_id == organization_id,
+                ServiceRow.deleted.is_(False), ServiceRow.isActive.is_(True),
+            ).order_by(ServiceRow.name, ServiceRow.id))
+            for service in services:
+                try:
+                    schedule = resolve_queue_schedule(
+                        organization.timezone, service.opensAt, service.closesAt, now,
+                    )
+                except ValueError:
+                    # Keep a misconfigured service discoverable but unavailable;
+                    # without a valid local date there is no queue to expose.
+                    summaries.append(ServiceSummary(
+                        id=service.id, organizationId=organization_id, name=service.name,
+                        description=service.description, prefix=service.prefix,
+                        durationMinutes=service.durationMinutes, opensAt=self._format_time(service.opensAt),
+                        closesAt=self._format_time(service.closesAt), timezone=organization.timezone,
+                        queue=None,
+                    ))
+                    continue
+                queue = session.scalar(select(DailyQueueRow).where(
+                    DailyQueueRow.organization_id == organization_id,
+                    DailyQueueRow.service_id == service.id,
+                    DailyQueueRow.business_date == schedule.business_date,
+                ))
+                if queue is None:
+                    queue = DailyQueueRow(
+                        id=new_id(), organization_id=organization_id,
+                        service_id=service.id, business_date=schedule.business_date,
+                        status="open", opened_at=now, closed_at=None,
+                        ticket_prefix=service.prefix,
+                    )
+                    session.add(queue)
+                    session.flush()
+                is_open = service.isOpen and schedule.within_hours and queue.status == "open"
+                waiting = session.scalar(select(func.count()).select_from(TicketRow).where(
+                    TicketRow.dailyQueueId == queue.id, TicketRow.status == "waiting",
+                )) or 0
+                capacity = session.scalar(select(func.count()).select_from(CounterRow).join(
+                    CounterServiceRow, CounterServiceRow.counter_id == CounterRow.id).where(
+                    CounterServiceRow.service_id == service.id,
+                    CounterRow.deleted.is_(False), CounterRow.isActive.is_(True),
+                )) or 0
+                summaries.append(ServiceSummary(
+                    id=service.id, organizationId=organization_id, name=service.name,
+                    description=service.description, prefix=service.prefix,
+                    durationMinutes=service.durationMinutes,
+                    opensAt=self._format_time(service.opensAt), closesAt=self._format_time(service.closesAt),
+                    timezone=organization.timezone,
+                    queue=QueueSummary(
+                        id=queue.id, serviceId=service.id, queueDate=queue.business_date,
+                        isOpen=is_open, waiting=waiting, activeCounters=capacity,
+                        estimatedWaitMinutes=math.ceil(waiting * service.avgServiceMinutes / capacity) if capacity else None,
+                    ),
+                ))
+            return summaries
+
+    @staticmethod
+    def _format_time(value):
+        return value.strftime("%H:%M") if value else None
 
     def list_services(self) -> list[Service]:
         with self.db.session() as session:
@@ -280,10 +349,28 @@ class DatabaseStore:
         with self.db.session(write=True) as session:
             service = self._get(session, ServiceRow, request.serviceId, "Service")
             now = self.clock()
-            _, _, is_open = self._queue_state(session, service, now, create=True)
+            _, queue, is_open = self._queue_state(session, service, now, create=True)
             if not is_open:
                 raise HTTPException(409, "This queue is closed")
-            return self._view(session, self._issue(session, service, request.customerName, now))
+            ticket = self._issue(session, service, request.customerName, now)
+            self._attach_daily_ticket(session, service, ticket, now, queue=queue)
+            return self._view(session, ticket)
+
+    @classmethod
+    def _attach_daily_ticket(cls, session, service, ticket, created, *, queue=None):
+        if queue is None:
+            _, queue, _ = cls._queue_state(session, service, created, create=True)
+        if queue is None:
+            return
+        number = (session.scalar(select(func.max(TicketRow.dailyNumber)).where(
+            TicketRow.dailyQueueId == queue.id)) or 0) + 1
+        ticket.dailyQueueId = queue.id
+        ticket.dailyNumber = number
+        ticket.code = f"{queue.ticket_prefix}-{number:03d}"
+        session.add(TicketEventRow(
+            id=new_id(), ticket_id=ticket.id, event_type="issued", occurred_at=created,
+        ))
+        session.flush()
 
     @staticmethod
     def _valid_proof(value: str) -> bool:

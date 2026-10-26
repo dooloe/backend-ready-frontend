@@ -1,8 +1,14 @@
+import base64
+
 from sqlalchemy import delete, select
 
 from app.orm import (CounterRow, CounterServiceRow, OrganizationRow, ServiceRow,
                      StaffAssignmentRow, UserRow)
 from seed_directory import seed
+
+
+def proof(byte):
+    return base64.urlsafe_b64encode(bytes([byte]) * 32).decode().rstrip("=")
 
 
 def test_directory_is_public_aggregate_only_and_estimates_follow_queue(client, store):
@@ -14,6 +20,10 @@ def test_directory_is_public_aggregate_only_and_estimates_follow_queue(client, s
     service = next(s for s in org['services'] if s['id'] == 'svc-reg')
     assert service['waitingCount'] == 1
     assert service['estimatedWaitMinutes'] == 3
+    summary = client.get('/api/organizations/org-demo/services').json()
+    queue = next(item['queue'] for item in summary if item['id'] == 'svc-reg')
+    assert queue['waiting'] == 1
+    assert queue['id']
     assert 'Private Person' not in directory.text
     assert ticket['id'] not in directory.text
     assert 'customerName' not in directory.text and 'tickets' not in org
@@ -41,6 +51,49 @@ def test_directory_organization_isolation_empty_and_deleted_services(client, sto
     assert orgs['empty']['services'] == []
     assert 'other-service' not in [s['id'] for s in orgs['org-demo']['services']]
     assert 'svc-it' not in [s['id'] for s in orgs['org-demo']['services']]
+
+
+def test_contract_directory_exposes_active_catalog_and_joinable_queue_ids(client, store):
+    directory = client.get("/api/organizations")
+    assert directory.status_code == 200
+    organization = next(item for item in directory.json() if item["id"] == "org-demo")
+    assert organization["slug"] == "kezek-demo"
+    assert "Private Person" not in directory.text and "customerName" not in directory.text
+
+    response = client.get("/api/organizations/org-demo/services")
+    assert response.status_code == 200
+    services = response.json()
+    assert {item["id"] for item in services} == {"svc-reg", "svc-fin"}
+    registrar = next(item for item in services if item["id"] == "svc-reg")
+    assert registrar["queue"]["serviceId"] == registrar["id"]
+    assert registrar["queue"]["isOpen"] is True
+    assert registrar["queue"]["waiting"] == 0
+    assert all(field not in response.text for field in ("customerName", "accessToken", "ticketNumber", "ticketUrl"))
+
+    issued = client.post(
+        f"/api/queues/{registrar['queue']['id']}/tickets",
+        headers={"Idempotency-Key": proof(30)}, json={"accessToken": proof(31)},
+    )
+    assert issued.status_code == 201, issued.text
+    assert issued.json()["ticket"]["queueId"] == registrar["queue"]["id"]
+
+
+def test_contract_directory_handles_unknown_empty_and_closed_catalogs(client, store):
+    assert client.get("/api/organizations/missing/services").status_code == 404
+    with store.db.session(write=True) as session:
+        session.add(OrganizationRow(
+            id="empty-catalog", name="Empty catalog", slug="empty-catalog",
+            description="No services", timezone="Asia/Almaty",
+        ))
+        session.get(ServiceRow, "svc-reg").isOpen = False
+        session.get(CounterRow, "cnt-1").isActive = False
+        session.get(CounterRow, "cnt-2").isActive = False
+    assert client.get("/api/organizations/empty-catalog/services").json() == []
+    services = client.get("/api/organizations/org-demo/services").json()
+    registrar = next(item for item in services if item["id"] == "svc-reg")
+    assert registrar["queue"]["isOpen"] is False
+    assert registrar["queue"]["activeCounters"] == 0
+    assert registrar["queue"]["estimatedWaitMinutes"] is None
 
 
 def test_demo_directory_seed_is_idempotent_and_can_be_served(client, store):
