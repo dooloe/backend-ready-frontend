@@ -1,9 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-async function join(
-  page: Page,
-  organization: "university" | "clinic" = "university",
-) {
+async function join(page: Page, organization: "university" | "clinic" = "university") {
   const directory =
     organization === "university"
       ? {
@@ -111,9 +108,9 @@ test("discover, join, track position, staff call/start/complete, and private bro
     timeout: 12000,
   });
   await page.goto("/tickets");
-  await expect(
-    page.locator("main").getByRole("link").filter({ hasText: serviceName }),
-  ).toHaveCount(2);
+  await expect(page.locator("main").getByRole("link").filter({ hasText: serviceName })).toHaveCount(
+    2,
+  );
 
   const privateContext = await browser.newContext();
   const stranger = await privateContext.newPage();
@@ -205,13 +202,10 @@ test("queue conflict after availability changes is announced and prevents ticket
   });
   expect(login.ok()).toBe(true);
   const { token } = await login.json();
-  const closed = await page.request.patch(
-    "http://127.0.0.1:18765/api/admin/services/svc-fin",
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      data: { isOpen: false },
-    },
-  );
+  const closed = await page.request.patch("http://127.0.0.1:18765/api/admin/services/svc-fin", {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { isOpen: false },
+  });
   expect(closed.ok()).toBe(true);
 
   try {
@@ -222,13 +216,10 @@ test("queue conflict after availability changes is announced and prevents ticket
     await expect(page.getByRole("heading", { name: "You’re in the queue" })).toHaveCount(0);
     await expect(joinButton).toBeDisabled();
   } finally {
-    const reopened = await page.request.patch(
-      "http://127.0.0.1:18765/api/admin/services/svc-fin",
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        data: { isOpen: true },
-      },
-    );
+    const reopened = await page.request.patch("http://127.0.0.1:18765/api/admin/services/svc-fin", {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { isOpen: true },
+    });
     expect(reopened.ok()).toBe(true);
   }
 });

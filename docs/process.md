@@ -22,7 +22,9 @@ assignment UI was found to capture a controlled select value after it had reset,
 causing `null` to be sent; the handler now captures the value synchronously. The
 browser checks use isolated organizations, assert assignment persistence, and
 passed locally (**8 desktop/mobile cases**). Hosted CI must pass on the updated
-revision before the acceptance criteria are marked complete.
+revision before the acceptance criteria are marked complete. The follow-up CI
+run flagged formatting in the revised browser spec; it has been corrected and
+local lint passes with zero errors and six existing warnings.
 
 ## 2026-10-20 — Backlog and issue automation preparation
 

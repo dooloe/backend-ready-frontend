@@ -380,5 +380,6 @@ deactivated users' existing sessions are rejected. The full backend suite passed
 browser expectations for organization scope and shared desktop/mobile queue
 state, plus an admin assignment UI bug. Those cases now pass locally in all eight
 desktop/mobile browser runs. The fixes are queued for hosted verification. Issue
-#16 remains open until hosted CI passes. Current GitHub count remains 25 closed
-and 28 open.
+#16 remains open until hosted CI passes. The next hosted run flagged formatting
+in the updated browser spec; local lint now passes with zero errors. Current
+GitHub count remains 25 closed and 28 open.
