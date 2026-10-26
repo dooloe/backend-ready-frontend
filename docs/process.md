@@ -737,7 +737,7 @@ revision. It creates organization/service/business-date queues with a unique
 service/date constraint, adds nullable daily queue/number and SHA-256 hash
 columns to tickets, enforces unique queue-scoped idempotency hashes and globally
 unique access-token hashes, and adds SQLite/PostgreSQL partial unique indexes that
-prevents two `called`/`serving` tickets from occupying one counter. The
+prevent two `called`/`serving` tickets from occupying one counter. The
 existing `active_tickets` claim table remains in place for transactional staff
 operations. Existing tickets are backfilled to deterministic queue IDs using
 their service organization's local date; stored issue/call/start/terminal
@@ -757,3 +757,21 @@ active counter claims are rejected; a repeated idempotency hash in a different
 queue is allowed. The legacy migration test verifies timezone-aware business
 date assignment and imported issued/completed events. Issue #12 remains open
 until the hosted workflow for the pushed implementation passes.
+
+## 2026-10-26 — Issue #13 deterministic Argon2id development seed
+
+New password hashes now use pinned `argon2-cffi` with explicit Argon2id
+parameters. Verification still accepts the existing scrypt encoding, preserving
+accounts created before this update; no session, account, or password reset is
+required. The existing optional seed creates the four documented Demo
+organizations in `Asia/Almaty`, each with a service, counter, same-organization
+counter-service link, assigned staff account, and development-only credentials.
+Re-running the seed adds no duplicates and does not overwrite or remove existing
+tickets. Production startup continues to reject demo seeding.
+
+Focused verification passed (**4 tests**): Argon2id salted writes and login,
+legacy scrypt verification, all four organization/service/counter/assignment
+fixtures, and a second seed run preserving an issued ticket. The full backend
+suite passed (**136 passed**, six existing Starlette/sqlite adapter deprecation
+warnings); `pip check` reported no broken requirements. Issue #13 remains open
+until hosted CI passes for the pushed revision.

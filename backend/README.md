@@ -121,9 +121,11 @@ so both queues and analytics have sample data. Ticket numbers continue after the
 seeded numbers. Tests use isolated temporary SQLite files and an injected clock;
 they never use the configured development database.
 
-Passwords use salted scrypt hashes. Login returns a random bearer token with an
-eight-hour lifetime; only its SHA-256 digest is retained in the database. Staff and
-admin may use staff endpoints; admin configuration and statistics require admin.
+New passwords use salted Argon2id hashes with explicit work parameters; existing
+scrypt hashes remain verifiable so upgrades preserve current staff/admin access.
+Login returns a random bearer token with an eight-hour lifetime; only its
+SHA-256 digest is retained in the database. Staff and admin may use staff
+endpoints; admin configuration and statistics require admin.
 Customer service listing, join, ticket lookup and cancellation remain public as
 specified by the current frontend contract. No cookie session is used.
 

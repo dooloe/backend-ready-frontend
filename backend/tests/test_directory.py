@@ -1,6 +1,7 @@
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
-from app.orm import CounterRow, OrganizationRow, ServiceRow, UserRow
+from app.orm import (CounterRow, CounterServiceRow, OrganizationRow, ServiceRow,
+                     StaffAssignmentRow, UserRow)
 from seed_directory import seed
 
 
@@ -52,7 +53,22 @@ def test_demo_directory_seed_is_idempotent_and_can_be_served(client, store):
     assert len(demos) == 4
     assert all('Demo' in o['name'] for o in demos)
     assert len({o['category'] for o in demos}) == 4
+    with store.db.session() as session:
+        seeded_staff = list(session.scalars(select(UserRow).where(UserRow.username.like("demo-staff-%"))))
+        assert len(seeded_staff) == 4
+        assert all(user.password_hash.startswith("$argon2id$") for user in seeded_staff)
+        assert session.get(UserRow, "stf-admin").password_hash.startswith("$argon2id$")
+        assert all(session.get(OrganizationRow, user.organization_id).timezone == "Asia/Almaty"
+                   for user in seeded_staff)
+        assert len(list(session.scalars(select(ServiceRow).where(ServiceRow.organization_id.like("demo-%"))))) == 4
+        assert len(list(session.scalars(select(CounterRow).where(CounterRow.organization_id.like("demo-%"))))) == 4
+        assert len(list(session.scalars(select(CounterServiceRow).where(
+            CounterServiceRow.organization_id.like("demo-%"))))) == 4
+        assert len(list(session.scalars(select(StaffAssignmentRow).where(
+            StaffAssignmentRow.organization_id.like("demo-%"))))) == 4
     ticket = client.post('/api/tickets', json={'serviceId': 'demo-svc-university', 'customerName': 'Visitor'}).json()
+    seed(store)
+    assert client.get(f"/api/tickets/{ticket['id']}").json()["id"] == ticket["id"]
     login = client.post('/api/auth/login', json={'username': 'demo-staff-university', 'password': 'staff123'}).json()
     headers = {'Authorization': 'Bearer ' + login['token']}
     counters = client.get('/api/counters', headers=headers).json()

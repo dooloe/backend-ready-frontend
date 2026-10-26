@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+import hashlib
 
 from fastapi.testclient import TestClient
 import jsonschema
@@ -176,7 +177,7 @@ def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock
         assert session.get(SessionRow, result["token"]) is None
         assert session.get(SessionRow, token_hash(result["token"])) is not None
         record = session.get(UserRow, "stf-admin")
-    assert record.password_hash.startswith("scrypt$")
+    assert record.password_hash.startswith("$argon2id$")
     assert verify_password("admin123", record.password_hash)
     assert not verify_password("wrong", record.password_hash)
     headers = {"Authorization": "Bearer " + result["token"]}
@@ -190,8 +191,20 @@ def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock
 def test_password_hashes_are_salted():
     first, second = hash_password("same-password"), hash_password("same-password")
     assert first != second
+    assert first.startswith("$argon2id$")
     assert verify_password("same-password", first)
     assert not verify_password("same-password", "not-a-password-hash")
+
+
+def test_existing_scrypt_password_hashes_remain_verifiable():
+    salt = bytes(range(16))
+    digest = hashlib.scrypt(
+        b"legacy-password", salt=salt, n=32768, r=8, p=1,
+        dklen=32, maxmem=67108864,
+    )
+    encoded = f"scrypt$32768$8$1${salt.hex()}${digest.hex()}"
+    assert verify_password("legacy-password", encoded)
+    assert not verify_password("wrong-password", encoded)
 
 
 def test_seeded_demo_is_useful_and_stores_are_isolated(clock, tmp_path):

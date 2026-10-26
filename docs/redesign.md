@@ -68,6 +68,8 @@ not actual participating providers. Each has its own staff login:
 
 Existing seeded default-organization credentials remain `admin / admin123` and
 `aigerim / staff123`. Demo seeding is intended for development databases only.
+Seeded passwords are stored as salted Argon2id hashes; existing scrypt hashes
+remain verifiable for accounts created before this change.
 
 ## Verification
 

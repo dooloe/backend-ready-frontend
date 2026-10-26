@@ -43,6 +43,10 @@ Preserve current public ticket-ID access and called-to-completed behavior. The
 server validates counter references and positive service durations; clients get
 string `detail` errors. Runtime and test dependencies are pinned separately.
 
+Issue #13 later changes new password writes to salted Argon2id while retaining
+verification support for existing scrypt hashes; see the current implementation
+and evidence in `process.md`.
+
 ## 2026-10-20 — SQLAlchemy persistence for the current contract
 
 The user's latest instruction replaces the temporary in-memory implementation
