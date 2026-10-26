@@ -325,6 +325,12 @@ export const mockApi: KezekApi = {
   },
 
   getTicket: async (id) => delay(view(findTicket(id))),
+  getPrivateTicket: async () => {
+    throw new ApiError(404, "Private-token ticket links are unavailable in demo mode");
+  },
+  cancelPrivateTicket: async () => {
+    throw new ApiError(404, "Private-token ticket links are unavailable in demo mode");
+  },
 
   cancelTicket(id) {
     const t = findTicket(id);

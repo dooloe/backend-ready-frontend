@@ -650,6 +650,27 @@ class DatabaseStore:
                 raise HTTPException(404, "Ticket not found")
             return self._issued_ticket_view(session, ticket)
 
+    def cancel_private_ticket(self, access_token: str) -> IssuedTicket:
+        # Validate and hash before opening the write transaction. The ticket
+        # state check, transition, and event insert then commit atomically.
+        if not self._valid_proof(access_token):
+            raise HTTPException(404, "Ticket not found")
+        access_hash = hashlib.sha256(access_token.encode("ascii")).hexdigest()
+        with self.db.session(write=True) as session:
+            ticket = session.scalar(select(TicketRow).where(TicketRow.accessTokenHash == access_hash))
+            if ticket is None:
+                raise HTTPException(404, "Ticket not found")
+            if ticket.status != "waiting":
+                raise HTTPException(409, "Only waiting tickets can be cancelled")
+            cancelled_at = self.clock()
+            ticket.status, ticket.finishedAt = "cancelled", cancelled_at
+            session.add(TicketEventRow(
+                id=new_id(), ticket_id=ticket.id, event_type="cancelled",
+                occurred_at=cancelled_at, actor_user_id=None, counter_id=None,
+            ))
+            session.flush()
+            return self._issued_ticket_view(session, ticket)
+
     @staticmethod
     def _queue_state(session, service: ServiceRow, instant: datetime, *, create: bool = False):
         organization = session.get(OrganizationRow, service.organization_id)

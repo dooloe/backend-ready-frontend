@@ -156,9 +156,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/IssuedTicket'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/PrivateTicketNotFound'
         default:
-          $ref: '#/components/responses/UnexpectedError'
+          $ref: '#/components/responses/PrivateTicketUnexpected'
+      security: []
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+  /api/tickets/{token}/cancel:
+    post:
+      operationId: cancelPrivateTicket
+      tags:
+      - Customer
+      summary: Cancel a waiting ticket using its private access token
+      description: Looks up the SHA-256 token hash and atomically cancels a WAITING ticket while recording its cancellation timestamp and event. Called, serving and terminal tickets return 409. The response and all errors are not cacheable.
+      responses:
+        '200':
+          description: Ticket cancelled; returns its authoritative private ticket view.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedTicket'
+        '404':
+          $ref: '#/components/responses/PrivateTicketNotFound'
+        '409':
+          $ref: '#/components/responses/PrivateTicketConflict'
+        default:
+          $ref: '#/components/responses/PrivateTicketUnexpected'
       security: []
       parameters:
       - name: token
@@ -1053,6 +1086,39 @@ components:
             $ref: '#/components/schemas/ApiError'
     NotFound:
       description: Requested service, counter or ticket does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    PrivateTicketNotFound:
+      description: Ticket access token is malformed or unknown. The generic error does not reveal whether a ticket exists.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            enum: [no-store]
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    PrivateTicketConflict:
+      description: Ticket state does not permit cancellation.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            enum: [no-store]
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    PrivateTicketUnexpected:
+      description: Unexpected failure. Response is not cacheable.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            enum: [no-store]
       content:
         application/json:
           schema:

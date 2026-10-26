@@ -1096,3 +1096,23 @@ access path before #20 can be closed. Hosted CI run
 [40364335218](https://github.com/dooloe/backend-ready-frontend/actions/runs/40364335218)
 passed all frontend, migration, OpenAPI, backend, and real-backend browser
 checks; #20 remains open until the remaining customer access path is migrated.
+
+## 2026-10-26 — Issue #21 private ticket cancellation
+
+Added `POST /api/tickets/{token}/cancel`. It validates the canonical access
+token, looks up its SHA-256 hash, and uses the database write transaction to
+check WAITING state, set the cancellation timestamp, append the `cancelled`
+event and return the private ticket view. Malformed, unknown and internal-ID
+values return identical no-store 404 responses; called, serving and terminal
+tickets return no-store 409 responses. Race coverage proves that call-next and
+cancellation cannot both claim the same waiting ticket. The canonical frontend
+API facade and response types now expose token read/cancel operations; mock mode
+does not persist private tokens and explicitly reports that limitation until
+the customer join migration is integrated.
+
+Local verification: backend full suite **194 passed**, OpenAPI MVP contract
+suite **33 passed**, frontend lint (zero errors; six existing warnings),
+typecheck, **26 Vitest tests**, production build, backend compile and
+`git diff --check` passed. Real-backend desktop/mobile browser regression
+passed **8 cases**. Hosted CI verification is pending; #21 remains open until it
+passes.

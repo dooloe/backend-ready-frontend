@@ -134,6 +134,99 @@ def test_private_ticket_estimate_is_null_without_eligible_counters(client, store
     assert response.json()["estimatedWaitMinutes"] is None
 
 
+def test_private_ticket_cancellation_records_event_and_is_idempotently_rejected(client, store, clock):
+    queue_id = daily_queue_id(store)
+    issued = anonymous_join(client, queue_id, key=proof(39), token=proof(40)).json()
+
+    response = client.post(f"/api/tickets/{proof(40)}/cancel")
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "no-store"
+    ticket = response.json()
+    cancelled_at = datetime.fromisoformat(ticket["cancelledAt"].replace("Z", "+00:00"))
+    assert ticket["status"] == "cancelled" and cancelled_at == clock()
+    assert ticket["position"] is None and ticket["estimatedWaitMinutes"] is None
+    assert "customerName" not in ticket and "accessToken" not in ticket
+
+    repeated = client.post(f"/api/tickets/{proof(40)}/cancel")
+    assert repeated.status_code == 409
+    assert repeated.headers["cache-control"] == "no-store"
+    assert client.get(f"/api/tickets/{proof(40)}").json()["status"] == "cancelled"
+    with store.db.session() as session:
+        events = list(session.scalars(select(TicketEventRow).where(
+            TicketEventRow.ticket_id == issued["ticket"]["id"],
+        )))
+    assert sorted(event.event_type for event in events) == ["cancelled", "issued"]
+    cancelled_event = next(event for event in events if event.event_type == "cancelled")
+    assert cancelled_event.occurred_at == clock()
+    assert cancelled_event.actor_user_id is None and cancelled_event.counter_id is None
+
+
+def test_private_ticket_cancellation_rejects_invalid_and_unknown_tokens_without_cache(client, store):
+    queue_id = daily_queue_id(store)
+    issued = anonymous_join(client, queue_id, key=proof(41), token=proof(42)).json()
+    invalid_id = client.post(f"/api/tickets/{issued['ticket']['id']}/cancel")
+    malformed = client.post("/api/tickets/not-a-private-token/cancel")
+    unknown = client.post(f"/api/tickets/{proof(43)}/cancel")
+    assert invalid_id.status_code == malformed.status_code == unknown.status_code == 404
+    assert invalid_id.json() == malformed.json() == unknown.json()
+    assert all(response.headers["cache-control"] == "no-store" for response in (invalid_id, malformed, unknown))
+
+
+@pytest.mark.parametrize("status", ["called", "serving", "completed", "cancelled", "no_show"])
+def test_private_ticket_cancellation_rejects_non_waiting_states(client, store, status):
+    queue_id = daily_queue_id(store)
+    issued = anonymous_join(client, queue_id, key=proof(44), token=proof(45)).json()
+    with store.db.session(write=True) as session:
+        row = session.scalar(select(TicketRow).where(TicketRow.id == issued["ticket"]["id"]))
+        assert row is not None
+        row.status = status
+        if status in {"called", "serving", "completed", "no_show"}:
+            row.counterId = "cnt-1"
+            row.calledAt = row.createdAt + timedelta(minutes=1)
+        if status == "serving":
+            row.servedAt = row.createdAt + timedelta(minutes=2)
+        if status in {"completed", "cancelled", "no_show"}:
+            row.finishedAt = row.createdAt + timedelta(minutes=3)
+
+    response = client.post(f"/api/tickets/{proof(45)}/cancel")
+    assert response.status_code == 409
+    assert response.headers["cache-control"] == "no-store"
+    with store.db.session() as session:
+        row = session.scalar(select(TicketRow).where(TicketRow.id == issued["ticket"]["id"]))
+        events = list(session.scalars(select(TicketEventRow).where(
+            TicketEventRow.ticket_id == issued["ticket"]["id"],
+        )))
+    assert row.status == status
+    assert not any(event.event_type == "cancelled" for event in events)
+
+
+def test_private_ticket_cancellation_racing_call_next_is_consistent(client, store, staff):
+    queue_id = daily_queue_id(store)
+    # Drain the queue-creation ticket, leaving only the private-token ticket to race.
+    first = client.post("/api/counters/cnt-1/call-next", headers=staff)
+    assert first.status_code == 200
+    assert client.post(f"/api/tickets/{first.json()['id']}/complete", headers=staff).status_code == 200
+    issued = anonymous_join(client, queue_id, key=proof(46), token=proof(47)).json()
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        cancel = pool.submit(client.post, f"/api/tickets/{proof(47)}/cancel")
+        call = pool.submit(client.post, "/api/counters/cnt-1/call-next", headers=staff)
+        cancelled, called = cancel.result(), call.result()
+
+    if cancelled.status_code == 200:
+        assert called.json() is None
+        assert client.get(f"/api/tickets/{proof(47)}").json()["status"] == "cancelled"
+    else:
+        assert cancelled.status_code == 409
+        assert called.json()["id"] == issued["ticket"]["id"]
+        assert client.get(f"/api/tickets/{proof(47)}").json()["status"] == "called"
+    with store.db.session() as session:
+        events = list(session.scalars(select(TicketEventRow).where(
+            TicketEventRow.ticket_id == issued["ticket"]["id"],
+        )))
+    event_types = [event.event_type for event in events]
+    assert event_types.count("cancelled") + event_types.count("called") == 1
+
+
 def test_concurrent_same_key_issues_exactly_one_ticket(store):
     queue_id = daily_queue_id(store)
     with ThreadPoolExecutor(max_workers=8) as pool:
@@ -316,6 +409,7 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
           expected_override="200", headers={"Idempotency-Key": proof(20)}, json={"accessToken": proof(21)})
     assert issued["ticket"]["id"]
     check("GET", f"/api/tickets/{proof(21)}", "/api/tickets/{token}")
+    check("POST", f"/api/tickets/{proof(21)}/cancel", "/api/tickets/{token}/cancel")
     service = check("POST", "/api/admin/services", "/api/admin/services", headers=headers,
                     json={"name": "New", "description": "Service", "prefix": "N", "isOpen": True, "avgServiceMinutes": 5})
     check("PATCH", f"/api/admin/services/{service['id']}", "/api/admin/services/{serviceId}", headers=headers, json={"name": "Renamed"})

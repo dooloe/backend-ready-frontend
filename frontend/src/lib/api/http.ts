@@ -1,5 +1,5 @@
 // Real HTTP client for the FastAPI backend. Endpoint map = the contract to implement.
-import { ApiError, type KezekApi } from "./types";
+import { ApiError, type IssuedTicket, type KezekApi } from "./types";
 
 export function createHttpApi(baseUrl: string, getToken: () => string | null): KezekApi {
   async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -32,6 +32,10 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
     joinQueue: (i) => req("POST", "/api/tickets", i),
     getTicket: (id) => req("GET", `/api/legacy/tickets/${encodeURIComponent(id)}`),
     cancelTicket: (id) => req("POST", `/api/legacy/tickets/${encodeURIComponent(id)}/cancel`),
+    getPrivateTicket: (token) =>
+      req<IssuedTicket>("GET", `/api/tickets/${encodeURIComponent(token)}`),
+    cancelPrivateTicket: (token) =>
+      req<IssuedTicket>("POST", `/api/tickets/${encodeURIComponent(token)}/cancel`),
     login: (username, password) => req("POST", "/api/auth/login", { username, password }),
     listCounters: () => req("GET", "/api/counters"),
     getQueue: (id) => req("GET", `/api/counters/${id}/queue`),

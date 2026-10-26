@@ -76,7 +76,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #18 | Closed (2026-10-26) | Public organization/service directory with usable queue IDs and hosted checks passes. |
 | #19 | Closed (2026-10-26) | Anonymous idempotent ticket issuance, hashes, transactions and hosted checks pass. |
 | #20 | Open | Canonical `GET /api/tickets/{token}` uses hash-only access, rejects IDs with the same safe 404, and returns no-store lifecycle state, position, and estimates. Local and hosted checks pass. AC-1 remains incomplete while the deprecated ID-based browser lookup is available; complete the coordinated customer token migration before closure. |
-| #21 | Open | Waiting-only cancellation and call race tests pass; private-token ownership and cancellation events are absent. |
+| #21 | Open | Canonical token-only cancellation, waiting-state validation, atomic timestamp/event insertion, rejection states, invalid-token parity and cancellation/call-next race coverage pass locally; hosted verification pending. |
 | #22 | Closed (2026-10-26) | Public aggregate queue status, availability/count estimates, private-data exclusion, and hosted checks pass. |
 | #23 | Closed (2026-10-26) | Assigned staff queue discovery, tenant isolation, multiple service assignments, and hosted checks pass. |
 | #24 | Open | Atomic FIFO and actor-attributed events are present; requested queue-scoped route is ambiguous for staff assigned to multiple counters. |

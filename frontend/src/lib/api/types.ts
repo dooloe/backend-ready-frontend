@@ -51,6 +51,24 @@ export interface TicketView extends Ticket {
   estimatedWaitMinutes: number | null; // null when no active counters
 }
 
+export interface IssuedTicket {
+  id: string;
+  queueId: string;
+  ticketNumber: string;
+  serviceName: string;
+  status: TicketStatus;
+  position: number | null;
+  estimatedWaitMinutes: number | null;
+  counterId: string | null;
+  counterName: string | null;
+  createdAt: string;
+  calledAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  noShowAt: string | null;
+}
+
 export interface ServiceStats {
   serviceId: string;
   serviceName: string;
@@ -93,6 +111,8 @@ export interface KezekApi {
   joinQueue(input: { serviceId: string; customerName: string }): Promise<TicketView>;
   getTicket(id: string): Promise<TicketView>;
   cancelTicket(id: string): Promise<TicketView>;
+  getPrivateTicket(accessToken: string): Promise<IssuedTicket>;
+  cancelPrivateTicket(accessToken: string): Promise<IssuedTicket>;
   // Auth
   login(username: string, password: string): Promise<LoginResponse>;
   // Staff

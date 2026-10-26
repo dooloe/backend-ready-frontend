@@ -36,6 +36,13 @@ def read_private_ticket(token: str, store: Store, response: Response):
     return store.private_ticket(token)
 
 
+@router.post("/tickets/{token}/cancel", response_model=IssuedTicket,
+             operation_id="cancelPrivateTicket")
+def cancel_private_ticket(token: str, store: Store, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return store.cancel_private_ticket(token)
+
+
 @router.get("/legacy/tickets/{id}", response_model=TicketView, operation_id="getTicket")
 def get_legacy_ticket(id: str, store: Store):
     return store.ticket(id)

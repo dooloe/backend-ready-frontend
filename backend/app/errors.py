@@ -11,6 +11,22 @@ from starlette.exceptions import HTTPException
 logger = logging.getLogger(__name__)
 
 
+def _private_ticket_response_headers(request: Request, headers=None):
+    result = dict(headers or {})
+    segments = request.url.path.split("/")
+    private_ticket_path = (
+        len(segments) == 4 and segments[1:3] == ["api", "tickets"]
+    ) or (
+        len(segments) == 5 and segments[1:3] == ["api", "tickets"] and segments[4] == "cancel"
+    )
+    if (request.method == "GET" and len(segments) == 4) or (
+        request.method == "POST" and len(segments) == 5 and segments[4] == "cancel"
+    ):
+        if private_ticket_path:
+            result["Cache-Control"] = "no-store"
+    return result
+
+
 def envelope(status: int, code: str, message: str, details=None, headers=None):
     return JSONResponse(status_code=status, headers=headers,
                         content={"code": code, "message": message, "details": details, "detail": message})
@@ -33,10 +49,7 @@ def install_error_handlers(application):
                     "INVALID_STATE" if message.startswith(("Ticket is ", "Only waiting tickets")) else code)
         if exc.status_code >= 500 and exc.status_code != 503:
             message = "Internal server error"
-        headers = dict(exc.headers or {})
-        segments = _request.url.path.split("/")
-        if _request.method == "GET" and len(segments) == 4 and segments[1:3] == ["api", "tickets"]:
-            headers["Cache-Control"] = "no-store"
+        headers = _private_ticket_response_headers(_request, exc.headers)
         return envelope(exc.status_code, code, message, headers=headers)
 
     @application.exception_handler(RequestValidationError)
@@ -48,13 +61,15 @@ def install_error_handlers(application):
                  "staffId", "serviceIds", "isActive", "role"}
         fields = sorted({".".join(str(part) for part in error["loc"] if part in known)
                          for error in exc.errors()} - {""})
-        return envelope(422, "VALIDATION_ERROR", "Invalid request", {"fields": fields})
+        return envelope(422, "VALIDATION_ERROR", "Invalid request", {"fields": fields},
+                        headers=_private_ticket_response_headers(_request))
 
     @application.exception_handler(Exception)
     async def unexpected_error(_request: Request, exc: Exception):
         # The outer ASGI boundary logs only the exception class and consumes
         # Starlette's post-response re-raise; never write traceback/input values.
-        return envelope(500, "INTERNAL_ERROR", "Internal server error")
+        return envelope(500, "INTERNAL_ERROR", "Internal server error",
+                        headers=_private_ticket_response_headers(_request))
 
 
 class SafeErrorBoundary:
