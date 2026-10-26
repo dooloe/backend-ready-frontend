@@ -1114,5 +1114,7 @@ Local verification: backend full suite **194 passed**, OpenAPI MVP contract
 suite **33 passed**, frontend lint (zero errors; six existing warnings),
 typecheck, **26 Vitest tests**, production build, backend compile and
 `git diff --check` passed. Real-backend desktop/mobile browser regression
-passed **8 cases**. Hosted CI verification is pending; #21 remains open until it
-passes.
+passed **8 cases**. Hosted run
+[40366456657](https://github.com/dooloe/backend-ready-frontend/actions/runs/40366456657)
+passed all frontend, migration, OpenAPI, backend and real-backend desktop/mobile
+checks. Issue #21 was closed after all three acceptance criteria passed.
