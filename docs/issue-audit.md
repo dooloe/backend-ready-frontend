@@ -454,3 +454,12 @@ anonymous-protocol tickets. Unknown organization, empty catalog, closed service,
 cross-organization isolation, and absence of private ticket fields are covered.
 Focused tests passed 18 cases and the complete backend suite passed 156 tests;
 compileall and diff checks passed. Issue #18 remains open pending hosted CI.
+
+## Issue #18 hosted verification and closure — 2026-10-26
+
+Hosted run [40340675758](https://github.com/dooloe/backend-ready-frontend/actions/runs/40340675758)
+passed every frontend, backend, migration/model-drift, OpenAPI and real-backend
+desktop/mobile workflow gate for commit `2b89a2a`. Combined with the 156-test
+local backend suite, this verifies all #18 acceptance criteria. Issue #18 was
+closed with criterion-specific evidence. GitHub now has **30 closed and 23 open
+issues**; remaining open issues are #14–#15, #20–#32, #34–#36, #38–#41 and #43.

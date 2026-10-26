@@ -893,3 +893,10 @@ passed (**156 passed**, six existing deprecation warnings).
 `git diff --check` passed. The tests exercised the public routes against an
 isolated SQLite backend and confirmed queue IDs can be used for actual issuance.
 Issue #18 remains open until hosted CI passes for the pushed revision.
+
+Hosted workflow [40340675758](https://github.com/dooloe/backend-ready-frontend/actions/runs/40340675758)
+passed frontend lint/typecheck/tests/build, fresh migrations/model-drift,
+backend compilation/tests, OpenAPI consistency, and real-backend desktop/mobile
+workflows for commit `2b89a2a`. Issue #18 was closed after verifying the public
+organization/service schemas, usable current queue IDs and aggregate
+availability, plus unknown/empty/closed catalog behavior.
