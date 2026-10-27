@@ -12,7 +12,10 @@ renames, assigns and links a counter, then verifies it in staff operations after
 reload. Frontend suite (58 tests), lint (zero errors; six existing warnings),
 typecheck, production build and the focused desktop/mobile real-backend browser
 scenario (2 cases) pass locally. Hosted CI is pending; #39 remains open until
-that run passes.
+that run passes. Hosted CI run
+[40493538488](https://github.com/dooloe/backend-ready-frontend/actions/runs/40493538488)
+passed frontend, backend, migrations, OpenAPI and desktop/mobile real-backend
+checks. All #39 acceptance criteria are verified; Issue #39 was closed.
 
 ## 2026-10-27 — Issue #20 customer access migration
 
