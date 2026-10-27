@@ -102,12 +102,25 @@ required evidence; it does not mean all work on that issue is absent.
 | #44 | Closed | Real-backend customer/staff workflows pass on desktop and mobile with isolated migrated/seeded SQLite. |
 | #45 | Closed | Real-backend admin setup/assignment, access denial, expired-session UI/API and invalid private-link checks pass on desktop and mobile. |
 | #46 | Closed (2026-10-26 follow-up) | Mobile/keyboard flows, accessible labels, focus and dialogs, contrast, loading/empty/error/conflict states verified; category filter and skip-link defects fixed. |
-| #47 | Open | No CI workflow installing locked dependencies and running migrations/browser/schema checks. |
-| #48 | Open | Current demo has passing checks; complete clean-clone MVP, migrations, browser workflow and delivery documentation remain incomplete. |
+| #47 | Closed | Hosted CI installs locked dependencies and verifies frontend, migrations/model drift, backend, OpenAPI consistency, and real-backend browser workflows. |
+| #48 | Closed | Clean setup, migrations/seed/startup, customer/staff workflow, failure cases, and delivery notes have been recorded in the current demo guide and process evidence. |
 | #49 | Keep closed | Current-client contract verified against backend tests; file remains deleted only in this local working tree. |
 | #50 | Keep closed | Current-contract backend behavior passes; its historical in-memory implementation was intentionally replaced by #52. |
 | #51 | Keep closed | Committed Makefile startup/cleanup was verified previously; local deletion remains unresolved and was not committed. |
 | #52 | Keep closed | SQLite persistence/restarts/constraints/independent-process concurrency pass; live PostgreSQL and future migrations are explicitly outside its scope. |
+| #53 | Closed | Customer-first organization discovery, service details, anonymous joining, digital ticket tracking, browser-local My Tickets, staff/admin flows, and responsive real-backend journey have evidence in `docs/verification-evidence/KEZEK-REDESIGN-053.txt`. |
+
+## Remote issue status snapshot — 2026-10-27
+
+After hosted verification of #24, GitHub reports **13 open and 40 closed**
+issues (53 total). The open set is #14, #15, #20, #25, #32, #34, #35, #36,
+#38, #39, #40, #41, and #43. The other 40 are closed. One issue (#24) was
+closed in this review after its full local and hosted acceptance evidence
+passed. Existing open issues cover the remaining backend, authentication,
+private-ticket migration, customer API integration, staff lifecycle, admin
+integration, and restart-verification work. No non-duplicate requirement from
+the updated customer-first concept was found that needs a new issue at this
+time.
 
 ## Next implementation order
 
