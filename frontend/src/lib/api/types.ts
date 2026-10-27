@@ -171,6 +171,7 @@ export interface KezekApi {
   listOrganizationServices(organizationId: string): Promise<ServiceSummary[]>;
   // Public (customer)
   listServices(): Promise<Service[]>;
+  listAdminServices(): Promise<Service[]>;
   joinQueue(input: { serviceId: string; customerName: string }): Promise<TicketView>;
   getTicket(id: string, signal?: AbortSignal): Promise<TicketView>;
   cancelTicket(id: string): Promise<TicketView>;
@@ -194,6 +195,7 @@ export interface KezekApi {
   // Admin
   createService(input: Omit<Service, "id">): Promise<Service>;
   updateService(id: string, input: Partial<Omit<Service, "id">>): Promise<Service>;
+  setQueueOverride(queueId: string, isOpen: boolean): Promise<QueueSummary>;
   deleteService(id: string): Promise<void>;
   createCounter(input: Omit<Counter, "id">): Promise<Counter>;
   updateCounter(id: string, input: Partial<Omit<Counter, "id">>): Promise<Counter>;

@@ -45,6 +45,7 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
     listOrganizationServices: (id) =>
       req("GET", `/api/organizations/${encodeURIComponent(id)}/services`),
     listServices: () => req("GET", "/api/services"),
+    listAdminServices: () => req("GET", "/api/admin/services"),
     joinQueue: (i) => req("POST", "/api/tickets", i),
     getTicket: (id, signal) =>
       req("GET", `/api/legacy/tickets/${encodeURIComponent(id)}`, undefined, {}, signal),
@@ -73,6 +74,8 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
     markNoShow: (id) => req("POST", `/api/tickets/${id}/no-show`),
     createService: (i) => req("POST", "/api/admin/services", i),
     updateService: (id, i) => req("PATCH", `/api/admin/services/${id}`, i),
+    setQueueOverride: (queueId, isOpen) =>
+      req("PATCH", `/api/admin/queues/${encodeURIComponent(queueId)}`, { isOpen }),
     deleteService: (id) => req("DELETE", `/api/admin/services/${id}`),
     createCounter: (i) => req("POST", "/api/admin/counters", i),
     updateCounter: (id, i) => req("PATCH", `/api/admin/counters/${id}`, i),

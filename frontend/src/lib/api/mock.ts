@@ -27,6 +27,7 @@ interface DB {
   sessions: Record<string, string>; // token -> staffId
   privateTickets: Record<string, string>; // demo access token -> ticket ID
   idempotentJoins: Record<string, { accessToken: string; ticketId: string }>;
+  queueOverrides: Record<string, boolean>;
 }
 
 const KEY = "kezek-mock-db-v1";
@@ -186,6 +187,7 @@ function seed(): DB {
     sessions: {},
     privateTickets: {},
     idempotentJoins: {},
+    queueOverrides: {},
   });
 }
 
@@ -211,6 +213,7 @@ function load(): DB {
         sessions: saved.sessions ?? {},
         privateTickets: saved.privateTickets ?? {},
         idempotentJoins: saved.idempotentJoins ?? {},
+        queueOverrides: saved.queueOverrides ?? {},
       } as DB));
     }
   }
@@ -337,6 +340,7 @@ export const mockApi: KezekApi = {
         services: [
           {
             ...service,
+            isOpen: service.isOpen && data.queueOverrides[`mock-queue-${service.id}`] !== false,
             waitingCount: waiting.length,
             estimatedWaitMinutes: activeCounters
               ? Math.ceil((waiting.length * service.avgServiceMinutes) / activeCounters)
@@ -369,7 +373,7 @@ export const mockApi: KezekApi = {
       id: `mock-queue-${service.id}`,
       serviceId: service.id,
       queueDate: new Date().toISOString().slice(0, 10),
-      isOpen: service.isOpen,
+      isOpen: service.isOpen && data.queueOverrides[`mock-queue-${service.id}`] !== false,
       waiting,
       activeCounters,
       estimatedWaitMinutes: activeCounters
@@ -391,6 +395,10 @@ export const mockApi: KezekApi = {
     return [summary];
   },
   listServices: () => delay(load().services),
+  listAdminServices() {
+    requireRole("admin");
+    return delay(load().services);
+  },
 
   joinQueue({ serviceId, customerName }) {
     const d = load();
@@ -565,6 +573,35 @@ export const mockApi: KezekApi = {
     Object.assign(s, input);
     save();
     return delay(s);
+  },
+  setQueueOverride(queueId, isOpen) {
+    requireRole("admin");
+    const d = load();
+    const serviceId = queueId.startsWith("mock-queue-") ? queueId.slice("mock-queue-".length) : "";
+    const service = d.services.find((item) => item.id === serviceId);
+    if (!service) throw new ApiError(404, "Queue not found");
+    if (isOpen && (service.isActive === false || !service.isOpen)) {
+      throw new ApiError(409, "Cannot open a queue while its service is inactive or closed");
+    }
+    d.queueOverrides[queueId] = isOpen;
+    save();
+    const waiting = d.tickets.filter(
+      (ticket) => ticket.serviceId === serviceId && ticket.status === "waiting",
+    ).length;
+    const activeCounters = d.counters.filter(
+      (counter) => counter.isActive && counter.serviceIds.includes(serviceId),
+    ).length;
+    return delay({
+      id: queueId,
+      serviceId,
+      queueDate: new Date().toISOString().slice(0, 10),
+      isOpen,
+      waiting,
+      activeCounters,
+      estimatedWaitMinutes: activeCounters
+        ? Math.ceil((waiting * service.avgServiceMinutes) / activeCounters)
+        : null,
+    });
   },
   deleteService(id) {
     requireRole("admin");

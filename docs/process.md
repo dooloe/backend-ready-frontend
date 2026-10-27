@@ -1243,3 +1243,19 @@ Hosted CI run [40458568513](https://github.com/dooloe/backend-ready-frontend/act
 passed all frontend, migration/model-drift, OpenAPI, backend and desktop/mobile
 real-backend browser gates. Issue #41 was closed after its date-filtered
 analytics acceptance criteria were verified.
+
+## 2026-10-27 — Issue #38 admin services and queue controls
+
+The Services tab now uses the admin-scoped service endpoint, supports validated
+create/edit fields for activation, duration and schedules, displays schedule
+timezone, and controls the daily queue through the existing queue override API.
+Queue state refreshes from the server response; rejected schedule changes remain
+visible and do not present the requested state as successful. Existing service
+deletion remains available with confirmation and retained-history messaging.
+
+Verification: frontend typecheck passed; lint has zero errors and six existing
+Fast Refresh warnings; Vitest **57 passed**; production build passed; focused
+real-backend desktop/mobile admin workflow **2 passed**, including service
+creation/edit persistence, schedule serialization, out-of-hours queue-open
+rejection and confirmed deletion. Hosted verification is pending; #38 remains
+open until the pushed commit passes CI.

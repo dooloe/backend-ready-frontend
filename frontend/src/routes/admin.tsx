@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Building2, MapPin } from "lucide-react";
@@ -371,96 +371,428 @@ export function StatsTab() {
 }
 
 export function ServicesTab() {
-  const {
-    data,
-    isPending: loading,
-    error,
-    refetch,
-  } = useQuery({ queryKey: ["services"], queryFn: api.listServices });
+  const servicesQuery = useQuery({
+    queryKey: ["admin-services"],
+    queryFn: api.listAdminServices,
+  });
+  const organizationsQuery = useQuery({
+    queryKey: ["organizations"],
+    queryFn: api.listOrganizations,
+  });
+  const serviceIds = new Set((servicesQuery.data ?? []).map((service) => service.id));
+  const serviceOrganizations = (organizationsQuery.data ?? []).filter((organization) =>
+    organization.services.some((service) => serviceIds.has(service.id)),
+  );
+  const queueQueries = useQueries({
+    queries: serviceOrganizations.map((organization) => ({
+      queryKey: ["admin-organization-services", organization.id],
+      queryFn: () => api.listOrganizationServices(organization.id),
+      enabled: !!servicesQuery.data,
+    })),
+  });
+  const queueByService = new Map(
+    queueQueries.flatMap((query) =>
+      (query.data ?? []).map((summary) => [summary.id, summary] as const),
+    ),
+  );
   const act = useAct();
-  const [f, setF] = useState({ name: "", description: "", prefix: "", avgServiceMinutes: 5 });
+  const [f, setF] = useState({
+    name: "",
+    description: "",
+    prefix: "",
+    avgServiceMinutes: 5,
+    isActive: true,
+    isOpen: true,
+    opensAt: "",
+    closesAt: "",
+  });
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const loadError = servicesQuery.error ?? organizationsQuery.error;
+  const loading = servicesQuery.isPending || organizationsQuery.isPending;
+
   return (
     <div className="mt-4 space-y-4">
       <form
-        className={`${card} grid gap-2 md:grid-cols-[1fr_2fr_80px_100px_auto]`}
-        onSubmit={(e) => {
-          e.preventDefault();
+        className={card + " space-y-4"}
+        aria-label="Add service"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!!f.opensAt !== !!f.closesAt) {
+            setScheduleError("Set both opening and closing times, or leave both blank.");
+            return;
+          }
+          setScheduleError(null);
           act.mutate(
-            () => api.createService({ ...f, prefix: f.prefix.toUpperCase(), isOpen: true }),
+            () =>
+              api.createService({
+                ...f,
+                prefix: f.prefix.trim().toUpperCase(),
+                opensAt: f.opensAt || null,
+                closesAt: f.closesAt || null,
+              }),
             {
               onSuccess: () =>
-                setF({ name: "", description: "", prefix: "", avgServiceMinutes: 5 }),
+                setF({
+                  name: "",
+                  description: "",
+                  prefix: "",
+                  avgServiceMinutes: 5,
+                  isActive: true,
+                  isOpen: true,
+                  opensAt: "",
+                  closesAt: "",
+                }),
             },
           );
         }}
       >
-        <Input
-          required
-          aria-label="Name"
-          placeholder="Name"
-          value={f.name}
-          onChange={(e) => setF({ ...f, name: e.target.value })}
-        />
-        <Input
-          aria-label="Description"
-          placeholder="Description"
-          value={f.description}
-          onChange={(e) => setF({ ...f, description: e.target.value })}
-        />
-        <Input
-          required
-          maxLength={2}
-          aria-label="Prefix"
-          placeholder="Prefix"
-          value={f.prefix}
-          onChange={(e) => setF({ ...f, prefix: e.target.value })}
-        />
-        <Input
-          type="number"
-          min={1}
-          aria-label="Average service duration in minutes"
-          title="Avg minutes"
-          value={f.avgServiceMinutes}
-          onChange={(e) => setF({ ...f, avgServiceMinutes: +e.target.value })}
-        />
+        <h3 className="font-semibold">Add a service</h3>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="grid gap-1 text-sm font-medium">
+            Service name
+            <Input
+              aria-label="Name"
+              placeholder="Name"
+              required
+              value={f.name}
+              onChange={(event) => setF({ ...f, name: event.target.value })}
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium sm:col-span-2">
+            Description
+            <Input
+              aria-label="Description"
+              placeholder="Description"
+              value={f.description}
+              onChange={(event) => setF({ ...f, description: event.target.value })}
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium">
+            Ticket prefix
+            <Input
+              aria-label="Prefix"
+              placeholder="Prefix"
+              required
+              maxLength={2}
+              pattern="[A-Za-z0-9]{1,2}"
+              value={f.prefix}
+              onChange={(event) => setF({ ...f, prefix: event.target.value })}
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium">
+            Average service duration (minutes)
+            <Input
+              type="number"
+              min={1}
+              step="1"
+              required
+              aria-label="Average service duration in minutes"
+              value={f.avgServiceMinutes}
+              onChange={(event) => setF({ ...f, avgServiceMinutes: Number(event.target.value) })}
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium">
+            Opens at
+            <Input
+              type="time"
+              aria-label="Opening time"
+              value={f.opensAt}
+              onChange={(event) => setF({ ...f, opensAt: event.target.value })}
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium">
+            Closes at
+            <Input
+              type="time"
+              aria-label="Closing time"
+              value={f.closesAt}
+              onChange={(event) => setF({ ...f, closesAt: event.target.value })}
+            />
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-5 text-sm">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={f.isActive}
+              onChange={(event) => setF({ ...f, isActive: event.target.checked })}
+            />
+            Service active
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={f.isOpen}
+              onChange={(event) => setF({ ...f, isOpen: event.target.checked })}
+            />
+            Accepting queue visits
+          </label>
+        </div>
+        {scheduleError && (
+          <p role="alert" className="text-sm text-destructive">
+            {scheduleError}
+          </p>
+        )}
+        {act.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {act.error.message}
+          </p>
+        )}
         <Button disabled={act.isPending}>Add service</Button>
       </form>
       {loading && <LoadingCards />}
-      {error && <LoadError message="Couldn’t load services." retry={() => void refetch()} />}
-      {data?.length === 0 && (
+      {loadError && (
+        <LoadError
+          message="Couldn’t load services or their organization details."
+          retry={() => {
+            void servicesQuery.refetch();
+            void organizationsQuery.refetch();
+          }}
+        />
+      )}
+      {queueQueries.some((query) => query.isError) && (
+        <LoadError
+          message="Couldn’t load today’s queue status. Queue controls are unavailable until it can be refreshed."
+          retry={() => queueQueries.forEach((query) => void query.refetch())}
+        />
+      )}
+      {servicesQuery.data?.length === 0 && (
         <p className="surface p-6 text-muted-foreground">
           No services configured. Add your first service above.
         </p>
       )}
-      {data?.map((s) => (
-        <div key={s.id} className={`${card} flex flex-wrap items-center gap-4`}>
-          <span className="ticket-code text-2xl">{s.prefix}</span>
-          <div className="flex-1">
-            <p className="font-semibold">{s.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {s.description} · ~{s.avgServiceMinutes} min each
-            </p>
-          </div>
-          <Button
-            disabled={act.isPending}
-            variant="outline"
-            onClick={() => act.mutate(() => api.updateService(s.id, { isOpen: !s.isOpen }))}
-          >
-            {s.isOpen ? "Close queue" : "Open queue"}
-          </Button>
-          <ConfirmAction
-            title="Delete this service?"
-            description="Visitors will no longer be able to join this service. Existing ticket history is preserved."
-            onConfirm={() => act.mutate(() => api.deleteService(s.id))}
-            disabled={act.isPending}
-          >
-            <Button variant="ghost" disabled={act.isPending}>
-              Delete
-            </Button>
-          </ConfirmAction>
-        </div>
-      ))}
+      {servicesQuery.data?.map((service) => {
+        const organization = organizationsQuery.data?.find((item) =>
+          item.services.some((publicService) => publicService.id === service.id),
+        );
+        const summary = queueByService.get(service.id);
+        return (
+          <AdminServiceCard
+            key={service.id}
+            service={service}
+            queue={summary?.queue ?? null}
+            timezone={summary?.timezone ?? organization?.timezone ?? null}
+            queueLoading={queueQueries.some((query) => query.isPending)}
+            onSave={(input) => api.updateService(service.id, input)}
+            onDelete={() => api.deleteService(service.id)}
+            onQueueChange={(isOpen) =>
+              summary?.queue
+                ? api.setQueueOverride(summary.queue.id, isOpen)
+                : Promise.reject(new Error("Today’s queue is unavailable."))
+            }
+          />
+        );
+      })}
     </div>
+  );
+}
+
+type ServiceForm = {
+  name: string;
+  description: string;
+  prefix: string;
+  avgServiceMinutes: number;
+  isActive: boolean;
+  isOpen: boolean;
+  opensAt: string;
+  closesAt: string;
+};
+
+function AdminServiceCard({
+  service,
+  queue,
+  timezone,
+  queueLoading,
+  onSave,
+  onDelete,
+  onQueueChange,
+}: {
+  service: import("@/lib/api").Service;
+  queue: import("@/lib/api").QueueSummary | null;
+  timezone: string | null;
+  queueLoading: boolean;
+  onSave: (input: Partial<Omit<import("@/lib/api").Service, "id">>) => Promise<unknown>;
+  onDelete: () => Promise<unknown>;
+  onQueueChange: (isOpen: boolean) => Promise<unknown>;
+}) {
+  const act = useAct();
+  const queueAction = useAct();
+  const [form, setForm] = useState<ServiceForm>(() => ({
+    name: service.name,
+    description: service.description,
+    prefix: service.prefix,
+    avgServiceMinutes: service.avgServiceMinutes,
+    isActive: service.isActive !== false,
+    isOpen: service.isOpen,
+    opensAt: service.opensAt ?? "",
+    closesAt: service.closesAt ?? "",
+  }));
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
+  return (
+    <form
+      className={card + " space-y-4"}
+      aria-label={"Edit " + service.name}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!!form.opensAt !== !!form.closesAt) {
+          setScheduleError("Set both opening and closing times, or leave both blank.");
+          return;
+        }
+        setScheduleError(null);
+        act.mutate(() =>
+          onSave({
+            ...form,
+            prefix: form.prefix.trim().toUpperCase(),
+            opensAt: form.opensAt || null,
+            closesAt: form.closesAt || null,
+          }),
+        );
+      }}
+    >
+      <div className="flex flex-wrap items-start gap-4">
+        <span className="ticket-code text-2xl">{service.prefix}</span>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold">{service.name}</h3>
+          <p className="text-sm text-muted-foreground">
+            {queue?.waiting ?? 0} waiting ·{" "}
+            {queue?.estimatedWaitMinutes == null
+              ? "Wait estimate unavailable"
+              : "~" + queue.estimatedWaitMinutes + " min"}
+          </p>
+          {timezone && <p className="text-xs text-muted-foreground">Hours shown in {timezone}</p>}
+        </div>
+        <span className="status-pill" data-status={queue?.isOpen ? "completed" : "cancelled"}>
+          {queue
+            ? queue.isOpen
+              ? "Queue open"
+              : "Queue closed"
+            : queueLoading
+              ? "Loading queue…"
+              : "Queue unavailable"}
+        </span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="grid gap-1 text-sm font-medium">
+          Service name
+          <Input
+            required
+            aria-label={"Name for " + service.name}
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium sm:col-span-2">
+          Description
+          <Input
+            aria-label={"Description for " + service.name}
+            value={form.description}
+            onChange={(event) => setForm({ ...form, description: event.target.value })}
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Ticket prefix
+          <Input
+            required
+            maxLength={2}
+            pattern="[A-Za-z0-9]{1,2}"
+            aria-label={"Prefix for " + service.name}
+            value={form.prefix}
+            onChange={(event) => setForm({ ...form, prefix: event.target.value })}
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Average service duration (minutes)
+          <Input
+            type="number"
+            min={1}
+            step="1"
+            required
+            aria-label={"Duration for " + service.name}
+            value={form.avgServiceMinutes}
+            onChange={(event) =>
+              setForm({ ...form, avgServiceMinutes: Number(event.target.value) })
+            }
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Opens at
+          <Input
+            type="time"
+            aria-label={"Opens at for " + service.name}
+            value={form.opensAt}
+            onChange={(event) => setForm({ ...form, opensAt: event.target.value })}
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Closes at
+          <Input
+            type="time"
+            aria-label={"Closes at for " + service.name}
+            value={form.closesAt}
+            onChange={(event) => setForm({ ...form, closesAt: event.target.value })}
+          />
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-5 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={form.isActive}
+            onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
+          />
+          Service active
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={form.isOpen}
+            onChange={(event) => setForm({ ...form, isOpen: event.target.checked })}
+          />
+          Accepting queue visits
+        </label>
+      </div>
+      {scheduleError && (
+        <p role="alert" className="text-sm text-destructive">
+          {scheduleError}
+        </p>
+      )}
+      {act.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {act.error.message}
+        </p>
+      )}
+      {queueAction.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {queueAction.error.message}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={act.isPending}>Save service</Button>
+        <ConfirmAction
+          title="Delete this service?"
+          description="This service will be removed from the customer directory. Existing ticket history is preserved."
+          onConfirm={() => act.mutate(onDelete)}
+          disabled={act.isPending}
+        >
+          <Button type="button" variant="ghost" disabled={act.isPending}>
+            Delete
+          </Button>
+        </ConfirmAction>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={
+            queueAction.isPending ||
+            !queue ||
+            (!queue.isOpen && (!service.isActive || !service.isOpen))
+          }
+          onClick={() => queueAction.mutate(() => onQueueChange(!queue?.isOpen))}
+        >
+          {queueAction.isPending ? "Saving queue…" : queue?.isOpen ? "Close queue" : "Open queue"}
+        </Button>
+      </div>
+    </form>
   );
 }
 

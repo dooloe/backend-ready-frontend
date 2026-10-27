@@ -640,3 +640,11 @@ mobile browser workflows passed. Hosted CI run
 [40458568513](https://github.com/dooloe/backend-ready-frontend/actions/runs/40458568513)
 passed every gate. Issue #41 was closed after verifying all acceptance
 criteria.
+
+## Issue #38 admin service and queue controls — 2026-10-27
+
+Implemented the real admin service and daily queue APIs, validated editable
+service schedules and activation, organization-timezone context, authoritative
+queue refresh, rejected out-of-hours reopening feedback, and confirmed service
+deletion preserving history. Frontend tests and focused real-backend desktop/
+mobile browser workflows pass. Issue #38 remains open pending hosted CI.

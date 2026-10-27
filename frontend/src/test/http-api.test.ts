@@ -121,4 +121,24 @@ describe("legacy private ticket client compatibility", () => {
       expect.objectContaining({ method: "GET" }),
     );
   });
+
+  it("uses organization-scoped admin service and daily queue operations", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createHttpApi("http://localhost:8000", () => "admin-session");
+
+    await api.listAdminServices();
+    await api.setQueueOverride("daily/queue", false);
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [init.method, url])).toEqual([
+      ["GET", "http://localhost:8000/api/admin/services"],
+      ["PATCH", "http://localhost:8000/api/admin/queues/daily%2Fqueue"],
+    ]);
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ body: JSON.stringify({ isOpen: false }) });
+  });
 });

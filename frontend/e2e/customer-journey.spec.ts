@@ -230,7 +230,12 @@ test("queue conflict after availability changes is announced and prevents ticket
   }
 });
 
-test("staff no-show confirmation and essential admin configuration", async ({ page, browser }) => {
+test("staff no-show confirmation and essential admin configuration", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(90000);
+  const browserServiceName = "Browser demo service " + info.project.name;
   await page.goto("/join/demo-clinic/demo-svc-clinic");
   await page.getByRole("button", { name: "Confirm & join queue" }).click();
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
@@ -374,15 +379,53 @@ test("staff no-show confirmation and essential admin configuration", async ({ pa
   await staff.keyboard.press("ArrowRight");
   const servicesTab = staff.getByRole("tab", { name: "Services" });
   await expect(servicesTab).toHaveAttribute("data-state", "active");
-  await staff.getByLabel("Name", { exact: true }).fill("Browser demo service");
+  await staff.getByLabel("Name", { exact: true }).fill(browserServiceName);
   await staff.getByLabel("Description", { exact: true }).fill("Created through real API");
   await staff.getByLabel("Prefix", { exact: true }).fill("T");
   await staff.getByRole("button", { name: "Add service", exact: true }).click();
-  const row = staff
-    .locator("div.surface")
-    .filter({ has: staff.getByText("Browser demo service", { exact: true }) });
+  const row = staff.getByRole("form", { name: "Edit " + browserServiceName });
   await expect(row).toBeVisible();
+  const closeQueue = staff.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/queues/") && response.request().method() === "PATCH",
+  );
   await row.getByRole("button", { name: "Close queue" }).click();
+  const closedQueue = await closeQueue;
+  expect(closedQueue.ok()).toBe(true);
+  expect(await closedQueue.json()).toMatchObject({ isOpen: false });
+  await expect(row.getByRole("button", { name: "Open queue" })).toBeVisible();
+  const openQueue = staff.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/queues/") && response.request().method() === "PATCH",
+  );
+  await row.getByRole("button", { name: "Open queue" }).click();
+  const reopenedQueue = await openQueue;
+  expect(reopenedQueue.ok()).toBe(true);
+  expect(await reopenedQueue.json()).toMatchObject({ isOpen: true });
+  await expect(row.getByRole("button", { name: "Close queue" })).toBeVisible();
+
+  const saveService = staff.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/services/") && response.request().method() === "PATCH",
+  );
+  await row.getByLabel("Opens at for " + browserServiceName, { exact: true }).fill("00:00");
+  await row.getByLabel("Closes at for " + browserServiceName, { exact: true }).fill("00:01");
+  await row.getByLabel("Duration for " + browserServiceName, { exact: true }).fill("7");
+  await row.getByRole("button", { name: "Save service" }).click();
+  const savedService = await saveService;
+  expect(savedService.ok()).toBe(true);
+  expect(await savedService.json()).toMatchObject({
+    avgServiceMinutes: 7,
+    opensAt: "00:00:00",
+    closesAt: "00:01:00",
+  });
+  const reopenQueue = staff.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/queues/") && response.request().method() === "PATCH",
+  );
+  await row.getByRole("button", { name: "Open queue" }).click();
+  expect((await reopenQueue).status()).toBe(409);
+  await expect(row.getByRole("alert")).toContainText(/outside|hours/i);
   await expect(row.getByRole("button", { name: "Open queue" })).toBeVisible();
   await row.getByRole("button", { name: "Delete", exact: true }).click();
   await staff.getByRole("button", { name: "Go back", exact: true }).click();

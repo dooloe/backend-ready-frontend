@@ -89,6 +89,24 @@ describe("Kezek mock API", () => {
     await expect(mockApi.getAnalytics("2026-10-20")).rejects.toMatchObject({ status: 422 });
   });
 
+  it("persists daily queue overrides and returns the authoritative mock status", async () => {
+    token = (await mockApi.login("admin", "admin123")).token;
+    const service = (await mockApi.listOrganizationServices("mock-university"))[0]!;
+    const queueId = service.queue!.id;
+
+    await expect(mockApi.setQueueOverride(queueId, false)).resolves.toMatchObject({
+      id: queueId,
+      isOpen: false,
+    });
+    expect((await mockApi.listOrganizationServices("mock-university"))[0]!.queue!.isOpen).toBe(
+      false,
+    );
+    await mockApi.setQueueOverride(queueId, true);
+    expect((await mockApi.listOrganizationServices("mock-university"))[0]!.queue!.isOpen).toBe(
+      true,
+    );
+  });
+
   it("calls the oldest waiting ticket and never twice", async () => {
     const first = await mockApi.joinQueue({ serviceId: "svc-reg", customerName: "A" });
     await new Promise((r) => setTimeout(r, 5));
