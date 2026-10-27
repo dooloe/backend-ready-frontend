@@ -39,7 +39,8 @@ function TicketPage() {
   const qc = useQueryClient();
   const query = useQuery<IssuedTicket | TicketView>({
     queryKey: ["ticket", id],
-    queryFn: () => (isPrivateToken ? api.getPrivateTicket(id) : api.getTicket(id)),
+    queryFn: ({ signal }) =>
+      isPrivateToken ? api.getPrivateTicket(id, signal) : api.getTicket(id, signal),
     retry: false,
     refetchInterval: (q) => ticketRefetchInterval(q.state.data?.status),
   });

@@ -42,6 +42,21 @@ describe("legacy private ticket client compatibility", () => {
     ]);
   });
 
+  it("forwards query cancellation signals to private ticket reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createHttpApi("http://localhost:8000", () => null);
+    const controller = new AbortController();
+
+    await api.getPrivateTicket("A".repeat(43), controller.signal);
+
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ signal: controller.signal });
+  });
+
   it("issues an anonymous ticket with the queue-scoped retry key", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ticket: {}, ticketUrl: "/ticket/token" }), {

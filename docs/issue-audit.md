@@ -89,8 +89,8 @@ required evidence; it does not mean all work on that issue is absent.
 | #31 | Closed (2026-10-26) | `/api/admin/analytics` implements organization-local inclusive date filtering, scoped totals, completed wait/service averages, per-service metrics and daily buckets. Full backend suite (178), frontend checks, and real-backend desktop/mobile suite passed locally; hosted run 40355682682 passed all gates. |
 | #32 | Open | Current typed bearer adapter passes all 20 live operations; future contract, cookie/CSRF/abort/structured-error integration is absent. |
 | #33 | Closed (2026-10-26 follow-up) | Organization selection, timezone hours, backend availability/wait estimates, and loading/empty/closed/error component states are verified. |
-| #34 | Open pending hosted verification | Anonymous join uses typed issuance and private tokens; rapid repeats are suppressed, retry credentials recover uncertain responses, and closed queues refresh. Local unit, real-backend desktop/mobile, and full stack checks pass; hosted verification is pending. |
-| #35 | Open | Current ticket polling/cancellation work; polling continues every three seconds for terminal states, with no confirmation or required refresh/recovery tests. |
+| #34 | Closed (2026-10-27) | Anonymous join uses typed issuance and private tokens; rapid repeats are suppressed, retry credentials recover uncertain responses, and closed queues refresh. Full local and hosted verification passed (40455535742). |
+| #35 | Open pending hosted verification | All six states, five-second terminal-aware polling, abort-signal forwarding, cancellation confirmation, last-refresh feedback, and invalid-link/network/late-cancel tests pass locally; hosted verification is pending. |
 | #36 | Open | Bearer login/local storage exists; planned cookie identity, expiry recovery, logout revocation and protected-cache clearing are absent. |
 | #37 | Open | Live staff actions work for the current contract; backend assignment isolation, strict planned transitions and component regression coverage are absent. |
 | #38 | Open | Current service creation/open toggles exist; schedule forms and daily closure controls are absent. |

@@ -143,9 +143,9 @@ export interface KezekApi {
   // Public (customer)
   listServices(): Promise<Service[]>;
   joinQueue(input: { serviceId: string; customerName: string }): Promise<TicketView>;
-  getTicket(id: string): Promise<TicketView>;
+  getTicket(id: string, signal?: AbortSignal): Promise<TicketView>;
   cancelTicket(id: string): Promise<TicketView>;
-  getPrivateTicket(accessToken: string): Promise<IssuedTicket>;
+  getPrivateTicket(accessToken: string, signal?: AbortSignal): Promise<IssuedTicket>;
   cancelPrivateTicket(accessToken: string): Promise<IssuedTicket>;
   issueTicket(input: {
     queueId: string;

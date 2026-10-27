@@ -1200,5 +1200,22 @@ idempotency header through CORS. Legacy saved ticket links remain readable.
 Verification: backend suite **197 passed**; frontend Vitest **37 passed**;
 lint **0 errors** (six existing Fast Refresh warnings); typecheck and
 production build passed; real-backend desktop/mobile Playwright suite **8
-passed**; `git diff --check` passed. Hosted verification is pending, so #34
-remains open.
+passed**; `git diff --check` passed. Hosted run
+[40455535742](https://github.com/dooloe/backend-ready-frontend/actions/runs/40455535742)
+passed every gate, including real-backend browser workflows. Issue #34 was
+closed after AC-1 through AC-3 were verified.
+
+## 2026-10-27 — Issue #35 private ticket lifecycle UI
+
+Private and legacy ticket queries now consume the TanStack Query abort signal,
+and the HTTP client forwards it to `fetch`, allowing obsolete route requests
+to be cancelled. The ticket page retains five-second polling for active states
+and stops for completed, cancelled and no-show states. Focused route tests cover
+all six statuses, unavailable estimates, last-refresh text, invalid private
+links, recovery after a network error, cancellation confirmation and a rejected
+late cancellation followed by authoritative refresh.
+
+Verification: frontend Vitest **48 passed**; lint **0 errors** (six existing
+Fast Refresh warnings); typecheck, production build, `git diff --check` and
+real-backend desktop/mobile Playwright **8 passed**. Hosted verification is
+pending, so #35 remains open.

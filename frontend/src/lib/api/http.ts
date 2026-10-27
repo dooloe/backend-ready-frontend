@@ -7,6 +7,7 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
     path: string,
     body?: unknown,
     extraHeaders: Record<string, string> = {},
+    signal?: AbortSignal,
   ): Promise<T> {
     const token = getToken();
     const res = await fetch(baseUrl + path, {
@@ -17,6 +18,7 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
         ...extraHeaders,
       },
       body: body === undefined ? null : JSON.stringify(body),
+      ...(signal ? { signal } : {}),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -38,10 +40,11 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
       req("GET", `/api/organizations/${encodeURIComponent(id)}/services`),
     listServices: () => req("GET", "/api/services"),
     joinQueue: (i) => req("POST", "/api/tickets", i),
-    getTicket: (id) => req("GET", `/api/legacy/tickets/${encodeURIComponent(id)}`),
+    getTicket: (id, signal) =>
+      req("GET", `/api/legacy/tickets/${encodeURIComponent(id)}`, undefined, {}, signal),
     cancelTicket: (id) => req("POST", `/api/legacy/tickets/${encodeURIComponent(id)}/cancel`),
-    getPrivateTicket: (token) =>
-      req<IssuedTicket>("GET", `/api/tickets/${encodeURIComponent(token)}`),
+    getPrivateTicket: (token, signal) =>
+      req<IssuedTicket>("GET", `/api/tickets/${encodeURIComponent(token)}`, undefined, {}, signal),
     cancelPrivateTicket: (token) =>
       req<IssuedTicket>("POST", `/api/tickets/${encodeURIComponent(token)}/cancel`),
     issueTicket: ({ queueId, accessToken, idempotencyKey }) =>
