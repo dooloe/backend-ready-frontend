@@ -47,9 +47,6 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
     listServices: () => req("GET", "/api/services"),
     listAdminServices: () => req("GET", "/api/admin/services"),
     joinQueue: (i) => req("POST", "/api/tickets", i),
-    getTicket: (id, signal) =>
-      req("GET", `/api/legacy/tickets/${encodeURIComponent(id)}`, undefined, {}, signal),
-    cancelTicket: (id) => req("POST", `/api/legacy/tickets/${encodeURIComponent(id)}/cancel`),
     getPrivateTicket: (token, signal) =>
       req<IssuedTicket>("GET", `/api/tickets/${encodeURIComponent(token)}`, undefined, {}, signal),
     cancelPrivateTicket: (token) =>

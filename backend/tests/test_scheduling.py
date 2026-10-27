@@ -91,7 +91,7 @@ def test_daily_queue_created_on_join_and_manual_closure_overrides_hours(client, 
         "serviceId": "svc-reg", "customerName": "Should not join",
     })
     assert rejected.status_code == 409
-    assert client.get(f"/api/legacy/tickets/{ticket['id']}").status_code == 200
+    assert store.ticket(ticket["id"]).id == ticket["id"]
 
 
 def test_join_rejects_outside_hours_without_creating_daily_queue(client, store, clock):

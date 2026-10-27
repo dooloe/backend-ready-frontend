@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 import jsonschema
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
@@ -100,7 +101,7 @@ def test_private_ticket_lookup_requires_token_and_tracks_queue_position(client, 
     assert invalid_id.headers["cache-control"] == malformed.headers["cache-control"] == "no-store"
 
     # Removing the earlier visitor from WAITING updates the later visitor's view.
-    assert client.post(f"/api/legacy/tickets/{first['ticket']['id']}/cancel").status_code == 200
+    assert client.post(f"/api/tickets/{proof(31)}/cancel").status_code == 200
     updated = client.get(f"/api/tickets/{proof(33)}")
     assert updated.status_code == 200
     assert updated.json()["position"] == second_response.json()["position"] - 1
@@ -452,9 +453,6 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
     queue_id = next(item["queue"]["id"] for item in catalog if item["id"] == "svc-reg")
     check("GET", f"/api/queues/{queue_id}/status", "/api/queues/{queueId}/status")
     ticket = check("POST", "/api/tickets", "/api/tickets", json={"serviceId": "svc-reg", "customerName": "Customer"})
-    check("GET", f"/api/legacy/tickets/{ticket['id']}", "/api/legacy/tickets/{id}")
-    cancelled = join(client)
-    check("POST", f"/api/legacy/tickets/{cancelled['id']}/cancel", "/api/legacy/tickets/{id}/cancel")
     login = check("POST", "/api/auth/login", "/api/auth/login", json={"username": "admin", "password": "admin123"})
     headers = {"Authorization": "Bearer " + login["token"]}
     check("GET", "/api/admin/services", "/api/admin/services", headers=headers)
@@ -513,15 +511,18 @@ def test_generated_routes_and_security_match_contract(client, contract):
             assert actual.get("x-required-roles") == expected.get("x-required-roles")
 
 
-def test_error_responses_match_the_documented_envelope(client, contract):
+def test_error_responses_match_the_documented_envelope(client, store, contract):
     created = client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": "QA"})
     ticket_id = created.json()["id"]
-    client.post(f"/api/legacy/tickets/{ticket_id}/cancel")
+    queue_id = daily_queue_id(store)
+    token = proof(46)
+    assert anonymous_join(client, queue_id, key=proof(45), token=token).status_code == 201
+    assert client.post(f"/api/tickets/{token}/cancel").status_code == 200
     responses = [
-        (client.get("/api/legacy/tickets/missing"), "get", "/api/legacy/tickets/{id}", "404"),
+        (client.get(f"/api/tickets/{ticket_id}"), "get", "/api/tickets/{token}", "404"),
         (client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": " "}),
          "post", "/api/tickets", "422"),
-        (client.post(f"/api/legacy/tickets/{ticket_id}/cancel"), "post", "/api/legacy/tickets/{id}/cancel", "409"),
+        (client.post(f"/api/tickets/{token}/cancel"), "post", "/api/tickets/{token}/cancel", "409"),
         (client.get("/api/counters"), "get", "/api/counters", "401"),
     ]
     for response, method, path, status in responses:
@@ -529,6 +530,8 @@ def test_error_responses_match_the_documented_envelope(client, contract):
         error_response = dereference(operation["responses"][status], contract)
         error_schema = error_response["content"]["application/json"]["schema"]
         jsonschema.validate(response.json(), dereference(error_schema, contract))
+    assert client.get(f"/api/legacy/tickets/{ticket_id}").status_code == 404
+    assert client.post(f"/api/legacy/tickets/{ticket_id}/cancel").status_code == 404
 
 
 @pytest.mark.parametrize("method,path", STAFF_ENDPOINTS + ADMIN_ENDPOINTS)
@@ -709,8 +712,10 @@ def test_ticket_positions_estimates_and_full_lifecycle(client, store, staff, clo
     assert called["counterName"] == "Counter 1" and called["position"] is None
     assert called["calledAt"] is not None
     assert client.post("/api/counters/cnt-1/call-next", headers=staff).status_code == 409
-    assert client.post(f"/api/legacy/tickets/{first['id']}/cancel").status_code == 409
-    assert client.get(f"/api/legacy/tickets/{second['id']}").json()["position"] == 1
+    with pytest.raises(HTTPException) as conflict:
+        store.cancel(first["id"])
+    assert conflict.value.status_code == 409
+    assert store.ticket(second["id"]).position == 1
     clock.advance(minutes=1)
     started = client.post(f"/api/tickets/{first['id']}/start", headers=staff).json()
     assert started["status"] == "serving" and started["servedAt"] is not None
@@ -753,7 +758,7 @@ def test_staff_lifecycle_rolls_back_when_audit_event_cannot_be_written(client, s
     with pytest.raises(IntegrityError):
         store.call_next("cnt-1", actor)
     monkeypatch.setattr(store_module, "TicketEventRow", real_event)
-    assert client.get(f"/api/legacy/tickets/{ticket['id']}").json()["status"] == "waiting"
+    assert store.ticket(ticket["id"]).status == "waiting"
     with store.db.session() as session:
         assert session.get(ActiveTicketRow, "cnt-1") is None
 
@@ -765,7 +770,7 @@ def test_staff_lifecycle_rolls_back_when_audit_event_cannot_be_written(client, s
     with pytest.raises(IntegrityError):
         store.transition(ticket["id"], "start", actor)
     monkeypatch.setattr(store_module, "TicketEventRow", real_event)
-    assert client.get(f"/api/legacy/tickets/{ticket['id']}").json()["status"] == "called"
+    assert store.ticket(ticket["id"]).status == "called"
     with store.db.session() as session:
         event_types = set(session.scalars(select(TicketEventRow.event_type).where(
             TicketEventRow.ticket_id == ticket["id"],
@@ -773,11 +778,13 @@ def test_staff_lifecycle_rolls_back_when_audit_event_cannot_be_written(client, s
     assert event_types == {"issued", "called"}
 
 
-def test_cancelled_ticket_is_skipped_and_called_must_start_before_completion(client, staff):
+def test_cancelled_ticket_is_skipped_and_called_must_start_before_completion(client, store, staff):
     first, second = join(client), join(client)
-    cancelled = client.post(f"/api/legacy/tickets/{first['id']}/cancel")
-    assert cancelled.json()["finishedAt"] is not None
-    assert client.post(f"/api/legacy/tickets/{first['id']}/cancel").status_code == 409
+    cancelled = store.cancel(first["id"])
+    assert cancelled.finishedAt is not None
+    with pytest.raises(HTTPException) as conflict:
+        store.cancel(first["id"])
+    assert conflict.value.status_code == 409
     called = client.post("/api/counters/cnt-1/call-next", headers=staff).json()
     assert called["id"] == second["id"]
     assert client.post(f"/api/tickets/{second['id']}/complete", headers=staff).status_code == 409
@@ -786,7 +793,7 @@ def test_cancelled_ticket_is_skipped_and_called_must_start_before_completion(cli
     assert done.status_code == 200 and done.json()["status"] == "completed"
 
 
-def test_staff_lifecycle_rejects_every_invalid_transition(client, staff):
+def test_staff_lifecycle_rejects_every_invalid_transition(client, store, staff):
     def reject_all(ticket_id: str):
         for action in ("start", "complete", "no-show"):
             assert client.post(f"/api/tickets/{ticket_id}/{action}", headers=staff).status_code == 409
@@ -804,7 +811,7 @@ def test_staff_lifecycle_rejects_every_invalid_transition(client, staff):
     reject_all(called["id"])
 
     cancelled = join(client)
-    assert client.post(f"/api/legacy/tickets/{cancelled['id']}/cancel").status_code == 200
+    store.cancel(cancelled["id"])
     reject_all(cancelled["id"])
 
     no_show = join(client)
@@ -887,7 +894,7 @@ def test_protected_operations_are_organization_scoped(client, store, admin, staf
     called = client.post("/api/counters/other-counter/call-next", headers=other_staff).json()
     assert called["id"] == ticket["id"]
     assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 404
-    assert client.get(f"/api/legacy/tickets/{ticket['id']}").json()["status"] == "called"
+    assert store.ticket(ticket["id"]).status == "called"
     assert client.post(f"/api/tickets/{ticket['id']}/start", headers=other_staff).status_code == 200
     assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=other_staff).status_code == 200
     assert client.get("/api/admin/stats", headers=admin).json()["byService"]
@@ -975,7 +982,7 @@ def test_admin_daily_queue_override_preserves_existing_work_and_is_tenant_scoped
     closed = client.patch(f"/api/admin/queues/{queue_id}", headers=admin, json={"isOpen": False})
     assert closed.status_code == 200, closed.text
     assert closed.json()["isOpen"] is False and closed.json()["waiting"] == 1
-    assert client.get(f"/api/legacy/tickets/{ticket['id']}").status_code == 200
+    assert store.ticket(ticket["id"]).id == ticket["id"]
     assert anonymous_join(client, queue_id).status_code == 409
     assert client.patch(f"/api/admin/queues/{queue_id}", headers=staff,
                         json={"isOpen": True}).status_code == 403
@@ -1084,7 +1091,7 @@ def test_admin_service_schedule_activation_and_existing_daily_queue_behavior(cli
 
     deactivated = client.patch("/api/admin/services/svc-reg", headers=admin, json={"isActive": False})
     assert deactivated.status_code == 200 and deactivated.json()["isActive"] is False
-    assert client.get(f"/api/legacy/tickets/{first['id']}").json()["status"] == "completed"
+    assert store.ticket(first["id"]).status == "completed"
     assert client.post("/api/tickets", json={"serviceId": "svc-reg", "customerName": "New visitor"}).status_code == 409
 
     assert client.patch("/api/admin/services/svc-reg", headers=admin, json={"isActive": True}).status_code == 200
@@ -1141,14 +1148,14 @@ def test_validation_has_string_detail_and_does_not_issue_ticket(client, store, a
     assert response.status_code == 422 and isinstance(response.json()["detail"], str)
 
 
-def test_statistics_use_real_timestamps_and_utc_days(client, admin, staff, clock):
+def test_statistics_use_real_timestamps_and_utc_days(client, admin, staff, clock, store):
     first = join(client)
     second = join(client, service="svc-fin")
     clock.advance(minutes=6)
     client.post("/api/counters/cnt-1/call-next", headers=staff)
     client.post(f"/api/tickets/{first['id']}/start", headers=staff)
     client.post(f"/api/tickets/{first['id']}/complete", headers=staff)
-    client.post(f"/api/legacy/tickets/{second['id']}/cancel")
+    store.cancel(second["id"])
     join(client)
     stats = client.get("/api/admin/stats", headers=admin).json()
     assert (stats["totalToday"], stats["waitingNow"], stats["completedToday"], stats["avgWaitMinutes"]) == (3, 1, 1, 6)
@@ -1243,15 +1250,18 @@ def test_parallel_calls_at_one_counter_do_not_double_assign(client, staff):
     assert len(client.get("/api/counters/cnt-1/queue", headers=staff).json()["waiting"]) == 1
 
 
-def test_cancellation_racing_call_next_is_consistent(client, staff):
-    ticket = join(client)
+def test_cancellation_racing_call_next_is_consistent(client, store, staff):
+    catalog = client.get("/api/organizations/org-demo/services").json()
+    queue_id = next(row["queue"]["id"] for row in catalog if row["id"] == "svc-reg")
+    token = proof(49)
+    ticket = anonymous_join(client, queue_id, key=proof(48), token=token).json()["ticket"]
     with ThreadPoolExecutor(max_workers=2) as pool:
-        cancel = pool.submit(client.post, f"/api/legacy/tickets/{ticket['id']}/cancel")
+        cancel = pool.submit(client.post, f"/api/tickets/{token}/cancel")
         call = pool.submit(client.post, "/api/counters/cnt-1/call-next", headers=staff)
         cancelled, called = cancel.result(), call.result()
     if cancelled.status_code == 200:
         assert called.json() is None
-        assert client.get(f"/api/legacy/tickets/{ticket['id']}").json()["status"] == "cancelled"
+        assert store.ticket(ticket["id"]).status == "cancelled"
     else:
         assert cancelled.status_code == 409 and called.json()["id"] == ticket["id"]
 

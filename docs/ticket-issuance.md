@@ -103,9 +103,8 @@ This preserves hash-only storage and reliable retries without a signing secret,
 deterministic derivation or plaintext-token recovery table. Customer read/cancel
 responses never echo the token.
 
-The current frontend's POST /api/tickets with customerName remains a legacy join
-contract until coordinated integration (#32/#34). Its existing ID-based ticket
-links and cancellation now use explicitly deprecated `/api/legacy/tickets/{id}`
-routes. The canonical `GET /api/tickets/{token}` lookup resolves token hashes
-only; no ID fallback exists on that route. The customer ticket page and join
-flow will move to the canonical token endpoints in #34/#35.
+The existing POST `/api/tickets` with `customerName` remains a legacy join
+contract while the active customer flow uses anonymous token-based issuance.
+Deprecated ID-based read and cancellation routes have been removed. Old browser
+saved IDs are discarded; all active ticket reads and cancellations require the
+private token endpoints.

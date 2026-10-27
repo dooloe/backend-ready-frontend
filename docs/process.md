@@ -1,5 +1,19 @@
 # Implementation and verification record
 
+## 2026-10-27 — Issue #20 customer access migration
+
+Removed the deprecated public ticket read and cancellation routes that accepted
+internal ticket IDs. Customer ticket pages and saved-ticket history now use the
+private-token endpoints only; local storage drops legacy IDs. API contract and
+regression tests assert that the old routes return 404 and internal IDs cannot
+read customer ticket data. Existing issue-history entries below describe the
+implementation and verification state at the time they were written; this entry
+records the subsequent migration. The complete backend suite passes (**197
+tests**); focused internal-ID/legacy-route checks pass. Frontend tests (56) and
+production build pass; lint has zero errors and six existing Fast Refresh
+warnings, and typecheck passes. Hosted CI verification is still pending, so #20
+remains open pending that evidence.
+
 ## 2026-10-26 — Issue #17 organization-local scheduling (hosted verification pending)
 
 Added `backend/app/scheduling.py` to resolve the service's business date and

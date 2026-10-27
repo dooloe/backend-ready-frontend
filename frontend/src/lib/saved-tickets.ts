@@ -2,10 +2,9 @@
 const KEY = "kezek-private-ticket-links-v2";
 const LEGACY_KEY = "kezek-ticket-links-v1";
 const PRIVATE_TOKEN = /^[A-Za-z0-9_-]{43}$/;
-const LEGACY_CAPABILITY = /^[A-Za-z0-9_-]{8,128}$/;
 
 export interface SavedTicketLink {
-  kind: "private" | "legacy";
+  kind: "private";
   value: string;
 }
 
@@ -23,15 +22,14 @@ function storedValues(key: string): string[] {
 
 export function savedTicketLinks(): SavedTicketLink[] {
   const current = storedValues(KEY).filter((value) => PRIVATE_TOKEN.test(value));
-  const legacy = storedValues(LEGACY_KEY).filter(
-    (value) => LEGACY_CAPABILITY.test(value) && !PRIVATE_TOKEN.test(value),
-  );
-  return [
-    ...current.map((value) => ({ kind: "private" as const, value })),
-    ...legacy
-      .filter((value) => !current.includes(value))
-      .map((value) => ({ kind: "legacy" as const, value })),
-  ].slice(0, 50);
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(LEGACY_KEY);
+    } catch {
+      /* Old internal IDs are ignored even when browser storage cannot be cleared. */
+    }
+  }
+  return current.map((value) => ({ kind: "private" as const, value })).slice(0, 50);
 }
 
 export function savedTicketTokens(): string[] {
@@ -42,10 +40,6 @@ export function savedTicketTokens(): string[] {
 
 export function saveTicketToken(id: string) {
   saveLink(KEY, id, PRIVATE_TOKEN);
-}
-
-export function saveLegacyTicketId(id: string) {
-  saveLink(LEGACY_KEY, id, LEGACY_CAPABILITY);
 }
 
 function saveLink(key: string, id: string, pattern: RegExp) {

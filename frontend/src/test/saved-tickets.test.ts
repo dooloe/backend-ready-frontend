@@ -20,7 +20,8 @@ it("ignores malformed storage and unsafe path values", () => {
   expect(savedTicketTokens()).toEqual([]);
 });
 
-it("keeps previously saved legacy ticket links available during migration", () => {
+it("drops unsafe legacy ticket IDs and retains only private links", () => {
   localStorage.setItem("kezek-ticket-links-v1", JSON.stringify(["old_ticket_capability"]));
-  expect(savedTicketLinks()).toEqual([{ kind: "legacy", value: "old_ticket_capability" }]);
+  expect(savedTicketLinks()).toEqual([]);
+  expect(localStorage.getItem("kezek-ticket-links-v1")).toBeNull();
 });

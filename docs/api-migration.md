@@ -10,8 +10,8 @@ and pages together. No repository relocation is needed.
 | --- | --- | --- |
 | listServices | listOrganizations, listOrganizationServices, getQueueStatus | Select organization; show active service hours/timezone, current daily queue and server availability. |
 | joinQueue(serviceId, customerName) | issueTicket(queueId, accessToken, idempotencyKey) | Remove names; persist independent random proofs before sending; retry same pair after uncertain results. |
-| getTicket(id) | readPrivateTicket(token) | Canonical `/api/tickets/{token}` resolves hash-only access proofs. Existing IDs temporarily use deprecated `/api/legacy/tickets/{id}` until #35 migrates the screen. |
-| cancelTicket(id) | cancelPrivateTicket(token) | Confirm waiting-only cancellation; authenticate by token hash. Existing ID links temporarily use deprecated `/api/legacy/tickets/{id}/cancel` until #21/#35 finish the cutover. |
+| getTicket(id) | readPrivateTicket(token) | Customer reads use only canonical `/api/tickets/{token}` hash lookup; internal IDs are rejected. |
+| cancelTicket(id) | cancelPrivateTicket(token) | Confirm waiting-only cancellation through `/api/tickets/{token}/cancel`; internal IDs are rejected. |
 | login returning bearer/localStorage | Cookie login, identity, CSRF and logout (#6) | Remove localStorage bearer state only when cookie/session integration is implemented. |
 | Counter/staff/admin adapter | Planned staff/admin operations (#6–#7) | Keep role and organization checks on the backend; adopt full configuration schemas. |
 
@@ -21,7 +21,7 @@ returned `ticketNumber`. Planned ticket fields use `queueId`, `startedAt`,
 `completedAt`, `cancelledAt` and `noShowAt`; map or replace the current `code`,
 `serviceId`, `servedAt` and `finishedAt` fields at the typed facade boundary.
 All six statuses remain lowercase. Do not implement public ID fallback as a
-compatibility shortcut once private-token integration is enabled.
+compatibility shortcut; customer access requires a private token.
 
 Errors have `code`, `message`, `details`; clients act on codes and display safe
 messages. Null estimates mean “Currently unavailable,” not zero. Terminal ticket

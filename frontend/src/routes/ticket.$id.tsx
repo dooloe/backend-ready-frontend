@@ -3,15 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Ticket, ArrowLeft, Clock3, Users, CheckCircle2, Copy } from "lucide-react";
 import { toast } from "sonner";
-import {
-  api,
-  isIssuedTicket,
-  type IssuedTicket,
-  type TicketStatus,
-  type TicketView,
-} from "@/lib/api";
+import { api, type TicketStatus, type IssuedTicket } from "@/lib/api";
 import { ticketRefetchInterval } from "@/lib/ticket-polling";
-import { saveLegacyTicketId, saveTicketToken } from "@/lib/saved-tickets";
+import { saveTicketToken } from "@/lib/saved-tickets";
 import { Button } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/confirm-action";
 import { LoadError, LoadingCards } from "@/components/customer-ui";
@@ -37,34 +31,18 @@ function TicketPage() {
   const { id } = Route.useParams();
   const isPrivateToken = /^[A-Za-z0-9_-]{43}$/.test(id);
   const qc = useQueryClient();
-  const query = useQuery<IssuedTicket | TicketView>({
+  const query = useQuery<IssuedTicket>({
     queryKey: ["ticket", id],
-    queryFn: ({ signal }) =>
-      isPrivateToken ? api.getPrivateTicket(id, signal) : api.getTicket(id, signal),
+    queryFn: ({ signal }) => api.getPrivateTicket(id, signal),
     retry: false,
     refetchInterval: (q) => ticketRefetchInterval(q.state.data?.status),
   });
   const t = query.data;
-  const organizations = useQuery({
-    queryKey: ["organizations"],
-    queryFn: api.listOrganizations,
-    enabled: !!t && !isPrivateToken,
-  });
-  const organizationName =
-    t && isIssuedTicket(t)
-      ? t.organizationName
-      : t
-        ? organizations.data?.find((org) =>
-            org.services.some((service) => service.id === t.serviceId),
-          )?.name
-        : undefined;
   useEffect(() => {
-    if (!t) return;
-    if (isPrivateToken) saveTicketToken(id);
-    else saveLegacyTicketId(id);
+    if (t && isPrivateToken) saveTicketToken(id);
   }, [id, isPrivateToken, t]);
-  const cancel = useMutation<IssuedTicket | TicketView>({
-    mutationFn: () => (isPrivateToken ? api.cancelPrivateTicket(id) : api.cancelTicket(id)),
+  const cancel = useMutation<IssuedTicket>({
+    mutationFn: () => api.cancelPrivateTicket(id),
     onSuccess: (v) => {
       qc.setQueryData(["ticket", id], v);
       toast.success("Ticket cancelled");
@@ -105,13 +83,9 @@ function TicketPage() {
               </span>
             </div>
             <div className="p-7 text-center sm:p-9">
-              <p className="text-sm font-medium text-muted-foreground">
-                {organizationName ?? "Kezek"}
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">{t.organizationName}</p>
               <h1 className="mt-1 text-lg font-semibold">{t.serviceName}</h1>
-              <p className="ticket-code my-6 break-all text-7xl sm:text-8xl">
-                {isIssuedTicket(t) ? t.ticketNumber : t.code}
-              </p>
+              <p className="ticket-code my-6 break-all text-7xl sm:text-8xl">{t.ticketNumber}</p>
               <div role="status" aria-live="polite">
                 <h2 className="text-xl font-bold">{statusText[t.status]}</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -166,16 +140,14 @@ function TicketPage() {
                 {[
                   ["Ticket issued", t.createdAt],
                   ["Called to counter", t.calledAt],
-                  ["Service started", isIssuedTicket(t) ? t.startedAt : t.servedAt],
+                  ["Service started", t.startedAt],
                   [
                     t.status === "cancelled"
                       ? "Cancelled"
                       : t.status === "no_show"
                         ? "Marked no-show"
                         : "Service finished",
-                    isIssuedTicket(t)
-                      ? (t.completedAt ?? t.cancelledAt ?? t.noShowAt)
-                      : t.finishedAt,
+                    t.completedAt ?? t.cancelledAt ?? t.noShowAt,
                   ],
                 ]
                   .filter(([, date]) => date)

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ArrowRight, Ticket } from "lucide-react";
-import { api, isIssuedTicket, type IssuedTicket, type TicketView } from "@/lib/api";
+import { api, type IssuedTicket } from "@/lib/api";
 import { savedTicketLinks, type SavedTicketLink } from "@/lib/saved-tickets";
 import { ticketRefetchInterval } from "@/lib/ticket-polling";
 import { LoadError } from "@/components/customer-ui";
@@ -50,12 +50,9 @@ function MyTickets() {
   );
 }
 function SavedTicket({ ticketLink }: { ticketLink: SavedTicketLink }) {
-  const query = useQuery<IssuedTicket | TicketView>({
+  const query = useQuery<IssuedTicket>({
     queryKey: ["ticket", ticketLink.value],
-    queryFn: () =>
-      ticketLink.kind === "private"
-        ? api.getPrivateTicket(ticketLink.value)
-        : api.getTicket(ticketLink.value),
+    queryFn: () => api.getPrivateTicket(ticketLink.value),
     retry: false,
     refetchInterval: (q) => ticketRefetchInterval(q.state.data?.status),
   });
@@ -73,16 +70,15 @@ function SavedTicket({ ticketLink }: { ticketLink: SavedTicketLink }) {
       </div>
     );
   const t = query.data;
-  const privateTicket = isIssuedTicket(t);
   return (
     <Link
       to="/ticket/$id"
       params={{ id: ticketLink.value }}
       className="surface flex flex-wrap items-center gap-5 p-6 hover:border-primary"
     >
-      <span className="ticket-code text-3xl">{privateTicket ? t.ticketNumber : t.code}</span>
+      <span className="ticket-code text-3xl">{t.ticketNumber}</span>
       <div className="flex-1">
-        {privateTicket && <p className="font-semibold">{t.organizationName}</p>}
+        <p className="font-semibold">{t.organizationName}</p>
         <p className="text-sm">{t.serviceName}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           {new Date(t.createdAt).toLocaleDateString()}

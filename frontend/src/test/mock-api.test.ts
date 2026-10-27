@@ -156,9 +156,15 @@ describe("Kezek mock API", () => {
   });
 
   it("removes a cancelled ticket from the active queue", async () => {
-    const t = await mockApi.joinQueue({ serviceId: "svc-reg", customerName: "A" });
-    await mockApi.cancelTicket(t.id);
+    const service = (await mockApi.listOrganizationServices("mock-university"))[0]!;
+    const token = "C".repeat(43);
+    await mockApi.issueTicket({
+      queueId: service.queue!.id,
+      accessToken: token,
+      idempotencyKey: "D".repeat(43),
+    });
+    await mockApi.cancelPrivateTicket(token);
     await loginStaff();
-    expect((await mockApi.getQueue("cnt-1")).waiting).toHaveLength(0);
+    expect((await mockApi.getQueue("demo-counter-university")).waiting).toHaveLength(0);
   });
 });

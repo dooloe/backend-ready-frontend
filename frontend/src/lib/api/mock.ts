@@ -469,7 +469,6 @@ export const mockApi: KezekApi = {
     };
   },
 
-  getTicket: async (id) => delay(view(findTicket(id))),
   getPrivateTicket: async (accessToken) => {
     const ticketId = load().privateTickets[accessToken];
     if (!ticketId) throw new ApiError(404, "Ticket not found");
@@ -485,15 +484,6 @@ export const mockApi: KezekApi = {
     ticket.finishedAt = now();
     save();
     return delay(toIssuedTicket(ticket));
-  },
-
-  cancelTicket(id) {
-    const t = findTicket(id);
-    if (t.status !== "waiting") throw new ApiError(409, "Only waiting tickets can be cancelled");
-    t.status = "cancelled";
-    t.finishedAt = now();
-    save();
-    return delay(view(t));
   },
 
   login(username, password) {

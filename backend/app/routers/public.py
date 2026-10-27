@@ -43,16 +43,6 @@ def cancel_private_ticket(token: str, store: Store, response: Response):
     return store.cancel_private_ticket(token)
 
 
-@router.get("/legacy/tickets/{id}", response_model=TicketView, operation_id="getTicket")
-def get_legacy_ticket(id: str, store: Store):
-    return store.ticket(id)
-
-
-@router.post("/legacy/tickets/{id}/cancel", response_model=TicketView, operation_id="cancelTicket")
-def cancel_legacy_ticket(id: str, store: Store):
-    return store.cancel(id)
-
-
 @router.get("/organizations", response_model=list[Organization], operation_id="listOrganizations")
 def list_organizations(store: Store):
     return store.list_organizations()

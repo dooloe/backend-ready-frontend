@@ -81,13 +81,15 @@ def test_http_errors_preserve_legacy_detail_and_add_safe_structured_fields(monke
         ticket = client.post("/api/tickets", json={
             "serviceId": "svc-reg", "customerName": "Conflict test"
         }).json()
-        assert client.post(f"/api/legacy/tickets/{ticket['id']}/cancel").status_code == 200
-        conflict = client.post(f"/api/legacy/tickets/{ticket['id']}/cancel")
-        assert conflict.status_code == 409
-        assert conflict.json() == {
-            "code": "INVALID_STATE", "message": "Only waiting tickets can be cancelled",
-            "details": None, "detail": "Only waiting tickets can be cancelled",
+        internal_id = client.get(f"/api/tickets/{ticket['id']}")
+        assert internal_id.status_code == 404
+        assert internal_id.headers["cache-control"] == "no-store"
+        assert internal_id.json() == {
+            "code": "NOT_FOUND", "message": "Ticket not found",
+            "details": None, "detail": "Ticket not found",
         }
+        assert client.get(f"/api/legacy/tickets/{ticket['id']}").status_code == 404
+        assert client.post(f"/api/legacy/tickets/{ticket['id']}/cancel").status_code == 404
 
 
 def test_unexpected_errors_return_safe_envelope_without_secret_in_logs(client, staff, caplog):

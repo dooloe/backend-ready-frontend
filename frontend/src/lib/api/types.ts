@@ -70,10 +70,6 @@ export interface IssuedTicket {
   noShowAt: string | null;
 }
 
-export function isIssuedTicket(value: TicketView | IssuedTicket): value is IssuedTicket {
-  return "ticketNumber" in value;
-}
-
 export interface QueueSummary {
   id: string;
   serviceId: string;
@@ -173,8 +169,6 @@ export interface KezekApi {
   listServices(): Promise<Service[]>;
   listAdminServices(): Promise<Service[]>;
   joinQueue(input: { serviceId: string; customerName: string }): Promise<TicketView>;
-  getTicket(id: string, signal?: AbortSignal): Promise<TicketView>;
-  cancelTicket(id: string): Promise<TicketView>;
   getPrivateTicket(accessToken: string, signal?: AbortSignal): Promise<IssuedTicket>;
   cancelPrivateTicket(accessToken: string): Promise<IssuedTicket>;
   issueTicket(input: {
