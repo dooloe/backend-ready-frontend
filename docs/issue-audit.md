@@ -75,7 +75,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #17 | Closed (2026-10-26) | Organization-local schedules, daily queue creation, overnight dates, and hosted checks pass. |
 | #18 | Closed (2026-10-26) | Public organization/service directory with usable queue IDs and hosted checks passes. |
 | #19 | Closed (2026-10-26) | Anonymous idempotent ticket issuance, hashes, transactions and hosted checks pass. |
-| #20 | Open | Removed deprecated public internal-ID read/cancel routes and migrated customer pages and saved-ticket history to private-token access only. Internal IDs and removed routes return 404; backend suite (197), frontend tests (56), lint, typecheck, and production build pass locally. Awaiting hosted CI before closure. |
+| #20 | Closed (2026-10-27) | Customer ticket reads and cancellation now require private tokens; deprecated ID routes and frontend fallback were removed. AC-1–3 plus the full backend suite (197), frontend checks, and real-backend desktop/mobile workflows passed hosted CI run 40466602376. |
 | #21 | Closed (2026-10-26) | Canonical token-only cancellation, waiting-state validation, atomic timestamp/event insertion, invalid-token parity, non-waiting rejection and cancellation/call-next race checks pass locally and in hosted CI run 40366456657. |
 | #22 | Closed (2026-10-26) | Public aggregate queue status, availability/count estimates, private-data exclusion, and hosted checks pass. |
 | #23 | Closed (2026-10-26) | Assigned staff queue discovery, tenant isolation, multiple service assignments, and hosted checks pass. |

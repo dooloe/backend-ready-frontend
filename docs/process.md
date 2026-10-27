@@ -11,8 +11,11 @@ implementation and verification state at the time they were written; this entry
 records the subsequent migration. The complete backend suite passes (**197
 tests**); focused internal-ID/legacy-route checks pass. Frontend tests (56) and
 production build pass; lint has zero errors and six existing Fast Refresh
-warnings, and typecheck passes. Hosted CI verification is still pending, so #20
-remains open pending that evidence.
+warnings, and typecheck passes. Hosted CI run
+[40466602376](https://github.com/dooloe/backend-ready-frontend/actions/runs/40466602376)
+passed frontend lint, typecheck, tests, production build, migration/model drift,
+backend compilation, OpenAPI consistency, backend tests, and real-backend
+desktop/mobile workflows. AC-1 through AC-3 are verified; Issue #20 was closed.
 
 ## 2026-10-26 — Issue #17 organization-local scheduling (hosted verification pending)
 
