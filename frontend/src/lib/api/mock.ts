@@ -401,8 +401,7 @@ export const mockApi: KezekApi = {
   },
 
   startService: (id) => transition(id, ["called"], { status: "serving", servedAt: now() }),
-  completeTicket: (id) =>
-    transition(id, ["called", "serving"], { status: "completed", finishedAt: now() }),
+  completeTicket: (id) => transition(id, ["serving"], { status: "completed", finishedAt: now() }),
   markNoShow: (id) => transition(id, ["called"], { status: "no_show", finishedAt: now() }),
 
   createService(input) {

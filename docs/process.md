@@ -1142,3 +1142,22 @@ passed **8 cases**. Hosted run
 [40366456657](https://github.com/dooloe/backend-ready-frontend/actions/runs/40366456657)
 passed all frontend, migration, OpenAPI, backend and real-backend desktop/mobile
 checks. Issue #21 was closed after all three acceptance criteria passed.
+
+## 2026-10-27 — Issue #25 strict staff lifecycle
+
+Enforced the contracted `CALLED -> SERVING -> COMPLETED` and
+`CALLED -> NO_SHOW` transitions in both the SQLAlchemy backend and development
+mock. A direct completion from CALLED now returns 409. The staff UI already
+offers completion only after service starts. Updated backend tests to reject the
+shortcut and to exercise assigned-counter checks for start, complete and
+no-show; existing tests verify cross-organization rejection, actor/counter
+events, timestamps, rollback on event-write failure, and capacity release after
+completed/no-show tickets. `docs/decisions.md` records that this issue
+supersedes the earlier current-client compatibility decision.
+
+Verification: full backend suite **196 passed**; API lifecycle-focused suite
+**104 passed**; OpenAPI contract suite **33 passed**; frontend Vitest **27
+passed**; lint has zero errors and six existing Fast Refresh warnings;
+typecheck, production build, compileall and diff checks passed. Real-backend
+desktop/mobile Playwright workflow passed **8 cases**. Hosted CI is pending;
+leave #25 open until that run passes.

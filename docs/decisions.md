@@ -144,3 +144,12 @@ both attach new tickets to that daily queue and assign its next display number;
 the database uniqueness constraint is the cross-process backstop. Queue status
 remains a manual-closure flag, while schedule availability is calculated per
 request.
+
+## 2026-10-27 — Enforce the contracted staff ticket lifecycle (#25)
+
+Supersede the legacy current-client shortcut recorded under #50. Staff actions
+must follow `CALLED -> SERVING -> COMPLETED`, with `CALLED -> NO_SHOW` as the
+only alternate terminal path. Completing a called ticket directly is a 409;
+the real backend and development mock enforce the same transition table. This
+matches the accepted #25 criteria, `docs/auth-contract.md`, and the planned
+OpenAPI contract.

@@ -124,6 +124,7 @@ def test_public_queue_status_tracks_ticket_changes_without_private_data(client, 
     headers = {"Authorization": "Bearer " + staff_token}
     called = client.post("/api/counters/cnt-1/call-next", headers=headers)
     assert called.status_code == 200 and called.json()["id"] == second["id"]
+    assert client.post(f"/api/tickets/{second['id']}/start", headers=headers).status_code == 200
     completed = client.post(f"/api/tickets/{second['id']}/complete", headers=headers)
     assert completed.status_code == 200
     after_complete = client.get(f"/api/queues/{queue_id}/status").json()

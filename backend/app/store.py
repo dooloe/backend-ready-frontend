@@ -798,7 +798,7 @@ class DatabaseStore:
 
     def transition(self, ticket_id: str, action: str, actor: StaffUser) -> TicketView:
         rules = {"start": (("called",), "serving", "servedAt"),
-                 "complete": (("called", "serving"), "completed", "finishedAt"),
+                 "complete": (("serving",), "completed", "finishedAt"),
                  "no-show": (("called",), "no_show", "finishedAt")}
         with self.db.session(write=True) as session:
             actor_row = self._actor_row(session, actor)

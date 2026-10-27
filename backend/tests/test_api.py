@@ -56,6 +56,7 @@ def test_private_ticket_issue_and_matching_retry_returns_current_ticket(client, 
     headers = {"Authorization": "Bearer " + staff_token}
     first_called = client.post("/api/counters/cnt-1/call-next", headers=headers)
     assert first_called.status_code == 200
+    assert client.post(f"/api/tickets/{first_called.json()['id']}/start", headers=headers).status_code == 200
     assert client.post(f"/api/tickets/{first_called.json()['id']}/complete", headers=headers).status_code == 200
     called = client.post("/api/counters/cnt-1/call-next", headers=headers)
     assert called.status_code == 200 and called.json()["id"] == result["ticket"]["id"]
@@ -205,6 +206,7 @@ def test_private_ticket_cancellation_racing_call_next_is_consistent(client, stor
     # Drain the queue-creation ticket, leaving only the private-token ticket to race.
     first = client.post("/api/counters/cnt-1/call-next", headers=staff)
     assert first.status_code == 200
+    assert client.post(f"/api/tickets/{first.json()['id']}/start", headers=staff).status_code == 200
     assert client.post(f"/api/tickets/{first.json()['id']}/complete", headers=staff).status_code == 200
     issued = anonymous_join(client, queue_id, key=proof(46), token=proof(47)).json()
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -268,9 +270,12 @@ def test_queue_scoped_call_next_is_fifo_counter_authorized_and_works_when_closed
 
     busy = client.post(path, headers=staff, json={"counterId": "cnt-1"})
     assert busy.status_code == 409
+    assert client.post(f"/api/tickets/{first_id}/complete", headers=staff).status_code == 409
+    assert client.post(f"/api/tickets/{first_id}/start", headers=staff).status_code == 200
     assert client.post(f"/api/tickets/{first_id}/complete", headers=staff).status_code == 200
     next_response = client.post(path, headers=staff, json={"counterId": "cnt-1"})
     assert next_response.status_code == 200 and next_response.json()["id"] == second["id"]
+    assert client.post(f"/api/tickets/{second['id']}/start", headers=staff).status_code == 200
     assert client.post(f"/api/tickets/{second['id']}/complete", headers=staff).status_code == 200
     empty = client.post(path, headers=staff, json={"counterId": "cnt-1"})
     assert empty.status_code == 200 and empty.json() is None
@@ -563,6 +568,13 @@ def test_staff_operations_require_an_active_counter_assignment(client, admin, st
     assert client.post("/api/counters/cnt-1/call-next", headers=staff).json()["id"] == ticket["id"]
     assert client.post(f"/api/tickets/{ticket['id']}/start", headers=other).status_code == 403
     assert client.post(f"/api/tickets/{ticket['id']}/start", headers=staff).status_code == 200
+    assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=other).status_code == 403
+    assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 200
+
+    no_show_ticket = join(client)
+    assert client.post("/api/counters/cnt-1/call-next", headers=staff).json()["id"] == no_show_ticket["id"]
+    assert client.post(f"/api/tickets/{no_show_ticket['id']}/no-show", headers=other).status_code == 403
+    assert client.post(f"/api/tickets/{no_show_ticket['id']}/no-show", headers=staff).status_code == 200
 
 
 def test_staff_queue_discovery_is_assigned_active_and_private(client, store, staff, admin):
@@ -760,13 +772,15 @@ def test_staff_lifecycle_rolls_back_when_audit_event_cannot_be_written(client, s
     assert event_types == {"issued", "called"}
 
 
-def test_cancelled_ticket_is_skipped_and_called_can_complete(client, staff):
+def test_cancelled_ticket_is_skipped_and_called_must_start_before_completion(client, staff):
     first, second = join(client), join(client)
     cancelled = client.post(f"/api/legacy/tickets/{first['id']}/cancel")
     assert cancelled.json()["finishedAt"] is not None
     assert client.post(f"/api/legacy/tickets/{first['id']}/cancel").status_code == 409
     called = client.post("/api/counters/cnt-1/call-next", headers=staff).json()
     assert called["id"] == second["id"]
+    assert client.post(f"/api/tickets/{second['id']}/complete", headers=staff).status_code == 409
+    assert client.post(f"/api/tickets/{second['id']}/start", headers=staff).status_code == 200
     done = client.post(f"/api/tickets/{second['id']}/complete", headers=staff)
     assert done.status_code == 200 and done.json()["status"] == "completed"
 
@@ -845,6 +859,7 @@ def test_protected_operations_are_organization_scoped(client, store, admin, staf
     assert called["id"] == ticket["id"]
     assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 404
     assert client.get(f"/api/legacy/tickets/{ticket['id']}").json()["status"] == "called"
+    assert client.post(f"/api/tickets/{ticket['id']}/start", headers=other_staff).status_code == 200
     assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=other_staff).status_code == 200
     assert client.get("/api/admin/stats", headers=admin).json()["byService"]
     assert [row["serviceId"] for row in client.get("/api/admin/stats", headers=other_admin).json()["byService"]] == ["other-service"]
@@ -900,6 +915,7 @@ def test_admin_staff_update_revokes_sessions_and_protects_active_work(client, ad
     called = client.post("/api/counters/cnt-1/call-next", headers=staff)
     assert called.status_code == 200 and called.json()["id"] == ticket["id"]
     assert client.patch(path, headers=admin, json={"isActive": False}).status_code == 409
+    assert client.post(f"/api/tickets/{ticket['id']}/start", headers=staff).status_code == 200
     assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 200
 
     assert client.patch(path, headers=admin, json={"username": "admin"}).status_code == 409
@@ -939,6 +955,7 @@ def test_admin_daily_queue_override_preserves_existing_work_and_is_tenant_scoped
     # can be completed by assigned staff.
     called = client.post("/api/counters/cnt-1/call-next", headers=staff)
     assert called.status_code == 200 and called.json()["id"] == ticket["id"]
+    assert client.post(f"/api/tickets/{ticket['id']}/start", headers=staff).status_code == 200
     assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 200
 
     reopened = client.patch(f"/api/admin/queues/{queue_id}", headers=admin, json={"isOpen": True})
@@ -999,6 +1016,7 @@ def test_counter_changes_cannot_strand_an_active_ticket(client, admin, staff):
     assert client.delete(counter_path, headers=admin).status_code == 204
     assert next(item for item in client.get("/api/staff/queues", headers=staff).json()
                 if item["counter"]["id"] == "cnt-1")["current"]["id"] == ticket["id"]
+    assert client.post(f"/api/tickets/{ticket['id']}/start", headers=staff).status_code == 200
     assert client.post(f"/api/tickets/{ticket['id']}/complete", headers=staff).status_code == 200
     assert all(item["counter"]["id"] != "cnt-1"
                for item in client.get("/api/staff/queues", headers=staff).json())
@@ -1099,6 +1117,7 @@ def test_statistics_use_real_timestamps_and_utc_days(client, admin, staff, clock
     second = join(client, service="svc-fin")
     clock.advance(minutes=6)
     client.post("/api/counters/cnt-1/call-next", headers=staff)
+    client.post(f"/api/tickets/{first['id']}/start", headers=staff)
     client.post(f"/api/tickets/{first['id']}/complete", headers=staff)
     client.post(f"/api/legacy/tickets/{second['id']}/cancel")
     join(client)

@@ -44,6 +44,7 @@ describe("Kezek mock API", () => {
     );
     expect(counter).toBeDefined();
     expect((await mockApi.callNext(counter!.id))?.id).toBe(ticket.id);
+    await expect(mockApi.completeTicket(ticket.id)).rejects.toMatchObject({ status: 409 });
     expect((await mockApi.startService(ticket.id)).status).toBe("serving");
     expect((await mockApi.completeTicket(ticket.id)).status).toBe("completed");
   });
