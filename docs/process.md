@@ -1160,5 +1160,8 @@ Verification: full backend suite **197 passed**; API lifecycle-focused suite
 **104 passed**; OpenAPI contract suite **33 passed**; frontend Vitest **27
 passed**; lint has zero errors and six existing Fast Refresh warnings;
 typecheck, production build, compileall and diff checks passed. Real-backend
-desktop/mobile Playwright workflow passed **8 cases**. Hosted CI is pending;
-leave #25 open until that run passes.
+desktop/mobile Playwright workflow passed **8 cases**. Hosted run
+[40451040940](https://github.com/dooloe/backend-ready-frontend/actions/runs/40451040940)
+passed frontend, migrations/model drift, OpenAPI, backend and real-backend
+desktop/mobile workflows. Issue #25 was closed after all acceptance criteria
+passed.
