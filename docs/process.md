@@ -1239,3 +1239,7 @@ production build passed; real-backend desktop/mobile Playwright **8 passed**,
 including an authenticated analytics request for 2026-10-20 through 2026-10-22
 returning HTTP 200 and the selected organization-local range.
 `git diff --check` passed. Hosted verification is pending, so #41 remains open.
+Hosted CI run [40458568513](https://github.com/dooloe/backend-ready-frontend/actions/runs/40458568513)
+passed all frontend, migration/model-drift, OpenAPI, backend and desktop/mobile
+real-backend browser gates. Issue #41 was closed after its date-filtered
+analytics acceptance criteria were verified.

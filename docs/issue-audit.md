@@ -630,3 +630,13 @@ passed frontend, migration/model-drift, OpenAPI, backend and real-backend
 desktop/mobile checks. The initial hosted browser step was canceled when the
 #30 retry took priority; the hosted rerun passed. Issue #31 was closed with
 criterion-specific evidence.
+
+## Issue #41 date-filtered admin analytics — 2026-10-27
+
+The frontend uses the organization-scoped analytics API with inclusive date
+filters, timezone context, service and daily breakdowns, and explicit empty and
+error states. Frontend tests, production build and eight real-backend desktop/
+mobile browser workflows passed. Hosted CI run
+[40458568513](https://github.com/dooloe/backend-ready-frontend/actions/runs/40458568513)
+passed every gate. Issue #41 was closed after verifying all acceptance
+criteria.
