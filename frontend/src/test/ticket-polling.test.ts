@@ -8,9 +8,9 @@ describe("ticket polling", () => {
   });
 
   it.each([undefined, "waiting", "called", "serving"])(
-    "refreshes active tickets (%s) every three seconds",
+    "refreshes active tickets (%s) every five seconds",
     (status) => {
-      expect(ticketRefetchInterval(status)).toBe(3000);
+      expect(ticketRefetchInterval(status)).toBe(5000);
     },
   );
 });

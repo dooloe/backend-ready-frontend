@@ -42,6 +42,32 @@ describe("legacy private ticket client compatibility", () => {
     ]);
   });
 
+  it("issues an anonymous ticket with the queue-scoped retry key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ticket: {}, ticketUrl: "/ticket/token" }), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createHttpApi("http://localhost:8000", () => null);
+
+    await api.issueTicket({
+      queueId: "daily/queue",
+      accessToken: "A".repeat(43),
+      idempotencyKey: "B".repeat(43),
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/api/queues/daily%2Fqueue/tickets",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ accessToken: "A".repeat(43) }),
+        headers: { "Content-Type": "application/json", "Idempotency-Key": "B".repeat(43) },
+      }),
+    );
+  });
+
   it("sends the selected counter with the queue-scoped call-next request", async () => {
     const fetchMock = vi
       .fn()

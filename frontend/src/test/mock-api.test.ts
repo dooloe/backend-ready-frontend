@@ -49,6 +49,24 @@ describe("Kezek mock API", () => {
     expect((await mockApi.completeTicket(ticket.id)).status).toBe("completed");
   });
 
+  it("issues and recovers an anonymous private ticket with an idempotent retry", async () => {
+    const services = await mockApi.listOrganizationServices("mock-university");
+    const queue = services[0]!.queue!;
+    const proofs = { accessToken: "A".repeat(43), idempotencyKey: "B".repeat(43) };
+    const first = await mockApi.issueTicket({ queueId: queue.id, ...proofs });
+    const retry = await mockApi.issueTicket({ queueId: queue.id, ...proofs });
+
+    expect(retry.ticket.id).toBe(first.ticket.id);
+    expect(retry.ticketUrl).toBe(first.ticketUrl);
+    expect(await mockApi.getPrivateTicket(proofs.accessToken)).toMatchObject({
+      ticketNumber: first.ticket.ticketNumber,
+      organizationName: "Almaty University · Demo",
+    });
+    expect(await mockApi.cancelPrivateTicket(proofs.accessToken)).toMatchObject({
+      status: "cancelled",
+    });
+  });
+
   it("calls the oldest waiting ticket and never twice", async () => {
     const first = await mockApi.joinQueue({ serviceId: "svc-reg", customerName: "A" });
     await new Promise((r) => setTimeout(r, 5));

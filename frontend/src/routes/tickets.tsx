@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ArrowRight, Ticket } from "lucide-react";
-import { api } from "@/lib/api";
-import { savedTicketIds } from "@/lib/saved-tickets";
+import { api, isIssuedTicket, type IssuedTicket, type TicketView } from "@/lib/api";
+import { savedTicketLinks, type SavedTicketLink } from "@/lib/saved-tickets";
 import { ticketRefetchInterval } from "@/lib/ticket-polling";
 import { LoadError } from "@/components/customer-ui";
 export const Route = createFileRoute("/tickets")({
@@ -11,9 +11,9 @@ export const Route = createFileRoute("/tickets")({
   component: MyTickets,
 });
 function MyTickets() {
-  const [ids, setIds] = useState<string[]>([]);
+  const [links, setLinks] = useState<SavedTicketLink[]>([]);
   useEffect(() => {
-    setIds(savedTicketIds());
+    setLinks(savedTicketLinks());
   }, []);
   return (
     <div className="mx-auto max-w-3xl">
@@ -25,7 +25,7 @@ function MyTickets() {
         Tickets saved on this browser, including available history. Keep your private ticket links
         to open them on another device. Anyone with a link can access that ticket.
       </p>
-      {ids.length === 0 ? (
+      {links.length === 0 ? (
         <div className="surface p-12 text-center">
           <Ticket className="mx-auto mb-4 text-primary" size={36} />
           <h2 className="text-xl font-semibold">Your next visit starts here</h2>
@@ -41,18 +41,21 @@ function MyTickets() {
         </div>
       ) : (
         <div className="space-y-4">
-          {ids.map((id) => (
-            <SavedTicket key={id} id={id} />
+          {links.map((ticketLink) => (
+            <SavedTicket key={`${ticketLink.kind}:${ticketLink.value}`} ticketLink={ticketLink} />
           ))}
         </div>
       )}
     </div>
   );
 }
-function SavedTicket({ id }: { id: string }) {
-  const query = useQuery({
-    queryKey: ["ticket", id],
-    queryFn: () => api.getTicket(id),
+function SavedTicket({ ticketLink }: { ticketLink: SavedTicketLink }) {
+  const query = useQuery<IssuedTicket | TicketView>({
+    queryKey: ["ticket", ticketLink.value],
+    queryFn: () =>
+      ticketLink.kind === "private"
+        ? api.getPrivateTicket(ticketLink.value)
+        : api.getTicket(ticketLink.value),
     retry: false,
     refetchInterval: (q) => ticketRefetchInterval(q.state.data?.status),
   });
@@ -70,15 +73,17 @@ function SavedTicket({ id }: { id: string }) {
       </div>
     );
   const t = query.data;
+  const privateTicket = isIssuedTicket(t);
   return (
     <Link
       to="/ticket/$id"
-      params={{ id }}
+      params={{ id: ticketLink.value }}
       className="surface flex flex-wrap items-center gap-5 p-6 hover:border-primary"
     >
-      <span className="ticket-code text-3xl">{t.code}</span>
+      <span className="ticket-code text-3xl">{privateTicket ? t.ticketNumber : t.code}</span>
       <div className="flex-1">
-        <p className="font-semibold">{t.serviceName}</p>
+        {privateTicket && <p className="font-semibold">{t.organizationName}</p>}
+        <p className="text-sm">{t.serviceName}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           {new Date(t.createdAt).toLocaleDateString()}
         </p>

@@ -610,6 +610,8 @@ class DatabaseStore:
     def _issued_ticket_view(self, session, ticket: TicketRow) -> IssuedTicket:
         service = session.get(ServiceRow, ticket.serviceId)
         counter = session.get(CounterRow, ticket.counterId) if ticket.counterId else None
+        queue = session.get(DailyQueueRow, ticket.dailyQueueId) if ticket.dailyQueueId else None
+        organization = session.get(OrganizationRow, queue.organization_id) if queue else None
         waiting = list(session.scalars(select(TicketRow).where(
             TicketRow.dailyQueueId == ticket.dailyQueueId,
             TicketRow.status == "waiting",
@@ -623,6 +625,7 @@ class DatabaseStore:
             position is not None and capacity and service is not None) else None
         item = IssuedTicket(
             id=ticket.id, queueId=ticket.dailyQueueId, ticketNumber=ticket.code,
+            organizationName=organization.name if organization else "Unknown organization",
             serviceName=service.name if service else "Unknown", status=ticket.status,
             position=position, estimatedWaitMinutes=estimate, counterId=ticket.counterId,
             counterName=counter.name if counter else None, createdAt=ticket.createdAt,

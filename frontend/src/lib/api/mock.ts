@@ -10,6 +10,10 @@ import {
   type Stats,
   type Ticket,
   type TicketView,
+  type IssuedTicket,
+  type JoinResponse,
+  type QueueSummary,
+  type ServiceSummary,
 } from "./types";
 
 type StaffRecord = StaffUser & { password: string };
@@ -20,6 +24,8 @@ interface DB {
   tickets: Ticket[];
   seq: Record<string, number>;
   sessions: Record<string, string>; // token -> staffId
+  privateTickets: Record<string, string>; // demo access token -> ticket ID
+  idempotentJoins: Record<string, { accessToken: string; ticketId: string }>;
 }
 
 const KEY = "kezek-mock-db-v1";
@@ -177,6 +183,8 @@ function seed(): DB {
     tickets: [],
     seq: {},
     sessions: {},
+    privateTickets: {},
+    idempotentJoins: {},
   });
 }
 
@@ -190,7 +198,20 @@ function load(): DB {
   if (db) return ensureDemoDirectory(db);
   if (typeof window !== "undefined") {
     const raw = localStorage.getItem(KEY);
-    if (raw) return (db = ensureDemoDirectory(JSON.parse(raw) as DB));
+    if (raw) {
+      const saved = JSON.parse(raw) as Partial<DB>;
+      return (db = ensureDemoDirectory({
+        ...saved,
+        services: saved.services ?? [],
+        counters: saved.counters ?? [],
+        staff: saved.staff ?? [],
+        tickets: saved.tickets ?? [],
+        seq: saved.seq ?? {},
+        sessions: saved.sessions ?? {},
+        privateTickets: saved.privateTickets ?? {},
+        idempotentJoins: saved.idempotentJoins ?? {},
+      } as DB));
+    }
   }
   return (db = seed());
 }
@@ -240,6 +261,30 @@ function view(t: Ticket): TicketView {
     counterName: counter?.name ?? null,
     position,
     estimatedWaitMinutes: eta,
+  };
+}
+
+function toIssuedTicket(ticket: Ticket): IssuedTicket {
+  const organization = demoOrganizations.find((item) => item.serviceId === ticket.serviceId);
+  const counter = load().counters.find((item) => item.id === ticket.counterId);
+  const ticketView = view(ticket);
+  return {
+    id: ticket.id,
+    queueId: `mock-queue-${ticket.serviceId}`,
+    organizationName: organization?.name ?? "Kezek demo organization",
+    ticketNumber: ticket.code,
+    serviceName: ticketView.serviceName,
+    status: ticket.status,
+    position: ticketView.position,
+    estimatedWaitMinutes: ticketView.estimatedWaitMinutes,
+    counterId: ticket.counterId,
+    counterName: counter?.name ?? null,
+    createdAt: ticket.createdAt,
+    calledAt: ticket.calledAt,
+    startedAt: ticket.servedAt,
+    completedAt: ticket.status === "completed" ? ticket.finishedAt : null,
+    cancelledAt: ticket.status === "cancelled" ? ticket.finishedAt : null,
+    noShowAt: ticket.status === "no_show" ? ticket.finishedAt : null,
   };
 }
 
@@ -297,6 +342,43 @@ export const mockApi: KezekApi = {
     if (!org) throw new ApiError(404, "Organization not found");
     return org;
   },
+  async listOrganizationServices(organizationId) {
+    const organization = demoOrganizations.find((item) => item.id === organizationId);
+    if (!organization) throw new ApiError(404, "Organization not found");
+    const data = load();
+    const service = data.services.find((item) => item.id === organization.serviceId);
+    if (!service) return [];
+    const waiting = data.tickets.filter(
+      (ticket) => ticket.serviceId === service.id && ticket.status === "waiting",
+    ).length;
+    const activeCounters = data.counters.filter(
+      (counter) => counter.isActive && counter.serviceIds.includes(service.id),
+    ).length;
+    const queue: QueueSummary = {
+      id: `mock-queue-${service.id}`,
+      serviceId: service.id,
+      queueDate: new Date().toISOString().slice(0, 10),
+      isOpen: service.isOpen,
+      waiting,
+      activeCounters,
+      estimatedWaitMinutes: activeCounters
+        ? Math.ceil((waiting * service.avgServiceMinutes) / activeCounters)
+        : null,
+    };
+    const summary: ServiceSummary = {
+      id: service.id,
+      organizationId,
+      name: service.name,
+      description: service.description,
+      prefix: service.prefix,
+      durationMinutes: service.avgServiceMinutes,
+      opensAt: service.opensAt ?? null,
+      closesAt: service.closesAt ?? null,
+      timezone: organization.timezone,
+      queue,
+    };
+    return [summary];
+  },
   listServices: () => delay(load().services),
 
   joinQueue({ serviceId, customerName }) {
@@ -324,12 +406,66 @@ export const mockApi: KezekApi = {
     return delay(view(t));
   },
 
-  getTicket: async (id) => delay(view(findTicket(id))),
-  getPrivateTicket: async () => {
-    throw new ApiError(404, "Private-token ticket links are unavailable in demo mode");
+  async issueTicket({ queueId, accessToken, idempotencyKey }): Promise<JoinResponse> {
+    const data = load();
+    if (!/^[A-Za-z0-9_-]{43}$/.test(accessToken) || !/^[A-Za-z0-9_-]{43}$/.test(idempotencyKey)) {
+      throw new ApiError(422, "Ticket retry credentials are invalid");
+    }
+    const serviceId = queueId.startsWith("mock-queue-") ? queueId.slice("mock-queue-".length) : "";
+    const service = data.services.find((item) => item.id === serviceId);
+    if (!service) throw new ApiError(404, "Queue not found");
+    const key = `${queueId}:${idempotencyKey}`;
+    const prior = data.idempotentJoins[key];
+    if (prior) {
+      if (prior.accessToken !== accessToken) throw new ApiError(409, "Idempotency key conflict");
+      const ticket = findTicket(prior.ticketId);
+      return {
+        ticket: toIssuedTicket(ticket),
+        ticketUrl: `/ticket/${accessToken}`,
+      };
+    }
+    if (data.privateTickets[accessToken]) throw new ApiError(409, "Ticket token already used");
+    if (!service.isOpen) throw new ApiError(409, "This queue is closed");
+    const sequence = (data.seq[service.id] ?? 0) + 1;
+    data.seq[service.id] = sequence;
+    const ticket: Ticket = {
+      id: uid(),
+      code: `${service.prefix}-${String(sequence).padStart(3, "0")}`,
+      serviceId,
+      customerName: "Visitor",
+      status: "waiting",
+      createdAt: now(),
+      calledAt: null,
+      servedAt: null,
+      finishedAt: null,
+      counterId: null,
+    };
+    data.tickets.push(ticket);
+    data.privateTickets[accessToken] = ticket.id;
+    data.idempotentJoins[key] = { accessToken, ticketId: ticket.id };
+    save();
+    return {
+      ticket: toIssuedTicket(ticket),
+      ticketUrl: `/ticket/${accessToken}`,
+    };
   },
-  cancelPrivateTicket: async () => {
-    throw new ApiError(404, "Private-token ticket links are unavailable in demo mode");
+
+  getTicket: async (id) => delay(view(findTicket(id))),
+  getPrivateTicket: async (accessToken) => {
+    const ticketId = load().privateTickets[accessToken];
+    if (!ticketId) throw new ApiError(404, "Ticket not found");
+    return delay(toIssuedTicket(findTicket(ticketId)));
+  },
+  cancelPrivateTicket: async (accessToken) => {
+    const ticketId = load().privateTickets[accessToken];
+    if (!ticketId) throw new ApiError(404, "Ticket not found");
+    const ticket = findTicket(ticketId);
+    if (ticket.status !== "waiting")
+      throw new ApiError(409, "Only waiting tickets can be cancelled");
+    ticket.status = "cancelled";
+    ticket.finishedAt = now();
+    save();
+    return delay(toIssuedTicket(ticket));
   },
 
   cancelTicket(id) {

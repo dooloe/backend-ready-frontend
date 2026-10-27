@@ -152,7 +152,7 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
     true,
   );
   await page.goto("/join/org-demo/svc-it");
-  await expect(page.getByRole("button", { name: "Confirm & join queue" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Queue closed", exact: true })).toBeDisabled();
   await page.goto("/");
   await expect(page.getByRole("group", { name: "Organization categories" })).toBeVisible();
   await page.keyboard.press("Tab");
@@ -184,8 +184,7 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Confirm your place" })).toBeVisible();
   const confirmJoin = page.getByRole("button", { name: "Confirm & join queue" });
-  await confirmJoin.focus();
-  await page.keyboard.press("Enter");
+  await confirmJoin.press("Enter");
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
   const cancelTicket = page.getByRole("button", { name: "Cancel Ticket" });
   await cancelTicket.focus();
@@ -221,7 +220,7 @@ test("queue conflict after availability changes is announced and prevents ticket
       page.locator('[role="alert"]').filter({ hasText: "This queue is closed" }),
     ).toBeVisible();
     await expect(page.getByRole("heading", { name: "You’re in the queue" })).toHaveCount(0);
-    await expect(joinButton).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Queue closed", exact: true })).toBeDisabled();
   } finally {
     const reopened = await page.request.patch("http://127.0.0.1:18765/api/admin/services/svc-fin", {
       headers: { Authorization: `Bearer ${token}` },

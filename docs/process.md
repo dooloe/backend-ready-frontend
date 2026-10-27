@@ -1179,5 +1179,26 @@ history. Existing tests also verify Alembic-head schema creation, foreign-key
 constraints and soft-deletion history preservation.
 
 Verification: focused restart test **1 passed**; full backend suite **197
-passed**; backend compileall and `git diff --check` passed. Hosted CI is pending;
-leave #43 open until every pipeline gate passes.
+passed**; backend compileall and `git diff --check` passed. Hosted CI run
+[40451595585](https://github.com/dooloe/backend-ready-frontend/actions/runs/40451595585)
+passed fresh migrations/model-drift, backend compilation, OpenAPI consistency,
+and the full backend suite. These gates verified the #43 migration and
+persistence acceptance criteria. Issue #43 was closed with that criterion-level
+evidence.
+
+## 2026-10-27 — Issue #34 anonymous customer join
+
+Customer joining now submits only the queue ID, a cryptographic private-ticket
+token and an idempotency key. The key pair is retained only while a request may
+have succeeded without a response, so retry/recovery resolves to the original
+ticket; a known closed-queue response clears the attempt and refreshes
+availability. Rapid repeats are disabled, issuance validates the returned
+private URL, and successful tickets are stored as private links. The API now
+returns the organization name on a private ticket response and allows the
+idempotency header through CORS. Legacy saved ticket links remain readable.
+
+Verification: backend suite **197 passed**; frontend Vitest **37 passed**;
+lint **0 errors** (six existing Fast Refresh warnings); typecheck and
+production build passed; real-backend desktop/mobile Playwright suite **8
+passed**; `git diff --check` passed. Hosted verification is pending, so #34
+remains open.

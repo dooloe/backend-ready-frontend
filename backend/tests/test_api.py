@@ -46,6 +46,7 @@ def test_private_ticket_issue_and_matching_retry_returns_current_ticket(client, 
     assert first.headers["cache-control"] == "no-store"
     result = first.json()
     assert result["ticket"]["queueId"] == queue_id
+    assert result["ticket"]["organizationName"] == "Kezek Demo"
     assert result["ticket"]["ticketNumber"] == "A-002"
     assert result["ticketUrl"] == f"/ticket/{proof(2)}"
     assert "customerName" not in result["ticket"]
@@ -1258,9 +1259,10 @@ def test_cancellation_racing_call_next_is_consistent(client, staff):
 def test_local_frontend_cors_and_disallowed_origins(client):
     response = client.options("/api/admin/services", headers={
         "Origin": "http://localhost:5173", "Access-Control-Request-Method": "POST",
-        "Access-Control-Request-Headers": "authorization,content-type"})
+        "Access-Control-Request-Headers": "authorization,content-type,idempotency-key"})
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert "idempotency-key" in response.headers["access-control-allow-headers"].lower()
     denied = client.options("/api/services", headers={
         "Origin": "https://untrusted.example", "Access-Control-Request-Method": "GET"})
     assert denied.status_code == 400 and "access-control-allow-origin" not in denied.headers

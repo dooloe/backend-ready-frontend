@@ -1639,11 +1639,13 @@ components:
     IssuedTicket:
       type: object
       additionalProperties: false
-      required: [id, queueId, ticketNumber, serviceName, status, position, estimatedWaitMinutes, counterId, counterName, createdAt, calledAt, startedAt, completedAt, cancelledAt, noShowAt]
+      required: [id, queueId, organizationName, ticketNumber, serviceName, status, position, estimatedWaitMinutes, counterId, counterName, createdAt, calledAt, startedAt, completedAt, cancelledAt, noShowAt]
       properties:
         id:
           type: string
         queueId:
+          type: string
+        organizationName:
           type: string
         ticketNumber:
           type: string

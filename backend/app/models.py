@@ -120,6 +120,7 @@ class QueueCallNextRequest(Model):
 class IssuedTicket(Model):
     id: str
     queueId: str
+    organizationName: str
     ticketNumber: str
     serviceName: str
     status: TicketStatus

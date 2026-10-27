@@ -126,6 +126,7 @@ paths:
                     ticket: &id003
                       id: ticket-example
                       queueId: queue-example
+                      organizationName: Almaty University
                       ticketNumber: A-001
                       serviceName: Registrar Office
                       status: waiting
@@ -2095,6 +2096,7 @@ components:
       properties:
         id: *id001
         queueId: *id001
+        organizationName: *id008
         ticketNumber: *id008
         serviceName: *id008
         status:
@@ -2144,6 +2146,7 @@ components:
       required:
       - id
       - queueId
+      - organizationName
       - ticketNumber
       - serviceName
       - status

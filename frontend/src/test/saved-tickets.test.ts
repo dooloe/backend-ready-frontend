@@ -1,19 +1,26 @@
 import { beforeEach, expect, it } from "vitest";
-import { savedTicketIds, saveTicket } from "@/lib/saved-tickets";
+import { savedTicketLinks, savedTicketTokens, saveTicketToken } from "@/lib/saved-tickets";
 beforeEach(() => localStorage.clear());
-it("retains only ticket links received on this browser and deduplicates", () => {
-  expect(savedTicketIds()).toEqual([]);
-  saveTicket("private_capability_123");
-  saveTicket("private_capability_456");
-  saveTicket("private_capability_123");
-  expect(savedTicketIds()).toEqual(["private_capability_123", "private_capability_456"]);
+const tokenA = "A".repeat(43);
+const tokenB = "B".repeat(43);
+it("retains only private token links received on this browser and deduplicates", () => {
+  expect(savedTicketTokens()).toEqual([]);
+  saveTicketToken(tokenA);
+  saveTicketToken(tokenB);
+  saveTicketToken(tokenA);
+  expect(savedTicketTokens()).toEqual([tokenA, tokenB]);
 });
 it("ignores malformed storage and unsafe path values", () => {
   localStorage.setItem(
-    "kezek-ticket-links-v1",
-    JSON.stringify(["../other", 42, "valid_capability"]),
+    "kezek-private-ticket-links-v2",
+    JSON.stringify(["../other", 42, "valid_capability", "C".repeat(43)]),
   );
-  expect(savedTicketIds()).toEqual(["valid_capability"]);
-  localStorage.setItem("kezek-ticket-links-v1", "broken-json");
-  expect(savedTicketIds()).toEqual([]);
+  expect(savedTicketTokens()).toEqual(["C".repeat(43)]);
+  localStorage.setItem("kezek-private-ticket-links-v2", "broken-json");
+  expect(savedTicketTokens()).toEqual([]);
+});
+
+it("keeps previously saved legacy ticket links available during migration", () => {
+  localStorage.setItem("kezek-ticket-links-v1", JSON.stringify(["old_ticket_capability"]));
+  expect(savedTicketLinks()).toEqual([{ kind: "legacy", value: "old_ticket_capability" }]);
 });

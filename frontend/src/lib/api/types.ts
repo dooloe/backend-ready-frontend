@@ -54,6 +54,7 @@ export interface TicketView extends Ticket {
 export interface IssuedTicket {
   id: string;
   queueId: string;
+  organizationName: string;
   ticketNumber: string;
   serviceName: string;
   status: TicketStatus;
@@ -67,6 +68,38 @@ export interface IssuedTicket {
   completedAt: string | null;
   cancelledAt: string | null;
   noShowAt: string | null;
+}
+
+export function isIssuedTicket(value: TicketView | IssuedTicket): value is IssuedTicket {
+  return "ticketNumber" in value;
+}
+
+export interface QueueSummary {
+  id: string;
+  serviceId: string;
+  queueDate: string;
+  isOpen: boolean;
+  waiting: number;
+  activeCounters: number;
+  estimatedWaitMinutes: number | null;
+}
+
+export interface ServiceSummary {
+  id: string;
+  organizationId: string;
+  name: string;
+  description: string;
+  prefix: string;
+  durationMinutes: number;
+  opensAt: string | null;
+  closesAt: string | null;
+  timezone: string;
+  queue: QueueSummary | null;
+}
+
+export interface JoinResponse {
+  ticket: IssuedTicket;
+  ticketUrl: string;
 }
 
 export interface ServiceStats {
@@ -106,6 +139,7 @@ export class ApiError extends Error {
 export interface KezekApi {
   listOrganizations(): Promise<Organization[]>;
   getOrganization(id: string): Promise<Organization>;
+  listOrganizationServices(organizationId: string): Promise<ServiceSummary[]>;
   // Public (customer)
   listServices(): Promise<Service[]>;
   joinQueue(input: { serviceId: string; customerName: string }): Promise<TicketView>;
@@ -113,6 +147,11 @@ export interface KezekApi {
   cancelTicket(id: string): Promise<TicketView>;
   getPrivateTicket(accessToken: string): Promise<IssuedTicket>;
   cancelPrivateTicket(accessToken: string): Promise<IssuedTicket>;
+  issueTicket(input: {
+    queueId: string;
+    accessToken: string;
+    idempotencyKey: string;
+  }): Promise<JoinResponse>;
   // Auth
   login(username: string, password: string): Promise<LoginResponse>;
   // Staff

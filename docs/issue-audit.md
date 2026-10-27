@@ -89,7 +89,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #31 | Closed (2026-10-26) | `/api/admin/analytics` implements organization-local inclusive date filtering, scoped totals, completed wait/service averages, per-service metrics and daily buckets. Full backend suite (178), frontend checks, and real-backend desktop/mobile suite passed locally; hosted run 40355682682 passed all gates. |
 | #32 | Open | Current typed bearer adapter passes all 20 live operations; future contract, cookie/CSRF/abort/structured-error integration is absent. |
 | #33 | Closed (2026-10-26 follow-up) | Organization selection, timezone hours, backend availability/wait estimates, and loading/empty/closed/error component states are verified. |
-| #34 | Open | Current join works; it collects a name, uses an ID link and lacks idempotent uncertain-response recovery. |
+| #34 | Open pending hosted verification | Anonymous join uses typed issuance and private tokens; rapid repeats are suppressed, retry credentials recover uncertain responses, and closed queues refresh. Local unit, real-backend desktop/mobile, and full stack checks pass; hosted verification is pending. |
 | #35 | Open | Current ticket polling/cancellation work; polling continues every three seconds for terminal states, with no confirmation or required refresh/recovery tests. |
 | #36 | Open | Bearer login/local storage exists; planned cookie identity, expiry recovery, logout revocation and protected-cache clearing are absent. |
 | #37 | Open | Live staff actions work for the current contract; backend assignment isolation, strict planned transitions and component regression coverage are absent. |
@@ -98,7 +98,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #40 | Open | Staff creation exists; staff editing, deactivation and rejected active-work/assignment tests are absent. |
 | #41 | Open | Current stats come from real data when configured; date filters, service-duration metrics and full error-state coverage are absent. |
 | #42 | Closed (2026-10-26) | Secret-safe logs, no-referrer ticket access, login/join limits and hosted real-backend verification pass; see the latest audit entry below. |
-| #43 | Open pending hosted verification | Fresh Alembic-head, repeat-startup seed preservation, restart persistence of configuration/tickets/numbers/events, and analytics/history after service deactivation pass locally. Full backend suite passes; hosted verification is pending. |
+| #43 | Closed (2026-10-27) | Fresh Alembic-head, repeat-startup seed preservation, restart persistence of configuration/tickets/numbers/events, and analytics/history after service deactivation pass locally and in hosted migration/backend gates (40451595585). |
 | #44 | Closed | Real-backend customer/staff workflows pass on desktop and mobile with isolated migrated/seeded SQLite. |
 | #45 | Closed | Real-backend admin setup/assignment, access denial, expired-session UI/API and invalid private-link checks pass on desktop and mobile. |
 | #46 | Closed (2026-10-26 follow-up) | Mobile/keyboard flows, accessible labels, focus and dialogs, contrast, loading/empty/error/conflict states verified; category filter and skip-link defects fixed. |
