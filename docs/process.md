@@ -1115,8 +1115,11 @@ suite **33 passed**, frontend lint (zero errors; six existing warnings),
 typecheck, **27 Vitest tests**, production build, compile and diff checks passed.
 Real-backend desktop/mobile browser checks passed **8 cases** when run without
 the concurrent backend suite; an earlier concurrent run had one 45-second
-desktop timeout, which did not reproduce in the isolated retry. Hosted CI
-verification is pending; #24 remains open until it passes.
+desktop timeout, which did not reproduce in the isolated retry. Hosted CI run
+[40445601256](https://github.com/dooloe/backend-ready-frontend/actions/runs/40445601256)
+passed frontend lint/typecheck/tests/build, fresh migration/model-drift,
+OpenAPI consistency, the complete backend suite, and real-backend desktop/mobile
+workflows. Issue #24 was closed after all acceptance criteria passed.
 
 ## 2026-10-26 — Issue #21 private ticket cancellation
 

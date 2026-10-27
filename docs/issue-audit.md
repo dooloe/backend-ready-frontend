@@ -79,7 +79,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #21 | Closed (2026-10-26) | Canonical token-only cancellation, waiting-state validation, atomic timestamp/event insertion, invalid-token parity, non-waiting rejection and cancellation/call-next race checks pass locally and in hosted CI run 40366456657. |
 | #22 | Closed (2026-10-26) | Public aggregate queue status, availability/count estimates, private-data exclusion, and hosted checks pass. |
 | #23 | Closed (2026-10-26) | Assigned staff queue discovery, tenant isolation, multiple service assignments, and hosted checks pass. |
-| #24 | Open | Queue-scoped call-next now takes an explicit `counterId`, validates organization/assignment/service support, and atomically claims FIFO work with its event. Local backend, frontend and isolated browser checks pass; hosted verification pending. |
+| #24 | Closed (2026-10-27) | Queue-scoped call-next takes an explicit `counterId`, validates organization/assignment/service support, and atomically claims FIFO work with its event. Local checks and hosted CI run 40445601256, including real-backend browser workflows, pass. |
 | #25 | Open | Actor-attributed lifecycle events and rollback pass; strict transition requirement conflicts with recorded decision preserving called → completed. |
 | #26 | Closed (2026-10-26) | Independent-process file-backed same-key retries, joins, calls, cancellation races, bounded lock contention, and hosted verification pass. |
 | #27 | Closed (2026-10-26) | Organization-scoped service listing, schedule/activation validation, history-preserving deactivation and stable daily queue prefixes passed hosted verification. |
