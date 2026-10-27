@@ -1262,3 +1262,13 @@ rejection and confirmed deletion. Hosted run
 passed all frontend, migration/model-drift, OpenAPI, backend and full
 real-backend desktop/mobile browser checks. Issue #38 was closed after every
 acceptance criterion was verified.
+
+## 2026-10-27 — Updated MVP issue #54
+
+After auditing all Issues #1–#53, created [#54](https://github.com/dooloe/backend-ready-frontend/issues/54)
+for English, Kazakh and Russian localization of the customer journey. The
+existing screens cover discovery, joining and ticket tracking, but offer no
+language selection. The issue defines keyboard access, persisted preference,
+locale-aware formatting and automated coverage. Labels: `new-mvp`, `frontend`,
+`ui-ux` and `enhancement`. It is P1 with no dependencies; implementation remains
+unstarted.

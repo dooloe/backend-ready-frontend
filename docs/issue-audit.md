@@ -651,3 +651,13 @@ mobile browser workflows pass. Hosted CI run
 [40461717139](https://github.com/dooloe/backend-ready-frontend/actions/runs/40461717139)
 passed every gate, including full real-backend desktop/mobile workflows. Issue
 #38 was closed after verifying all acceptance criteria.
+
+## New MVP issue #54 — customer-facing localization — 2026-10-27
+
+Review of Issues #1–#53 found no existing issue for customer language
+selection. The current visitor journey is English-only; the existing directory,
+join and ticket work (#33–#35) is complete. Created #54 as a P1 follow-up for
+English, Kazakh and Russian customer-facing translations, locale-aware formats,
+accessible language selection and persistence. It has no blocking dependencies
+and carries `new-mvp`, `frontend`, `ui-ux` and `enhancement`. The issue is open;
+implementation has not started.
