@@ -351,6 +351,26 @@ test("staff no-show confirmation and essential admin configuration", async ({ pa
     "data-state",
     "active",
   );
+  await expect(staff.getByRole("heading", { name: "Tickets by day" })).toBeVisible();
+  await staff.getByLabel("Analytics start date").fill("2026-10-20");
+  await staff.getByLabel("Analytics end date").fill("2026-10-22");
+  const analyticsResponse = staff.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/analytics?dateFrom=2026-10-20&dateTo=2026-10-22") &&
+      response.request().method() === "GET",
+  );
+  await staff.getByRole("button", { name: "Apply dates" }).click();
+  const analytics = await analyticsResponse;
+  expect(analytics.ok()).toBe(true);
+  expect(await analytics.json()).toMatchObject({
+    dateFrom: "2026-10-20",
+    dateTo: "2026-10-22",
+    timezone: "Asia/Almaty",
+  });
+  await expect(
+    staff.getByText("Showing 2026-10-20 – 2026-10-22 · Organization time: Asia/Almaty"),
+  ).toBeVisible();
+  await staff.getByRole("tab", { name: "Analytics" }).focus();
   await staff.keyboard.press("ArrowRight");
   const servicesTab = staff.getByRole("tab", { name: "Services" });
   await expect(servicesTab).toHaveAttribute("data-state", "active");

@@ -1221,3 +1221,21 @@ real-backend desktop/mobile Playwright **8 passed**. Hosted run
 [40456487951](https://github.com/dooloe/backend-ready-frontend/actions/runs/40456487951)
 passed every gate, including real-backend browser workflows. Issue #35 was
 closed after AC-1 through AC-3 were verified.
+
+## 2026-10-27 — Issue #41 date-filtered admin analytics
+
+Replaced the admin dashboard's legacy today-only statistics with the existing
+organization-scoped `/api/admin/analytics` endpoint. The typed API facade sends
+paired inclusive date filters; the dashboard shows issued, waiting, completed,
+mean wait and mean service duration, plus daily and per-service results. The
+date filter validates incomplete and reversed ranges, identifies the
+organization timezone, and retains selections on request errors. Empty cohorts
+show zero counts with unavailable means rather than sample values. Development
+mock mode now calculates the same date-filtered shape for its local ticket data.
+
+Verification: backend suite **197 passed**; frontend typecheck passed; lint
+**0 errors** (six existing Fast Refresh warnings); Vitest **54 passed**;
+production build passed; real-backend desktop/mobile Playwright **8 passed**,
+including an authenticated analytics request for 2026-10-20 through 2026-10-22
+returning HTTP 200 and the selected organization-local range.
+`git diff --check` passed. Hosted verification is pending, so #41 remains open.

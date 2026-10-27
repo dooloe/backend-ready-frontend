@@ -96,7 +96,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #38 | Open | Current service creation/open toggles exist; schedule forms and daily closure controls are absent. |
 | #39 | Open | Current counter/service/assignment controls exist; organization options, active-work safeguards and component tests are absent. |
 | #40 | Open | Staff creation exists; staff editing, deactivation and rejected active-work/assignment tests are absent. |
-| #41 | Open | Current stats come from real data when configured; date filters, service-duration metrics and full error-state coverage are absent. |
+| #41 | Open pending hosted verification | Admin analytics now uses typed `/api/admin/analytics` for date-filtered ticket counts, per-service results, mean wait and mean service time; empty/null/error states are explicit. Frontend tests and real-backend desktop/mobile workflows pass locally; hosted verification is pending. |
 | #42 | Closed (2026-10-26) | Secret-safe logs, no-referrer ticket access, login/join limits and hosted real-backend verification pass; see the latest audit entry below. |
 | #43 | Closed (2026-10-27) | Fresh Alembic-head, repeat-startup seed preservation, restart persistence of configuration/tickets/numbers/events, and analytics/history after service deactivation pass locally and in hosted migration/backend gates (40451595585). |
 | #44 | Closed | Real-backend customer/staff workflows pass on desktop and mobile with isolated migrated/seeded SQLite. |

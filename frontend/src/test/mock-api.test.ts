@@ -67,6 +67,28 @@ describe("Kezek mock API", () => {
     });
   });
 
+  it("returns date-filtered analytics with real empty values and unavailable averages", async () => {
+    token = (await mockApi.login("admin", "admin123")).token;
+
+    await expect(mockApi.getAnalytics("2026-10-20", "2026-10-22")).resolves.toMatchObject({
+      dateFrom: "2026-10-20",
+      dateTo: "2026-10-22",
+      timezone: "Asia/Almaty",
+      issued: 0,
+      waiting: 0,
+      completed: 0,
+      meanWaitMinutes: null,
+      meanServiceMinutes: null,
+      byService: [],
+      byDay: [
+        { date: "2026-10-20", issued: 0, completed: 0 },
+        { date: "2026-10-21", issued: 0, completed: 0 },
+        { date: "2026-10-22", issued: 0, completed: 0 },
+      ],
+    });
+    await expect(mockApi.getAnalytics("2026-10-20")).rejects.toMatchObject({ status: 422 });
+  });
+
   it("calls the oldest waiting ticket and never twice", async () => {
     const first = await mockApi.joinQueue({ serviceId: "svc-reg", customerName: "A" });
     await new Promise((r) => setTimeout(r, 5));

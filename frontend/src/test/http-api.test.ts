@@ -104,4 +104,21 @@ describe("legacy private ticket client compatibility", () => {
       headers: { "Content-Type": "application/json", Authorization: "Bearer staff-session" },
     });
   });
+
+  it("requests date-filtered admin analytics from the contracted endpoint", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createHttpApi("http://localhost:8000", () => "admin-session");
+
+    await api.getAnalytics("2026-10-20", "2026-10-22");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/api/admin/analytics?dateFrom=2026-10-20&dateTo=2026-10-22",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });

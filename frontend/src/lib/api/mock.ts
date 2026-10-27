@@ -8,6 +8,7 @@ import {
   type Service,
   type StaffUser,
   type Stats,
+  type Analytics,
   type Ticket,
   type TicketView,
   type IssuedTicket,
@@ -238,6 +239,16 @@ function requireRole(role: Role): StaffRecord {
 
 const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const minutes = (a: string, b: string) => (new Date(b).getTime() - new Date(a).getTime()) / 60000;
+function dateInZone(iso: string, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(iso));
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
 
 function view(t: Ticket): TicketView {
   const d = load();
@@ -662,6 +673,99 @@ export const mockApi: KezekApi = {
       byHour,
     };
     return delay(stats);
+  },
+
+  getAnalytics(dateFrom?: string, dateTo?: string) {
+    requireRole("admin");
+    if ((dateFrom === undefined) !== (dateTo === undefined)) {
+      throw new ApiError(422, "Choose both a start and end date.");
+    }
+    const timezone = "Asia/Almaty";
+    const today = dateInZone(new Date().toISOString(), timezone);
+    const from = dateFrom ?? today;
+    const to = dateTo ?? today;
+    const fromDate = new Date(`${from}T00:00:00Z`);
+    const toDate = new Date(`${to}T00:00:00Z`);
+    if (
+      Number.isNaN(fromDate.getTime()) ||
+      Number.isNaN(toDate.getTime()) ||
+      fromDate.toISOString().slice(0, 10) !== from ||
+      toDate.toISOString().slice(0, 10) !== to ||
+      from > to
+    ) {
+      throw new ApiError(422, "Choose a valid date range.");
+    }
+    if ((toDate.getTime() - fromDate.getTime()) / 86_400_000 > 30) {
+      throw new ApiError(422, "Date range cannot exceed 31 days.");
+    }
+
+    const tickets = load().tickets.filter((item) => {
+      const service = load().services.find((value) => value.id === item.serviceId);
+      return (
+        service &&
+        dateInZone(item.createdAt, timezone) >= from &&
+        dateInZone(item.createdAt, timezone) <= to
+      );
+    });
+    const completed = tickets.filter((item) => item.status === "completed");
+    const mean = (values: number[]) =>
+      values.length
+        ? Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10
+        : null;
+    const waits = completed
+      .filter((item) => item.calledAt && item.calledAt >= item.createdAt)
+      .map((item) => minutes(item.createdAt, item.calledAt!));
+    const serviceDurations = completed
+      .filter((item) => item.servedAt && item.finishedAt && item.finishedAt >= item.servedAt)
+      .map((item) => minutes(item.servedAt!, item.finishedAt!));
+    const byService = [...new Set(tickets.map((item) => item.serviceId))]
+      .map((serviceId) => {
+        const rows = tickets.filter((item) => item.serviceId === serviceId);
+        const done = rows.filter((item) => item.status === "completed");
+        return {
+          serviceId,
+          serviceName: load().services.find((item) => item.id === serviceId)?.name ?? "Service",
+          issued: rows.length,
+          waiting: rows.filter((item) => item.status === "waiting").length,
+          completed: done.length,
+          meanWaitMinutes: mean(
+            done
+              .filter((item) => item.calledAt && item.calledAt >= item.createdAt)
+              .map((item) => minutes(item.createdAt, item.calledAt!)),
+          ),
+          meanServiceMinutes: mean(
+            done
+              .filter(
+                (item) => item.servedAt && item.finishedAt && item.finishedAt >= item.servedAt,
+              )
+              .map((item) => minutes(item.servedAt!, item.finishedAt!)),
+          ),
+        };
+      })
+      .sort((a, b) => a.serviceName.localeCompare(b.serviceName));
+    const byDay = [];
+    for (let date = new Date(fromDate); date <= toDate; date.setUTCDate(date.getUTCDate() + 1)) {
+      const day = date.toISOString().slice(0, 10);
+      const rows = tickets.filter((item) => dateInZone(item.createdAt, timezone) === day);
+      byDay.push({
+        date: day,
+        issued: rows.length,
+        completed: rows.filter((item) => item.status === "completed").length,
+      });
+    }
+    const result: Analytics = {
+      dateFrom: from,
+      dateTo: to,
+      timezone,
+      issued: tickets.length,
+      waiting: tickets.filter((item) => item.status === "waiting").length,
+      completed: completed.length,
+      meanWaitMinutes: mean(waits),
+      meanServiceMinutes: mean(serviceDurations),
+      byService,
+      byDay,
+    };
+    return delay(result);
   },
 };
 

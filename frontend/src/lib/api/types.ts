@@ -122,6 +122,35 @@ export interface Stats {
   byHour: { hour: number; count: number }[];
 }
 
+export interface ServiceMetrics {
+  serviceId: string;
+  serviceName: string;
+  issued: number;
+  waiting: number;
+  completed: number;
+  meanWaitMinutes: number | null;
+  meanServiceMinutes: number | null;
+}
+
+export interface DayMetrics {
+  date: string;
+  issued: number;
+  completed: number;
+}
+
+export interface Analytics {
+  dateFrom: string;
+  dateTo: string;
+  timezone: string;
+  issued: number;
+  waiting: number;
+  completed: number;
+  meanWaitMinutes: number | null;
+  meanServiceMinutes: number | null;
+  byService: ServiceMetrics[];
+  byDay: DayMetrics[];
+}
+
 export interface LoginResponse {
   token: string;
   user: StaffUser;
@@ -176,6 +205,7 @@ export interface KezekApi {
     input: Partial<Pick<StaffUser, "name" | "username" | "role" | "isActive">>,
   ): Promise<StaffUser>;
   getStats(): Promise<Stats>;
+  getAnalytics(dateFrom?: string, dateTo?: string): Promise<Analytics>;
 }
 
 export const categories = [

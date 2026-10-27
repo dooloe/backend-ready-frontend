@@ -178,82 +178,194 @@ export function OrganizationsTab() {
   );
 }
 
-function StatsTab() {
-  const {
-    data: s,
-    isPending,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ["stats"],
-    queryFn: api.getStats,
-    refetchInterval: 5000,
+export function StatsTab() {
+  const [draft, setDraft] = useState({ from: "", to: "" });
+  const [applied, setApplied] = useState({ from: "", to: "" });
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const { data, isPending, error, refetch } = useQuery({
+    queryKey: ["analytics", applied.from, applied.to],
+    queryFn: () => api.getAnalytics(applied.from || undefined, applied.to || undefined),
+    refetchInterval: 15000,
   });
-  if (isPending) return <LoadingCards />;
-  if (error)
-    return (
-      <LoadError message="Couldn’t load operational statistics." retry={() => void refetch()} />
-    );
-  if (!s) return null;
-  const max = Math.max(1, ...s.byHour.map((h) => h.count));
-  const kpis = [
-    ["Tickets today", s.totalToday],
-    ["Waiting now", s.waitingNow],
-    ["Completed", s.completedToday],
-    ["Avg wait", s.avgWaitMinutes === null ? "—" : `${s.avgWaitMinutes}m`],
-  ];
+  const meanText = (minutes: number | null) =>
+    minutes === null ? "Unavailable" : minutes.toFixed(1) + " min";
+  const max = Math.max(1, ...(data?.byDay.map((day) => day.issued) ?? []));
+
   return (
     <div className="mt-4 space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
-        {kpis.map(([l, v]) => (
-          <div key={l} className={card}>
-            <p className="text-sm text-muted-foreground">{l}</p>
-            <p className="font-display text-4xl font-bold">{v}</p>
-          </div>
-        ))}
-      </div>
-      <div className={card}>
-        <h3 className="font-semibold">Tickets by hour</h3>
-        <div className="mt-4 flex h-32 items-end gap-1">
-          {s.byHour.map((h) => (
-            <div key={h.hour} className="flex flex-1 flex-col items-center gap-1">
-              <div
-                className="w-full rounded-t bg-primary"
-                style={{ height: `${(h.count / max) * 100}%` }}
-              />
-              <span className="text-[10px] text-muted-foreground">{h.hour}</span>
-            </div>
-          ))}
+      <form
+        className="surface flex flex-col gap-4 overflow-x-auto p-5 sm:flex-row sm:items-end sm:p-6"
+        aria-label="Analytics date range"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!!draft.from !== !!draft.to) {
+            setValidationError("Choose both a start date and an end date.");
+            return;
+          }
+          if (draft.from && draft.from > draft.to) {
+            setValidationError("The start date must be on or before the end date.");
+            return;
+          }
+          setValidationError(null);
+          setApplied(draft);
+        }}
+      >
+        <div className="grid flex-1 gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5 text-sm font-medium">
+            From
+            <Input
+              type="date"
+              aria-label="Analytics start date"
+              value={draft.from}
+              onChange={(event) => setDraft({ ...draft, from: event.target.value })}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium">
+            To
+            <Input
+              type="date"
+              aria-label="Analytics end date"
+              value={draft.to}
+              onChange={(event) => setDraft({ ...draft, to: event.target.value })}
+            />
+          </label>
         </div>
-      </div>
-      <div className={card}>
-        <table className="w-full text-sm">
-          <thead className="text-left text-muted-foreground">
-            <tr>
-              <th className="py-2">Service</th>
-              <th>Total</th>
-              <th>Waiting</th>
-              <th>Done</th>
-              <th>No-show</th>
-              <th>Cancelled</th>
-              <th>Avg wait</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {s.byService.map((r) => (
-              <tr key={r.serviceId}>
-                <td className="py-2 font-medium">{r.serviceName}</td>
-                <td>{r.total}</td>
-                <td>{r.waiting}</td>
-                <td>{r.completed}</td>
-                <td>{r.noShows}</td>
-                <td>{r.cancelled}</td>
-                <td>{r.avgWaitMinutes ?? "—"}</td>
-              </tr>
+        <Button type="submit">Apply dates</Button>
+        {applied.from && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setDraft({ from: "", to: "" });
+              setApplied({ from: "", to: "" });
+              setValidationError(null);
+            }}
+          >
+            Today
+          </Button>
+        )}
+        {validationError && (
+          <p role="alert" className="text-sm text-destructive sm:basis-full">
+            {validationError}
+          </p>
+        )}
+      </form>
+
+      {isPending && <LoadingCards />}
+      {error && (
+        <LoadError
+          message="Couldn’t load operational analytics. Your selected dates are unchanged."
+          retry={() => void refetch()}
+        />
+      )}
+      {data && (
+        <>
+          <p className="text-sm text-muted-foreground">
+            {data.dateFrom === data.dateTo
+              ? "Showing " + data.dateFrom
+              : "Showing " + data.dateFrom + " – " + data.dateTo}
+            {" · "}
+            Organization time: {data.timezone}
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              ["Tickets issued", data.issued.toLocaleString()],
+              ["Waiting", data.waiting.toLocaleString()],
+              ["Completed", data.completed.toLocaleString()],
+              ["Mean wait", meanText(data.meanWaitMinutes)],
+              ["Mean service time", meanText(data.meanServiceMinutes)],
+            ].map(([label, value]) => (
+              <div key={label} className={card}>
+                <p className="text-sm text-muted-foreground">{label}</p>
+                <p className="mt-2 font-display text-3xl font-bold">{value}</p>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+          {data.issued === 0 && (
+            <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+              No tickets were issued during this date range.
+            </p>
+          )}
+          <section className={card} aria-labelledby="tickets-by-day-heading">
+            <h3 id="tickets-by-day-heading" className="font-semibold">
+              Tickets by day
+            </h3>
+            <div
+              role="img"
+              aria-label={"Daily ticket counts, maximum " + max + " tickets"}
+              className="mt-4 flex min-h-36 items-end gap-1 overflow-x-auto"
+            >
+              {data.byDay.map((day) => (
+                <div key={day.date} className="flex min-w-8 flex-1 flex-col items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground">{day.issued}</span>
+                  <div
+                    className="w-full rounded-t bg-primary"
+                    style={{
+                      height: (day.issued === 0 ? 0 : Math.max(4, (day.issued / max) * 88)) + "px",
+                    }}
+                    title={
+                      day.date + ": " + day.issued + " issued, " + day.completed + " completed"
+                    }
+                  />
+                  <time dateTime={day.date} className="text-[10px] text-muted-foreground">
+                    {day.date.slice(5)}
+                  </time>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className={card + " p-0"} aria-label="Analytics by service">
+            <div className="overflow-x-auto p-5 sm:p-6">
+              <table className="w-full min-w-[640px] text-sm">
+                <caption className="mb-3 text-left font-semibold">Service performance</caption>
+                <thead className="text-left text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="py-2 pr-4">
+                      Service
+                    </th>
+                    <th scope="col" className="py-2 pr-4">
+                      Issued
+                    </th>
+                    <th scope="col" className="py-2 pr-4">
+                      Waiting
+                    </th>
+                    <th scope="col" className="py-2 pr-4">
+                      Completed
+                    </th>
+                    <th scope="col" className="py-2 pr-4">
+                      Mean wait
+                    </th>
+                    <th scope="col" className="py-2">
+                      Mean service
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {data.byService.map((service) => (
+                    <tr key={service.serviceId}>
+                      <th scope="row" className="py-3 pr-4 text-left font-medium">
+                        {service.serviceName}
+                      </th>
+                      <td className="py-3 pr-4">{service.issued}</td>
+                      <td className="py-3 pr-4">{service.waiting}</td>
+                      <td className="py-3 pr-4">{service.completed}</td>
+                      <td className="py-3 pr-4">{meanText(service.meanWaitMinutes)}</td>
+                      <td className="py-3">{meanText(service.meanServiceMinutes)}</td>
+                    </tr>
+                  ))}
+                  {data.byService.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-6 text-center text-muted-foreground">
+                        No service data for this range.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

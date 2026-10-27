@@ -1,5 +1,11 @@
 // Real HTTP client for the FastAPI backend. Endpoint map = the contract to implement.
-import { ApiError, type IssuedTicket, type KezekApi, type JoinResponse } from "./types";
+import {
+  ApiError,
+  type Analytics,
+  type IssuedTicket,
+  type KezekApi,
+  type JoinResponse,
+} from "./types";
 
 export function createHttpApi(baseUrl: string, getToken: () => string | null): KezekApi {
   async function req<T>(
@@ -75,5 +81,12 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
     createStaff: (i) => req("POST", "/api/admin/staff", i),
     updateStaff: (id, i) => req("PATCH", `/api/admin/staff/${encodeURIComponent(id)}`, i),
     getStats: () => req("GET", "/api/admin/stats"),
+    getAnalytics: (dateFrom, dateTo) => {
+      const params = new URLSearchParams();
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
+      const query = params.toString();
+      return req<Analytics>("GET", `/api/admin/analytics${query ? `?${query}` : ""}`);
+    },
   };
 }
