@@ -41,4 +41,26 @@ describe("legacy private ticket client compatibility", () => {
       ["POST", "http://localhost:8000/api/tickets/a%2Fb%20%2B%20token/cancel"],
     ]);
   });
+
+  it("sends the selected counter with the queue-scoped call-next request", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response("null", { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createHttpApi("http://localhost:8000", () => "staff-session");
+
+    await api.callNextFromQueue("daily/queue", "counter 1");
+
+    expect(fetchMock.mock.calls).toHaveLength(1);
+    const call = fetchMock.mock.calls[0];
+    expect(call?.[0]).toBe("http://localhost:8000/api/staff/queues/daily%2Fqueue/call-next");
+    expect(call?.[1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ counterId: "counter 1" }),
+      headers: { "Content-Type": "application/json", Authorization: "Bearer staff-session" },
+    });
+  });
 });

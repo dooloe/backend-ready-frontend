@@ -395,6 +395,11 @@ export const mockApi: KezekApi = {
     return delay(view(next));
   },
 
+  callNextFromQueue() {
+    requireRole("staff");
+    return Promise.reject(new ApiError(501, "Queue-scoped calls require the real backend"));
+  },
+
   startService: (id) => transition(id, ["called"], { status: "serving", servedAt: now() }),
   completeTicket: (id) =>
     transition(id, ["called", "serving"], { status: "completed", finishedAt: now() }),

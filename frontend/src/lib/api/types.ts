@@ -119,6 +119,7 @@ export interface KezekApi {
   listCounters(): Promise<Counter[]>;
   getQueue(counterId: string): Promise<{ current: TicketView | null; waiting: TicketView[] }>;
   callNext(counterId: string): Promise<TicketView | null>;
+  callNextFromQueue(queueId: string, counterId: string): Promise<TicketView | null>;
   startService(ticketId: string): Promise<TicketView>;
   completeTicket(ticketId: string): Promise<TicketView>;
   markNoShow(ticketId: string): Promise<TicketView>;

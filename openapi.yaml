@@ -400,6 +400,51 @@ paths:
       - admin
       parameters:
       - $ref: '#/components/parameters/counterId'
+  /api/staff/queues/{queueId}/call-next:
+    post:
+      operationId: callNextQueue
+      tags:
+      - Staff
+      summary: Call the oldest waiting ticket in a queue at an authorized counter
+      description: Atomically claims the oldest waiting ticket in the specified daily queue at the specified active counter. The counter must belong to the user's organization, be assigned to the staff user (or the caller must be an admin), and support the queue's service. Closed queues may still serve outstanding tickets. Counter selection is explicit in the request body to support staff assigned to multiple counters.
+      responses:
+        '200':
+          description: The called ticket, or literal null when the queue has no waiting ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NullableTicketView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+      x-required-roles:
+      - staff
+      - admin
+      parameters:
+      - name: queueId
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueueCallNextRequest'
   /api/tickets/{id}/start:
     post:
       operationId: startService
@@ -1582,6 +1627,15 @@ components:
           type: string
           pattern: ^[A-Za-z0-9_-]{43}$
           description: Canonical base64url encoding of 32 cryptographically random bytes.
+    QueueCallNextRequest:
+      type: object
+      additionalProperties: false
+      required: [counterId]
+      properties:
+        counterId:
+          type: string
+          minLength: 1
+          maxLength: 64
     IssuedTicket:
       type: object
       additionalProperties: false

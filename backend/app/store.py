@@ -759,6 +759,43 @@ class DatabaseStore:
             session.flush()
             return self._view(session, ticket)
 
+    def call_next_in_queue(self, queue_id: str, counter_id: str, actor: StaffUser) -> TicketView | None:
+        with self.db.session(write=True) as session:
+            actor_row = self._actor_row(session, actor)
+            queue = session.get(DailyQueueRow, queue_id)
+            if queue is None or queue.organization_id != actor_row.organization_id:
+                raise HTTPException(404, "Queue not found")
+            counter = self._get(session, CounterRow, counter_id, "Counter")
+            self._authorize_counter(session, counter, actor_row)
+            if counter.organization_id != queue.organization_id:
+                raise HTTPException(404, "Queue not found")
+            supports_service = session.scalar(select(CounterServiceRow.counter_id).where(
+                CounterServiceRow.organization_id == queue.organization_id,
+                CounterServiceRow.counter_id == counter.id,
+                CounterServiceRow.service_id == queue.service_id,
+            ))
+            if supports_service is None:
+                raise HTTPException(403, "Counter does not support this queue")
+            if session.get(ActiveTicketRow, counter.id) is not None:
+                raise HTTPException(409, "Finish the current ticket first")
+            ticket = session.scalar(select(TicketRow).where(
+                TicketRow.dailyQueueId == queue.id,
+                TicketRow.serviceId == queue.service_id,
+                TicketRow.status == "waiting",
+            ).order_by(TicketRow.createdAt, TicketRow.ordinal).limit(1))
+            if ticket is None:
+                return None
+            called_at = self.clock()
+            ticket.status, ticket.counterId, ticket.calledAt = "called", counter.id, called_at
+            session.add(ActiveTicketRow(counter_id=counter.id, ticket_id=ticket.id))
+            session.add(TicketEventRow(
+                id=new_id(), ticket_id=ticket.id, event_type="called",
+                occurred_at=called_at, actor_user_id=actor_row.id,
+                counter_id=counter.id,
+            ))
+            session.flush()
+            return self._view(session, ticket)
+
     def transition(self, ticket_id: str, action: str, actor: StaffUser) -> TicketView:
         rules = {"start": (("called",), "serving", "servedAt"),
                  "complete": (("called", "serving"), "completed", "finishedAt"),

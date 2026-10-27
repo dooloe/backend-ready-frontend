@@ -40,6 +40,8 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
     listCounters: () => req("GET", "/api/counters"),
     getQueue: (id) => req("GET", `/api/counters/${id}/queue`),
     callNext: (id) => req("POST", `/api/counters/${id}/call-next`),
+    callNextFromQueue: (queueId, counterId) =>
+      req("POST", `/api/staff/queues/${encodeURIComponent(queueId)}/call-next`, { counterId }),
     startService: (id) => req("POST", `/api/tickets/${id}/start`),
     completeTicket: (id) => req("POST", `/api/tickets/${id}/complete`),
     markNoShow: (id) => req("POST", `/api/tickets/${id}/no-show`),

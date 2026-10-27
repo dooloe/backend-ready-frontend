@@ -113,6 +113,10 @@ class AnonymousJoinRequest(Model):
     accessToken: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
 
 
+class QueueCallNextRequest(Model):
+    counterId: str = Field(min_length=1, max_length=64)
+
+
 class IssuedTicket(Model):
     id: str
     queueId: str

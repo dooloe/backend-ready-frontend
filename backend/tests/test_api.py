@@ -227,6 +227,69 @@ def test_private_ticket_cancellation_racing_call_next_is_consistent(client, stor
     assert event_types.count("cancelled") + event_types.count("called") == 1
 
 
+def test_queue_scoped_call_next_is_fifo_counter_authorized_and_works_when_closed(client, store, staff, clock):
+    today = clock.value
+    clock.advance(days=-1)
+    prior_queue_id = daily_queue_id(store)
+    clock.value = today
+    daily_queue_id(store)
+    with store.db.session() as session:
+        queue_id = session.scalar(select(DailyQueueRow.id).where(
+            DailyQueueRow.business_date == today.date(), DailyQueueRow.service_id == "svc-reg",
+        ))
+        assert queue_id is not None
+    with store.db.session() as session:
+        first_waiting = session.scalar(select(TicketRow).where(
+            TicketRow.dailyQueueId == queue_id, TicketRow.status == "waiting",
+        ).order_by(TicketRow.createdAt, TicketRow.ordinal))
+        assert first_waiting is not None
+        first_id = first_waiting.id
+    second = join(client, name="Second in queue")
+    with store.db.session(write=True) as session:
+        session.get(DailyQueueRow, queue_id).status = "closed"
+
+    path = f"/api/staff/queues/{queue_id}/call-next"
+    called = client.post(path, headers=staff, json={"counterId": "cnt-1"})
+    assert called.status_code == 200, called.text
+    assert called.json()["id"] == first_id
+    assert called.json()["status"] == "called" and called.json()["counterId"] == "cnt-1"
+    called_at = datetime.fromisoformat(called.json()["calledAt"].replace("Z", "+00:00"))
+    assert called_at == clock()
+    with store.db.session() as session:
+        prior_ticket = session.scalar(select(TicketRow).where(
+            TicketRow.dailyQueueId == prior_queue_id, TicketRow.status == "waiting",
+        ))
+        event = session.scalar(select(TicketEventRow).where(
+            TicketEventRow.ticket_id == first_id, TicketEventRow.event_type == "called",
+        ))
+        assert prior_ticket is not None
+        assert prior_ticket.status == "waiting"
+        assert event is not None and event.actor_user_id == "stf-aigerim" and event.counter_id == "cnt-1"
+
+    busy = client.post(path, headers=staff, json={"counterId": "cnt-1"})
+    assert busy.status_code == 409
+    assert client.post(f"/api/tickets/{first_id}/complete", headers=staff).status_code == 200
+    next_response = client.post(path, headers=staff, json={"counterId": "cnt-1"})
+    assert next_response.status_code == 200 and next_response.json()["id"] == second["id"]
+    assert client.post(f"/api/tickets/{second['id']}/complete", headers=staff).status_code == 200
+    empty = client.post(path, headers=staff, json={"counterId": "cnt-1"})
+    assert empty.status_code == 200 and empty.json() is None
+
+
+def test_queue_scoped_call_next_rejects_unauthorized_and_unsupported_counters(client, store, staff):
+    registration_queue = daily_queue_id(store)
+    path = f"/api/staff/queues/{registration_queue}/call-next"
+    assert client.post(path, json={"counterId": "cnt-1"}).status_code == 401
+    # Counter 2 supports registration but this staff member is not assigned there.
+    assert client.post(path, headers=staff, json={"counterId": "cnt-2"}).status_code == 403
+
+    finance_queue = daily_queue_id(store, service_id="svc-fin")
+    # Counter 1 is assigned to this staff member but does not support finance.
+    response = client.post(f"/api/staff/queues/{finance_queue}/call-next",
+                           headers=staff, json={"counterId": "cnt-1"})
+    assert response.status_code == 403
+
+
 def test_concurrent_same_key_issues_exactly_one_ticket(store):
     queue_id = daily_queue_id(store)
     with ThreadPoolExecutor(max_workers=8) as pool:
@@ -410,6 +473,9 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
     assert issued["ticket"]["id"]
     check("GET", f"/api/tickets/{proof(21)}", "/api/tickets/{token}")
     check("POST", f"/api/tickets/{proof(21)}/cancel", "/api/tickets/{token}/cancel")
+    queue_id = daily_queue_id(store)
+    check("POST", f"/api/staff/queues/{queue_id}/call-next", "/api/staff/queues/{queueId}/call-next",
+          headers=headers, json={"counterId": "cnt-1"})
     service = check("POST", "/api/admin/services", "/api/admin/services", headers=headers,
                     json={"name": "New", "description": "Service", "prefix": "N", "isOpen": True, "avgServiceMinutes": 5})
     check("PATCH", f"/api/admin/services/{service['id']}", "/api/admin/services/{serviceId}", headers=headers, json={"name": "Renamed"})

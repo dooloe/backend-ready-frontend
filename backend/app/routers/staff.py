@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from ..auth import require_staff
-from ..models import Counter, QueueView, StaffCounterQueue, StaffUser, TicketView
+from ..models import Counter, QueueCallNextRequest, QueueView, StaffCounterQueue, StaffUser, TicketView
 from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api", tags=["Staff"], dependencies=[Depends(require_staff)])
@@ -30,6 +30,12 @@ def get_queue(counterId: str, store: Store, actor: Actor):
 @router.post("/counters/{counterId}/call-next", response_model=TicketView | None, operation_id="callNext", openapi_extra=roles)
 def call_next(counterId: str, store: Store, actor: Actor):
     return store.call_next(counterId, actor)
+
+
+@router.post("/staff/queues/{queueId}/call-next", response_model=TicketView | None,
+             operation_id="callNextQueue", openapi_extra=roles)
+def call_next_in_queue(queueId: str, body: QueueCallNextRequest, store: Store, actor: Actor):
+    return store.call_next_in_queue(queueId, body.counterId, actor)
 
 
 @router.post("/tickets/{id}/start", response_model=TicketView, operation_id="startService", openapi_extra=roles)

@@ -970,10 +970,10 @@ passed the frontend, migration, backend, OpenAPI, and real-backend desktop/mobil
 gates for commit `9cb6216`, including atomic actor-attributed event writes.
 Issue #25 remains open because its strict-transition criterion conflicts with
 the recorded decision to preserve direct called-to-completed behavior; hosted
-CI does not resolve that scope conflict. Issue #24 remains open because its
-requested queue-scoped path does not identify a counter when staff have multiple
-eligible counters; the current frontend API instead uses the explicit
-counter-scoped `/api/counters/{counterId}/call-next` route.
+CI does not resolve that scope conflict. The previous #24 audit noted that its
+queue-scoped path lacked counter selection. Follow-up review found the planned
+`openapi.yml` contract already supplies `counterId` in a required request body;
+the implementation is recorded below.
 
 ## 2026-10-26 — Issue #26 independent-process concurrency
 
@@ -1096,6 +1096,27 @@ access path before #20 can be closed. Hosted CI run
 [40364335218](https://github.com/dooloe/backend-ready-frontend/actions/runs/40364335218)
 passed all frontend, migration, OpenAPI, backend, and real-backend browser
 checks; #20 remains open until the remaining customer access path is migrated.
+
+## 2026-10-27 — Issue #24 queue-scoped call-next
+
+Added `POST /api/staff/queues/{queueId}/call-next` while preserving the existing
+counter-scoped route. Its required `counterId` body makes counter selection
+explicit. Inside the existing database write transaction it validates the
+active actor, queue organization, counter assignment, and counter support for
+the queue service; then it rejects a busy counter or atomically assigns the
+oldest waiting ticket from that daily queue with timestamp, active claim, and
+actor/counter event. It permits outstanding tickets in a closed queue and
+returns JSON null for an empty queue. The HTTP facade exposes the route; mock
+mode rejects it explicitly because its current ticket model has no daily queue
+identity.
+
+Local verification: backend full suite **196 passed**, OpenAPI MVP contract
+suite **33 passed**, frontend lint (zero errors; six existing warnings),
+typecheck, **27 Vitest tests**, production build, compile and diff checks passed.
+Real-backend desktop/mobile browser checks passed **8 cases** when run without
+the concurrent backend suite; an earlier concurrent run had one 45-second
+desktop timeout, which did not reproduce in the isolated retry. Hosted CI
+verification is pending; #24 remains open until it passes.
 
 ## 2026-10-26 — Issue #21 private ticket cancellation
 
