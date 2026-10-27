@@ -1257,5 +1257,8 @@ Verification: frontend typecheck passed; lint has zero errors and six existing
 Fast Refresh warnings; Vitest **57 passed**; production build passed; focused
 real-backend desktop/mobile admin workflow **2 passed**, including service
 creation/edit persistence, schedule serialization, out-of-hours queue-open
-rejection and confirmed deletion. Hosted verification is pending; #38 remains
-open until the pushed commit passes CI.
+rejection and confirmed deletion. Hosted run
+[40461717139](https://github.com/dooloe/backend-ready-frontend/actions/runs/40461717139)
+passed all frontend, migration/model-drift, OpenAPI, backend and full
+real-backend desktop/mobile browser checks. Issue #38 was closed after every
+acceptance criterion was verified.
