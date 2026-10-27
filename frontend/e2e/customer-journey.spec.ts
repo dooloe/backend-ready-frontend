@@ -437,19 +437,36 @@ test("staff no-show confirmation and essential admin configuration", async ({
   await staff.keyboard.press("ArrowRight");
   const countersTab = staff.getByRole("tab", { name: "Counters" });
   await expect(countersTab).toHaveAttribute("data-state", "active");
-  await staff.getByLabel("Counter name").fill("Browser assigned counter");
+  await staff
+    .getByRole("textbox", { name: "Counter name", exact: true })
+    .fill("Browser assigned counter");
   await staff.getByRole("button", { name: "Add counter", exact: true }).click();
   const counter = staff
     .locator("div.surface")
-    .filter({ has: staff.getByText("Browser assigned counter", { exact: true }) });
+    .filter({ has: staff.getByLabel("Counter name for Browser assigned counter") });
   await expect(counter.last()).toBeVisible();
+  const renameResponse = staff.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/admin/counters/`) &&
+      response.request().method() === "PATCH" &&
+      response.request().postData()?.includes('"name":"Renamed browser counter"'),
+  );
+  await counter
+    .last()
+    .getByLabel("Counter name for Browser assigned counter")
+    .fill("Renamed browser counter");
+  await counter.last().getByRole("button", { name: "Save name", exact: true }).click();
+  expect((await renameResponse).ok()).toBe(true);
   const assignResponse = staff.waitForResponse(
     (response) =>
       response.url().includes(`/api/admin/counters/`) &&
       response.request().method() === "PATCH" &&
       response.request().postData()?.includes('"staffId"'),
   );
-  await counter.last().getByLabel("Assigned staff member").selectOption("stf-aigerim");
+  const renamedCounter = staff
+    .locator("div.surface")
+    .filter({ has: staff.getByLabel("Counter name for Renamed browser counter") });
+  await renamedCounter.last().getByLabel("Assigned staff member").selectOption("stf-aigerim");
   const assignment = await assignResponse;
   expect(assignment.ok()).toBe(true);
   expect((await assignment.json()).staffId).toBe("stf-aigerim");
@@ -459,7 +476,10 @@ test("staff no-show confirmation and essential admin configuration", async ({
       response.request().method() === "PATCH" &&
       response.request().postData()?.includes('"serviceIds"'),
   );
-  await counter.last().getByRole("button", { name: "A · Registrar Office", exact: true }).click();
+  await renamedCounter
+    .last()
+    .getByRole("button", { name: "A · Registrar Office", exact: true })
+    .click();
   expect((await serviceResponse).ok()).toBe(true);
   await staff.getByRole("button", { name: "Sign out", exact: true }).click();
   await staff.goto("http://127.0.0.1:15173/login");
@@ -469,8 +489,6 @@ test("staff no-show confirmation and essential admin configuration", async ({
   await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
   await staff.reload();
   await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
-  await expect(
-    staff.getByRole("button", { name: "Browser assigned counter" }).last(),
-  ).toBeVisible();
+  await expect(staff.getByRole("button", { name: "Renamed browser counter" }).last()).toBeVisible();
   await context.close();
 });

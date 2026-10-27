@@ -1,5 +1,19 @@
 # Implementation and verification record
 
+## 2026-10-27 — Issue #39 counter configuration
+
+Updated the counter editor to load choices from the admin-scoped service
+endpoint, add counter renaming, retain its existing create/activation,
+assignment and service-link controls, and keep API failures visible. The UI test
+covers admin-scoped service choices, successful rename, failed link updates and
+empty configuration. The backend already rejects cross-organization service
+links and protects active work; the real-backend browser scenario now creates,
+renames, assigns and links a counter, then verifies it in staff operations after
+reload. Frontend suite (58 tests), lint (zero errors; six existing warnings),
+typecheck, production build and the focused desktop/mobile real-backend browser
+scenario (2 cases) pass locally. Hosted CI is pending; #39 remains open until
+that run passes.
+
 ## 2026-10-27 — Issue #20 customer access migration
 
 Removed the deprecated public ticket read and cancellation routes that accepted

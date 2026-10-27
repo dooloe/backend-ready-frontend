@@ -94,7 +94,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #36 | Open | Bearer login/local storage exists; planned cookie identity, expiry recovery, logout revocation and protected-cache clearing are absent. |
 | #37 | Open | Live staff actions work for the current contract; backend assignment isolation, strict planned transitions and component regression coverage are absent. |
 | #38 | Open | Current service creation/open toggles exist; schedule forms and daily closure controls are absent. |
-| #39 | Open | Current counter/service/assignment controls exist; organization options, active-work safeguards and component tests are absent. |
+| #39 | Open | Counter configuration now uses admin-scoped services and supports counter renaming alongside create, activation, assignment, and service links. Component and desktop/mobile real-backend tests pass locally; backend organization and active-work safeguards are verified. Awaiting hosted CI. |
 | #40 | Open | Staff creation exists; staff editing, deactivation and rejected active-work/assignment tests are absent. |
 | #41 | Open pending hosted verification | Admin analytics now uses typed `/api/admin/analytics` for date-filtered ticket counts, per-service results, mean wait and mean service time; empty/null/error states are explicit. Frontend tests and real-backend desktop/mobile workflows pass locally; hosted verification is pending. |
 | #42 | Closed (2026-10-26) | Secret-safe logs, no-referrer ticket access, login/join limits and hosted real-backend verification pass; see the latest audit entry below. |

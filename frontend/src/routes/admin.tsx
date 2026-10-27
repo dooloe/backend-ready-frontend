@@ -796,13 +796,17 @@ function AdminServiceCard({
   );
 }
 
-function CountersTab() {
+export function CountersTab() {
   const countersQuery = useQuery({ queryKey: ["counters"], queryFn: api.listCounters });
   const counters = countersQuery.data;
-  const { data: services } = useQuery({ queryKey: ["services"], queryFn: api.listServices });
+  const { data: services } = useQuery({
+    queryKey: ["admin-services"],
+    queryFn: api.listAdminServices,
+  });
   const { data: staff } = useQuery({ queryKey: ["staff"], queryFn: api.listStaff });
   const act = useAct();
   const [name, setName] = useState("");
+  const [counterNames, setCounterNames] = useState<Record<string, string>>({});
   const toggle = (arr: string[], id: string) =>
     arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
   return (
@@ -838,7 +842,31 @@ function CountersTab() {
       {counters?.map((c) => (
         <div key={c.id} className={`${card} space-y-3`}>
           <div className="flex flex-wrap items-center gap-3">
-            <p className="flex-1 font-semibold">{c.name}</p>
+            <Input
+              className="min-w-48 flex-1"
+              required
+              aria-label={`Counter name for ${c.name}`}
+              value={counterNames[c.id] ?? c.name}
+              onChange={(event) =>
+                setCounterNames((current) => ({ ...current, [c.id]: event.target.value }))
+              }
+            />
+            <Button
+              variant="outline"
+              disabled={act.isPending || !(counterNames[c.id] ?? c.name).trim()}
+              onClick={() =>
+                act.mutate(() => api.updateCounter(c.id, { name: counterNames[c.id] ?? c.name }), {
+                  onSuccess: () =>
+                    setCounterNames((current) => {
+                      const next = { ...current };
+                      delete next[c.id];
+                      return next;
+                    }),
+                })
+              }
+            >
+              Save name
+            </Button>
             <select
               aria-label="Assigned staff member"
               className="h-9 rounded-md border bg-background px-2 text-sm"
