@@ -1165,3 +1165,19 @@ desktop/mobile Playwright workflow passed **8 cases**. Hosted run
 passed frontend, migrations/model drift, OpenAPI, backend and real-backend
 desktop/mobile workflows. Issue #25 was closed after all acceptance criteria
 passed.
+
+## 2026-10-27 — Issue #43 restart and migration verification
+
+Extended `test_application_restart_preserves_every_data_category` with a
+completed ticket on a service deactivated before restarting the application.
+Against one isolated temporary SQLite file, three application startups prove
+that fresh Alembic migrations and repeated initialization do not reset the
+database. After restart, checks cover retained service activation/configuration,
+private ticket lookup, sequential ticket numbering, lifecycle event types and
+actors, and date-filtered analytics for the deactivated service's retained
+history. Existing tests also verify Alembic-head schema creation, foreign-key
+constraints and soft-deletion history preservation.
+
+Verification: focused restart test **1 passed**; full backend suite **197
+passed**; backend compileall and `git diff --check` passed. Hosted CI is pending;
+leave #43 open until every pipeline gate passes.

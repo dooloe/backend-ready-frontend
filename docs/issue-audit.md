@@ -98,7 +98,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #40 | Open | Staff creation exists; staff editing, deactivation and rejected active-work/assignment tests are absent. |
 | #41 | Open | Current stats come from real data when configured; date filters, service-duration metrics and full error-state coverage are absent. |
 | #42 | Closed (2026-10-26) | Secret-safe logs, no-referrer ticket access, login/join limits and hosted real-backend verification pass; see the latest audit entry below. |
-| #43 | Open | SQLite restart/seed/history tests pass; fresh Alembic migrations and event persistence cannot be verified. |
+| #43 | Open pending hosted verification | Fresh Alembic-head, repeat-startup seed preservation, restart persistence of configuration/tickets/numbers/events, and analytics/history after service deactivation pass locally. Full backend suite passes; hosted verification is pending. |
 | #44 | Closed | Real-backend customer/staff workflows pass on desktop and mobile with isolated migrated/seeded SQLite. |
 | #45 | Closed | Real-backend admin setup/assignment, access denial, expired-session UI/API and invalid private-link checks pass on desktop and mobile. |
 | #46 | Closed (2026-10-26 follow-up) | Mobile/keyboard flows, accessible labels, focus and dialogs, contrast, loading/empty/error/conflict states verified; category filter and skip-link defects fixed. |

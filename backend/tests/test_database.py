@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 import base64
 import multiprocessing
 import os
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -94,6 +95,32 @@ def test_application_restart_preserves_every_data_category(tmp_path, monkeypatch
             "name": "Persistent service", "description": "Saved", "prefix": "P", "isOpen": True, "avgServiceMinutes": 4}).json()
         counter = first.post("/api/admin/counters", headers=headers, json={
             "name": "Persistent counter", "serviceIds": [service["id"]], "isActive": True, "staffId": user["id"]}).json()
+        history_service = first.post("/api/admin/services", headers=headers, json={
+            "name": "Historical service", "description": "Retained reporting history",
+            "prefix": "H", "isOpen": True, "avgServiceMinutes": 6,
+        }).json()
+        history_counter = first.post("/api/admin/counters", headers=headers, json={
+            "name": "Historical counter", "serviceIds": [history_service["id"]],
+            "isActive": True, "staffId": None,
+        }).json()
+        historical_ticket = first.post("/api/tickets", json={
+            "serviceId": history_service["id"], "customerName": "Historical visitor",
+        }).json()
+        history_called = first.post(
+            f"/api/counters/{history_counter['id']}/call-next", headers=headers,
+        )
+        assert history_called.json()["id"] == historical_ticket["id"]
+        assert first.post(
+            f"/api/tickets/{historical_ticket['id']}/start", headers=headers,
+        ).status_code == 200
+        assert first.post(
+            f"/api/tickets/{historical_ticket['id']}/complete", headers=headers,
+        ).status_code == 200
+        deactivated = first.patch(
+            f"/api/admin/services/{history_service['id']}", headers=headers,
+            json={"isActive": False},
+        )
+        assert deactivated.status_code == 200 and deactivated.json()["isActive"] is False
         first.patch("/api/admin/services/svc-reg", headers=headers, json={"name": "Edited seed"})
         first.delete("/api/admin/services/svc-it", headers=headers)
         first.delete("/api/admin/counters/cnt-2", headers=headers)
@@ -112,16 +139,42 @@ def test_application_restart_preserves_every_data_category(tmp_path, monkeypatch
         services = second.get("/api/services").json()
         assert all(row["id"] != "svc-it" for row in services)
         assert next(row for row in services if row["id"] == "svc-reg")["name"] == "Edited seed"
+        admin_services = second.get("/api/admin/services", headers=headers).json()
+        saved_history_service = next(row for row in admin_services if row["id"] == history_service["id"])
+        assert saved_history_service["isActive"] is False
         current = second.get(f"/api/counters/{counter['id']}/queue", headers=headers).json()["current"]
         assert current["status"] == "serving" and current["servedAt"] == started["servedAt"]
         assert current["calledAt"] == started["calledAt"]
         assert second.get(f"/api/legacy/tickets/{ticket['id']}").json() == current
+        assert second.get(f"/api/legacy/tickets/{historical_ticket['id']}").json()["status"] == "completed"
         assert second.post(f"/api/tickets/{ticket['id']}/complete", headers=headers).status_code == 200
         assert second.post("/api/auth/login", json={"username": "persistent", "password": "password"}).status_code == 200
         next_ticket = second.post("/api/tickets", json={"serviceId": service["id"], "customerName": "Next"}).json()
         assert next_ticket["code"] == "P-002"
         stats = second.get("/api/admin/stats", headers=headers).json()
         assert next(row for row in stats["byService"] if row["serviceId"] == service["id"])["total"] == 2
+        historical_date = datetime.fromisoformat(
+            historical_ticket["createdAt"].replace("Z", "+00:00"),
+        ).astimezone(ZoneInfo("Asia/Almaty")).date()
+        analytics = second.get(
+            f"/api/admin/analytics?dateFrom={historical_date}&dateTo={historical_date}",
+            headers=headers,
+        )
+        assert analytics.status_code == 200, analytics.text
+        history_metrics = next(
+            row for row in analytics.json()["byService"] if row["serviceId"] == history_service["id"]
+        )
+        assert history_metrics["issued"] == 1 and history_metrics["completed"] == 1
+        assert history_metrics["meanWaitMinutes"] is not None
+        assert history_metrics["meanServiceMinutes"] is not None
+        with second.app.state.store.db.session() as session:
+            history_events = list(session.scalars(select(TicketEventRow).where(
+                TicketEventRow.ticket_id == historical_ticket["id"],
+            )))
+        assert {event.event_type for event in history_events} == {
+            "issued", "called", "started", "completed",
+        }
+        assert all(event.actor_user_id == "stf-admin" for event in history_events if event.event_type != "issued")
 
     with TestClient(create_app(database_url=url)) as third:
         assert third.get(f"/api/legacy/tickets/{ticket['id']}").json()["status"] == "completed"
