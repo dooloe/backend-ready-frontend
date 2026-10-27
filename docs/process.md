@@ -1217,5 +1217,7 @@ late cancellation followed by authoritative refresh.
 
 Verification: frontend Vitest **48 passed**; lint **0 errors** (six existing
 Fast Refresh warnings); typecheck, production build, `git diff --check` and
-real-backend desktop/mobile Playwright **8 passed**. Hosted verification is
-pending, so #35 remains open.
+real-backend desktop/mobile Playwright **8 passed**. Hosted run
+[40456487951](https://github.com/dooloe/backend-ready-frontend/actions/runs/40456487951)
+passed every gate, including real-backend browser workflows. Issue #35 was
+closed after AC-1 through AC-3 were verified.

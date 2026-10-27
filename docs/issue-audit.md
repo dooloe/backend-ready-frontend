@@ -90,7 +90,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #32 | Open | Current typed bearer adapter passes all 20 live operations; future contract, cookie/CSRF/abort/structured-error integration is absent. |
 | #33 | Closed (2026-10-26 follow-up) | Organization selection, timezone hours, backend availability/wait estimates, and loading/empty/closed/error component states are verified. |
 | #34 | Closed (2026-10-27) | Anonymous join uses typed issuance and private tokens; rapid repeats are suppressed, retry credentials recover uncertain responses, and closed queues refresh. Full local and hosted verification passed (40455535742). |
-| #35 | Open pending hosted verification | All six states, five-second terminal-aware polling, abort-signal forwarding, cancellation confirmation, last-refresh feedback, and invalid-link/network/late-cancel tests pass locally; hosted verification is pending. |
+| #35 | Closed (2026-10-27) | All six states, five-second terminal-aware polling, abort-signal forwarding, cancellation confirmation, last-refresh feedback, and invalid-link/network/late-cancel tests pass locally and in hosted CI (40456487951). |
 | #36 | Open | Bearer login/local storage exists; planned cookie identity, expiry recovery, logout revocation and protected-cache clearing are absent. |
 | #37 | Open | Live staff actions work for the current contract; backend assignment isolation, strict planned transitions and component regression coverage are absent. |
 | #38 | Open | Current service creation/open toggles exist; schedule forms and daily closure controls are absent. |
