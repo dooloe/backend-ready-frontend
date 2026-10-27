@@ -1152,10 +1152,11 @@ offers completion only after service starts. Updated backend tests to reject the
 shortcut and to exercise assigned-counter checks for start, complete and
 no-show; existing tests verify cross-organization rejection, actor/counter
 events, timestamps, rollback on event-write failure, and capacity release after
-completed/no-show tickets. `docs/decisions.md` records that this issue
+completed/no-show tickets. A state/action matrix covers all invalid transitions
+from waiting, called, serving and terminal states. `docs/decisions.md` records that this issue
 supersedes the earlier current-client compatibility decision.
 
-Verification: full backend suite **196 passed**; API lifecycle-focused suite
+Verification: full backend suite **197 passed**; API lifecycle-focused suite
 **104 passed**; OpenAPI contract suite **33 passed**; frontend Vitest **27
 passed**; lint has zero errors and six existing Fast Refresh warnings;
 typecheck, production build, compileall and diff checks passed. Real-backend

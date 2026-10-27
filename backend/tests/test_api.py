@@ -785,6 +785,34 @@ def test_cancelled_ticket_is_skipped_and_called_must_start_before_completion(cli
     assert done.status_code == 200 and done.json()["status"] == "completed"
 
 
+def test_staff_lifecycle_rejects_every_invalid_transition(client, staff):
+    def reject_all(ticket_id: str):
+        for action in ("start", "complete", "no-show"):
+            assert client.post(f"/api/tickets/{ticket_id}/{action}", headers=staff).status_code == 409
+
+    waiting = join(client)
+    reject_all(waiting["id"])
+
+    called = client.post("/api/counters/cnt-1/call-next", headers=staff).json()
+    assert called["id"] == waiting["id"]
+    assert client.post(f"/api/tickets/{called['id']}/complete", headers=staff).status_code == 409
+    assert client.post(f"/api/tickets/{called['id']}/start", headers=staff).status_code == 200
+    assert client.post(f"/api/tickets/{called['id']}/start", headers=staff).status_code == 409
+    assert client.post(f"/api/tickets/{called['id']}/no-show", headers=staff).status_code == 409
+    assert client.post(f"/api/tickets/{called['id']}/complete", headers=staff).status_code == 200
+    reject_all(called["id"])
+
+    cancelled = join(client)
+    assert client.post(f"/api/legacy/tickets/{cancelled['id']}/cancel").status_code == 200
+    reject_all(cancelled["id"])
+
+    no_show = join(client)
+    called_no_show = client.post("/api/counters/cnt-1/call-next", headers=staff).json()
+    assert called_no_show["id"] == no_show["id"]
+    assert client.post(f"/api/tickets/{no_show['id']}/no-show", headers=staff).status_code == 200
+    reject_all(no_show["id"])
+
+
 @pytest.mark.parametrize("action", ["start", "complete", "no-show"])
 def test_waiting_ticket_cannot_receive_staff_transition(client, staff, action):
     ticket = join(client)
