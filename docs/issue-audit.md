@@ -661,3 +661,13 @@ English, Kazakh and Russian customer-facing translations, locale-aware formats,
 accessible language selection and persistence. It has no blocking dependencies
 and carries `new-mvp`, `frontend`, `ui-ux` and `enhancement`. The issue is open;
 implementation has not started.
+
+## New MVP issue #55 — private-ticket browser notifications — 2026-10-28
+
+After confirming that existing issues cover directory discovery, anonymous
+joining, private ticket tracking and staff operations, created [#55](https://github.com/dooloe/backend-ready-frontend/issues/55)
+for optional browser push alerts when a ticket is called. This is separate from
+the ticket page's status polling and introduces no account requirement. It is
+P2, depends on #20, #34 and #35, and carries `new-mvp`, `frontend`, `backend`
+and `enhancement`. Delivery, privacy and duplicate-event acceptance criteria
+are explicit; implementation has not started.

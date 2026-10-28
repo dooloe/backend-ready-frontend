@@ -1321,3 +1321,14 @@ language selection. The issue defines keyboard access, persisted preference,
 locale-aware formatting and automated coverage. Labels: `new-mvp`, `frontend`,
 `ui-ux` and `enhancement`. It is P1 with no dependencies; implementation remains
 unstarted.
+
+## 2026-10-28 — Updated MVP issue #55
+
+Reviewed the existing issue backlog for duplicate customer-facing gaps. Created
+[#55](https://github.com/dooloe/backend-ready-frontend/issues/55) for optional
+browser push alerts on the private ticket's CALLED transition. The issue requires
+explicit opt-in, authorization through the existing private-ticket token,
+generic privacy-safe payloads, duplicate-delivery prevention, and delivery
+failure isolation from queue operations. Priority is P2; dependencies are #20,
+#34 and #35. Labels are `new-mvp`, `frontend`, `backend` and `enhancement`.
+Implementation has not started.
