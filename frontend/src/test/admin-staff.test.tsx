@@ -20,6 +20,25 @@ function renderStaff() {
 describe("admin staff configuration", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it("blocks staff creation until required fields are valid", async () => {
+    vi.spyOn(api, "listStaff").mockResolvedValue([]);
+    vi.spyOn(api, "listCounters").mockResolvedValue([]);
+    const createStaff = vi.spyOn(api, "createStaff");
+
+    renderStaff();
+
+    const name = await screen.findByLabelText("Full name");
+    const username = screen.getByLabelText("Username");
+    const password = screen.getByLabelText("Password");
+    expect(name).toBeRequired();
+    expect(username).toBeRequired();
+    expect(password).toBeRequired();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add staff" }));
+
+    expect(createStaff).not.toHaveBeenCalled();
+  });
+
   it("edits staff identity and keeps rejected changes visible for correction", async () => {
     const staff = {
       id: "staff-1",

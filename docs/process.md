@@ -6,14 +6,18 @@ Extended the admin staff screen with editable name, username and role, activate/
 deactivate controls, and counter assignment creation/removal. Staff rows show an
 explicit empty assignment state; counter-list loading and failures have their
 own retryable feedback. Submitted passwords are write-only, and the creation
-form clears only after success. Frontend tests cover edit validation and error
-retention, password clearing after successful creation, inactive assignment
-state, assignment add/remove, and rejected active-work deactivation. The full
-frontend suite (61 tests), lint (zero errors; six existing warnings), typecheck,
-and production build pass. Focused real-backend desktop/mobile staff/admin
-workflows pass (2 cases); the backend already tests duplicate identities,
-invalid assignment inputs, organization boundaries and protected active work.
-Hosted CI is pending, so #40 remains open.
+form clears only after success. Frontend tests cover invalid required fields,
+edit validation and error retention, password clearing after successful
+creation, inactive assignment state, assignment add/remove, and rejected
+active-work deactivation. The full frontend suite (62 tests), lint (zero errors;
+six existing warnings), typecheck, and production build pass. Focused real-backend
+desktop/mobile staff/admin workflows pass (2 cases); the backend already tests
+duplicate identities, invalid assignment inputs, organization boundaries and
+protected active work. Hosted CI run
+[40634402931](https://github.com/dooloe/backend-ready-frontend/actions/runs/40634402931)
+passed every gate for the implementation commit. The newly added invalid-form
+regression test still needs hosted verification; #40 remains open until that
+check passes.
 
 ## 2026-10-27 — Issue #39 counter configuration
 
