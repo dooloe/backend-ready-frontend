@@ -1,5 +1,20 @@
 # Implementation and verification record
 
+## 2026-10-28 — Issue #40 staff configuration
+
+Extended the admin staff screen with editable name, username and role, activate/
+deactivate controls, and counter assignment creation/removal. Staff rows show an
+explicit empty assignment state; counter-list loading and failures have their
+own retryable feedback. Submitted passwords are write-only, and the creation
+form clears only after success. Frontend tests cover edit validation and error
+retention, password clearing after successful creation, inactive assignment
+state, assignment add/remove, and rejected active-work deactivation. The full
+frontend suite (61 tests), lint (zero errors; six existing warnings), typecheck,
+and production build pass. Focused real-backend desktop/mobile staff/admin
+workflows pass (2 cases); the backend already tests duplicate identities,
+invalid assignment inputs, organization boundaries and protected active work.
+Hosted CI is pending, so #40 remains open.
+
 ## 2026-10-27 — Issue #39 counter configuration
 
 Updated the counter editor to load choices from the admin-scoped service

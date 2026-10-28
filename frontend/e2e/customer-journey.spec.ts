@@ -236,6 +236,8 @@ test("staff no-show confirmation and essential admin configuration", async ({
 }, info) => {
   test.setTimeout(90000);
   const browserServiceName = "Browser demo service " + info.project.name;
+  const browserCounterName = "Browser assigned counter " + info.project.name;
+  const renamedBrowserCounterName = "Renamed browser counter " + info.project.name;
   await page.goto("/join/demo-clinic/demo-svc-clinic");
   await page.getByRole("button", { name: "Confirm & join queue" }).click();
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
@@ -437,39 +439,110 @@ test("staff no-show confirmation and essential admin configuration", async ({
   await staff.keyboard.press("ArrowRight");
   const countersTab = staff.getByRole("tab", { name: "Counters" });
   await expect(countersTab).toHaveAttribute("data-state", "active");
-  await staff
-    .getByRole("textbox", { name: "Counter name", exact: true })
-    .fill("Browser assigned counter");
+  await staff.getByRole("textbox", { name: "Counter name", exact: true }).fill(browserCounterName);
   await staff.getByRole("button", { name: "Add counter", exact: true }).click();
   const counter = staff
     .locator("div.surface")
-    .filter({ has: staff.getByLabel("Counter name for Browser assigned counter") });
+    .filter({ has: staff.getByLabel(`Counter name for ${browserCounterName}`) });
   await expect(counter.last()).toBeVisible();
   const renameResponse = staff.waitForResponse(
     (response) =>
       response.url().includes(`/api/admin/counters/`) &&
       response.request().method() === "PATCH" &&
-      response.request().postData()?.includes('"name":"Renamed browser counter"'),
+      response.request().postData()?.includes(`"name":"${renamedBrowserCounterName}"`),
   );
   await counter
     .last()
-    .getByLabel("Counter name for Browser assigned counter")
-    .fill("Renamed browser counter");
+    .getByLabel(`Counter name for ${browserCounterName}`)
+    .fill(renamedBrowserCounterName);
   await counter.last().getByRole("button", { name: "Save name", exact: true }).click();
   expect((await renameResponse).ok()).toBe(true);
+  await staff.getByRole("tab", { name: "Staff settings" }).click();
+  const browserStaffUsername = "browser-created-staff-" + info.project.name;
+  const browserStaffName = "Browser-created staff " + info.project.name;
+  const editedBrowserStaffUsername = browserStaffUsername + "-edited";
+  await staff.getByLabel("Full name").fill(browserStaffName);
+  await staff.getByLabel("Username", { exact: true }).fill(browserStaffUsername);
+  await staff.getByLabel("Password").fill("temporary-password");
+  const createStaffResponse = staff.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/staff") && response.request().method() === "POST",
+  );
+  await staff.getByRole("button", { name: "Add staff", exact: true }).click();
+  const createdStaff = await createStaffResponse;
+  expect(createdStaff.ok()).toBe(true);
+  expect(await createdStaff.json()).not.toHaveProperty("password");
+  await expect(staff.getByLabel("Password")).toHaveValue("");
+  const newStaffRow = staff
+    .locator("li")
+    .filter({ has: staff.getByRole("textbox", { name: `Name for ${browserStaffUsername}` }) });
+  await newStaffRow
+    .getByRole("textbox", { name: `Name for ${browserStaffUsername}`, exact: true })
+    .fill("Updated browser-created staff");
+  await newStaffRow
+    .getByRole("textbox", { name: `Username for ${browserStaffUsername}`, exact: true })
+    .fill(editedBrowserStaffUsername);
+  const updateStaffResponse = staff.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/staff/") && response.request().method() === "PATCH",
+  );
+  await newStaffRow.getByRole("button", { name: "Save", exact: true }).click();
+  const updatedStaff = await updateStaffResponse;
+  expect(updatedStaff.ok()).toBe(true);
+  expect(await updatedStaff.json()).toMatchObject({
+    name: "Updated browser-created staff",
+    username: editedBrowserStaffUsername,
+  });
+  const editedStaffRow = staff.locator("li").filter({
+    has: staff.getByRole("textbox", { name: `Name for ${editedBrowserStaffUsername}` }),
+  });
+  const disableStaffResponse = staff.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/staff/") && response.request().method() === "PATCH",
+  );
+  await editedStaffRow.getByRole("button", { name: "Deactivate", exact: true }).click();
+  const disabledStaff = await disableStaffResponse;
+  expect(disabledStaff.ok()).toBe(true);
+  expect(await disabledStaff.json()).toMatchObject({ isActive: false });
+  const aigerimRow = staff
+    .locator("li")
+    .filter({ has: staff.getByRole("textbox", { name: "Name for aigerim", exact: true }) });
+  const counterAssignment = aigerimRow.getByLabel("Counter to assign to Aigerim");
+  await counterAssignment.selectOption({ label: renamedBrowserCounterName });
   const assignResponse = staff.waitForResponse(
     (response) =>
       response.url().includes(`/api/admin/counters/`) &&
       response.request().method() === "PATCH" &&
       response.request().postData()?.includes('"staffId"'),
   );
-  const renamedCounter = staff
-    .locator("div.surface")
-    .filter({ has: staff.getByLabel("Counter name for Renamed browser counter") });
-  await renamedCounter.last().getByLabel("Assigned staff member").selectOption("stf-aigerim");
+  await aigerimRow.getByRole("button", { name: "Assign counter", exact: true }).click();
   const assignment = await assignResponse;
   expect(assignment.ok()).toBe(true);
   expect((await assignment.json()).staffId).toBe("stf-aigerim");
+  const removeAssignment = staff.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/admin/counters/`) &&
+      response.request().method() === "PATCH" &&
+      response.request().postData()?.includes('"staffId":null'),
+  );
+  await staff
+    .getByRole("button", {
+      name: new RegExp(`Remove ${renamedBrowserCounterName} assignment from`),
+    })
+    .click();
+  expect((await removeAssignment).ok()).toBe(true);
+  await staff.getByRole("tab", { name: "Counters" }).click();
+  const renamedCounter = staff
+    .locator("div.surface")
+    .filter({ has: staff.getByLabel(`Counter name for ${renamedBrowserCounterName}`) });
+  const reassignResponse = staff.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/admin/counters/`) &&
+      response.request().method() === "PATCH" &&
+      response.request().postData()?.includes('"staffId":"stf-aigerim"'),
+  );
+  await renamedCounter.last().getByLabel("Assigned staff member").selectOption("stf-aigerim");
+  expect((await reassignResponse).ok()).toBe(true);
   const serviceResponse = staff.waitForResponse(
     (response) =>
       response.url().includes(`/api/admin/counters/`) &&
@@ -489,6 +562,6 @@ test("staff no-show confirmation and essential admin configuration", async ({
   await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
   await staff.reload();
   await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
-  await expect(staff.getByRole("button", { name: "Renamed browser counter" }).last()).toBeVisible();
+  await expect(staff.getByRole("button", { name: renamedBrowserCounterName }).last()).toBeVisible();
   await context.close();
 });

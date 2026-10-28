@@ -3,7 +3,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Building2, MapPin } from "lucide-react";
-import { api, type Role } from "@/lib/api";
+import { api, type Role, type StaffUser } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { ConfirmAction } from "@/components/confirm-action";
 import { LoadError, LoadingCards } from "@/components/customer-ui";
@@ -923,15 +923,20 @@ export function CountersTab() {
   );
 }
 
-function StaffTab() {
+export function StaffTab() {
   const {
     data,
     isPending: loading,
     error,
     refetch,
   } = useQuery({ queryKey: ["staff"], queryFn: api.listStaff });
+  const countersQuery = useQuery({ queryKey: ["counters"], queryFn: api.listCounters });
   const act = useAct();
   const [f, setF] = useState({ name: "", username: "", password: "", role: "staff" as Role });
+  const [selectedCounters, setSelectedCounters] = useState<Record<string, string>>({});
+  const [edits, setEdits] = useState<
+    Record<string, Partial<Pick<StaffUser, "name" | "username" | "role">>>
+  >({});
   return (
     <div className="mt-4 space-y-4">
       <form
@@ -978,16 +983,152 @@ function StaffTab() {
       </form>
       {loading && <LoadingCards />}
       {error && <LoadError message="Couldn’t load staff settings." retry={() => void refetch()} />}
+      {countersQuery.isPending && <LoadingCards />}
+      {countersQuery.isError && (
+        <LoadError
+          message="Couldn’t load counter assignments."
+          retry={() => void countersQuery.refetch()}
+        />
+      )}
       <div className={card}>
         <ul className="divide-y">
           {data?.map((u) => (
-            <li key={u.id} className="flex items-center justify-between py-3">
-              <span className="font-medium">{u.name}</span>
-              <span className="text-sm text-muted-foreground">@{u.username}</span>
-              <span className="status-pill">{u.role}</span>
+            <li key={u.id} className="space-y-3 py-4">
+              <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto_auto] sm:items-center">
+                <Input
+                  required
+                  aria-label={`Name for ${u.username}`}
+                  value={edits[u.id]?.name ?? u.name}
+                  onChange={(event) =>
+                    setEdits((current) => ({
+                      ...current,
+                      [u.id]: { ...current[u.id], name: event.target.value },
+                    }))
+                  }
+                />
+                <Input
+                  required
+                  aria-label={`Username for ${u.username}`}
+                  value={edits[u.id]?.username ?? u.username}
+                  onChange={(event) =>
+                    setEdits((current) => ({
+                      ...current,
+                      [u.id]: { ...current[u.id], username: event.target.value },
+                    }))
+                  }
+                />
+                <select
+                  aria-label={`Role for ${u.username}`}
+                  className="h-9 rounded-md border bg-background px-2 text-sm"
+                  value={edits[u.id]?.role ?? u.role}
+                  onChange={(event) =>
+                    setEdits((current) => ({
+                      ...current,
+                      [u.id]: { ...current[u.id], role: event.target.value as Role },
+                    }))
+                  }
+                >
+                  <option value="staff">Staff</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <Button
+                  variant="outline"
+                  disabled={act.isPending || !Object.keys(edits[u.id] ?? {}).length}
+                  onClick={() =>
+                    act.mutate(() => api.updateStaff(u.id, edits[u.id]!), {
+                      onSuccess: () =>
+                        setEdits((current) => {
+                          const next = { ...current };
+                          delete next[u.id];
+                          return next;
+                        }),
+                    })
+                  }
+                >
+                  Save
+                </Button>
+                <Button
+                  variant={u.isActive === false ? "default" : "outline"}
+                  disabled={act.isPending}
+                  onClick={() =>
+                    act.mutate(() => api.updateStaff(u.id, { isActive: u.isActive === false }))
+                  }
+                >
+                  {u.isActive === false ? "Activate" : "Deactivate"}
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Assigned counters:</span>
+                {(countersQuery.data ?? []).filter((counter) => counter.staffId === u.id).length ===
+                0 ? (
+                  <span className="text-muted-foreground">
+                    {countersQuery.isError ? "Assignments unavailable" : "None"}
+                  </span>
+                ) : (
+                  (countersQuery.data ?? [])
+                    .filter((counter) => counter.staffId === u.id)
+                    .map((counter) => (
+                      <span
+                        key={counter.id}
+                        className="inline-flex items-center gap-1 rounded-full border px-2 py-1"
+                      >
+                        {counter.name}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Remove ${counter.name} assignment from ${u.name}`}
+                          disabled={act.isPending}
+                          onClick={() =>
+                            act.mutate(() => api.updateCounter(counter.id, { staffId: null }))
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </span>
+                    ))
+                )}
+                <select
+                  aria-label={`Counter to assign to ${u.name}`}
+                  className="h-9 rounded-md border bg-background px-2"
+                  value={selectedCounters[u.id] ?? ""}
+                  onChange={(event) =>
+                    setSelectedCounters((current) => ({ ...current, [u.id]: event.target.value }))
+                  }
+                >
+                  <option value="">Select an unassigned counter</option>
+                  {(countersQuery.data ?? [])
+                    .filter((counter) => !counter.staffId)
+                    .map((counter) => (
+                      <option key={counter.id} value={counter.id}>
+                        {counter.name}
+                      </option>
+                    ))}
+                </select>
+                <Button
+                  variant="outline"
+                  disabled={act.isPending || !selectedCounters[u.id]}
+                  onClick={() =>
+                    act.mutate(
+                      () => api.updateCounter(selectedCounters[u.id]!, { staffId: u.id }),
+                      {
+                        onSuccess: () =>
+                          setSelectedCounters((current) => ({ ...current, [u.id]: "" })),
+                      },
+                    )
+                  }
+                >
+                  Assign counter
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
+        {!!data?.length && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Passwords are write-only and never shown here. Active-work assignment restrictions are
+            enforced by the backend.
+          </p>
+        )}
       </div>
     </div>
   );
