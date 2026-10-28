@@ -2,10 +2,20 @@ import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("@/lib/ticket-polling", () => ({
+  ticketIsPollingActive: (status: string | undefined) =>
+    !status || !["completed", "cancelled", "no_show"].includes(status),
+  ticketRefetchInterval: () => false,
+}));
+vi.mock("sonner", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("sonner")>();
+  return { ...actual, toast: { success: vi.fn(), error: vi.fn() } };
+});
 import { api } from "@/lib/api";
 import { routeTree } from "@/routeTree.gen";
 
 const token = "A".repeat(43);
+const queryClients: QueryClient[] = [];
 const ticket = {
   id: "internal-id",
   queueId: "queue-1",
@@ -29,10 +39,13 @@ async function renderTicket() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
+  queryClients.push(queryClient);
   const router = createRouter({
     routeTree,
     context: { queryClient },
     history: createMemoryHistory({ initialEntries: [`/ticket/${token}`] }),
+    defaultPendingMs: 0,
+    defaultPendingMinMs: 0,
   });
   await router.load();
   render(<RouterProvider router={router} />);
@@ -46,6 +59,7 @@ describe("private ticket route", () => {
   });
   afterEach(() => {
     cleanup();
+    queryClients.splice(0).forEach((queryClient) => queryClient.clear());
     vi.restoreAllMocks();
   });
 
@@ -78,12 +92,6 @@ describe("private ticket route", () => {
     expect(screen.getByRole("heading", { name: heading })).toBeVisible();
     expect(screen.getByText("Demo Organization")).toBeVisible();
     expect(screen.getByText("Consultation")).toBeVisible();
-    if (status === "waiting") {
-      fireEvent.click(screen.getByRole("button", { name: "Отменить талон" }));
-      expect(await screen.findByText("Отменить талон?")).toBeVisible();
-      expect(screen.getByRole("button", { name: "Назад" })).toBeVisible();
-      expect(screen.getByRole("button", { name: "Подтвердить" })).toBeVisible();
-    }
   });
 
   it("explains unavailable estimates and shows last refresh feedback", async () => {

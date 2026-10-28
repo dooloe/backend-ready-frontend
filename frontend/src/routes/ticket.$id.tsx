@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Ticket, ArrowLeft, Clock3, Users, CheckCircle2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { api, type TicketStatus, type IssuedTicket } from "@/lib/api";
-import { ticketRefetchInterval } from "@/lib/ticket-polling";
+import { ticketIsPollingActive, ticketRefetchInterval } from "@/lib/ticket-polling";
 import { saveTicketToken } from "@/lib/saved-tickets";
 import { Button } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/confirm-action";
@@ -209,7 +209,7 @@ function TicketPage() {
               {query.dataUpdatedAt
                 ? `${tr("Last updated {time}.", { time: formatTime(query.dataUpdatedAt) })} `
                 : ""}
-              {ticketRefetchInterval(t.status)
+              {ticketIsPollingActive(t.status)
                 ? tr("Refreshes every 5 seconds.")
                 : tr("This visit has ended.")}
             </p>

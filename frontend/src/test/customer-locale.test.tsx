@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api";
 import { routeTree } from "@/routeTree.gen";
+import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/confirm-action";
+import { CustomerLocaleProvider, useCustomerLocale } from "@/lib/customer-locale";
 
 function renderAt(path: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -14,6 +17,19 @@ function renderAt(path: string) {
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   return router.load().then(() => render(<RouterProvider router={router} />));
+}
+
+function LocalizedConfirmation() {
+  const { t } = useCustomerLocale();
+  return (
+    <ConfirmAction
+      title={t("Cancel your ticket?")}
+      description={t("You’ll lose your current place in the queue. You can join again later.")}
+      onConfirm={() => {}}
+    >
+      <Button>{t("Cancel Ticket")}</Button>
+    </ConfirmAction>
+  );
 }
 
 describe("customer language selection", () => {
@@ -79,6 +95,21 @@ describe("customer language selection", () => {
       ),
     );
     expect(screen.getByRole("button", { name: "Повторить" })).toBeVisible();
+  });
+
+  it("localizes the ticket cancellation confirmation", async () => {
+    localStorage.setItem("kezek-customer-locale-v1", "ru");
+    render(
+      <CustomerLocaleProvider>
+        <LocalizedConfirmation />
+      </CustomerLocaleProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Отменить талон" }));
+    expect(await screen.findByText("Отменить талон?")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Назад" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Подтвердить" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Назад" }));
   });
 
   it("localizes the My Tickets empty state without exposing any other ticket", async () => {

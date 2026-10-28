@@ -11,9 +11,8 @@ dates and times now use translated UI strings and locale-aware formatting.
 Organization/service names remain API-provided, and operating hours retain the
 organization timezone context. No API or ticket URL changes were made.
 
-Verification: 61 frontend tests passed across all suites except the ticket
-route suite; its remaining 16 tests passed in two focused runs (77 total).
-Typecheck and production build passed. Lint passed with zero errors and seven
+Verification: the full frontend suite passed (**78 tests across 16 files**),
+typecheck passed, and the production build passed. Lint passed with zero errors and seven
 Fast Refresh warnings (six existing warnings and one from the new provider).
 `git diff --check` passed. Hosted CI and real-backend customer browser checks
 are pending; #54 remains open until those gates pass.
