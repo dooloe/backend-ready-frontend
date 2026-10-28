@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, type Organization } from "@/lib/api";
 import { routeTree } from "@/routeTree.gen";
@@ -40,6 +40,7 @@ async function renderOrganization() {
 }
 
 describe("organization service details", () => {
+  beforeEach(() => localStorage.clear());
   afterEach(() => vi.restoreAllMocks());
 
   it("shows a loading status while fetching organization details", async () => {
@@ -67,7 +68,7 @@ describe("organization service details", () => {
 
     expect(await screen.findByRole("heading", { name: "Almaty University · Demo" })).toBeVisible();
     expect(screen.getByText(/Asia\/Almaty/)).toBeInTheDocument();
-    expect(screen.getByText("Hours: 09:00–17:00")).toBeInTheDocument();
+    expect(screen.getByText("Hours: 9:00 AM–5:00 PM")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Queue closed" })).toBeDisabled();
     expect(screen.queryByRole("link", { name: "Join Queue" })).not.toBeInTheDocument();
   });
@@ -86,5 +87,34 @@ describe("organization service details", () => {
 
     await waitFor(() => expect(getOrganization).toHaveBeenCalledTimes(2));
     expect(await screen.findByRole("heading", { name: "Student services" })).toBeVisible();
+  });
+
+  it("localizes the organization error and empty service state", async () => {
+    localStorage.setItem("kezek-customer-locale-v1", "ru");
+    vi.spyOn(api, "getOrganization")
+      .mockRejectedValueOnce(new Error("API unavailable"))
+      .mockResolvedValueOnce({ ...demoOrganization, services: [] });
+    await renderOrganization();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось загрузить организацию");
+    fireEvent.click(screen.getByRole("button", { name: "Повторить" }));
+    expect(await screen.findByText("В этой организации пока нет доступных услуг.")).toBeVisible();
+    expect(screen.getByText("Almaty University · Demo")).toBeVisible();
+  });
+
+  it("formats schedule clocks for the selected locale while keeping organization timezone context", async () => {
+    localStorage.setItem("kezek-customer-locale-v1", "ru");
+    vi.spyOn(api, "getOrganization").mockResolvedValue(demoOrganization);
+    await renderOrganization();
+
+    expect(await screen.findByText("Часы работы: 09:00–17:00")).toBeVisible();
+    expect(screen.getByText(/Asia\/Almaty/)).toBeVisible();
+    expect(screen.getByText("2 человека ожидают")).toBeVisible();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Язык" }), {
+      target: { value: "en" },
+    });
+    expect(await screen.findByText("Hours: 9:00 AM–5:00 PM")).toBeVisible();
+    expect(screen.getByText("2 people waiting")).toBeVisible();
   });
 });

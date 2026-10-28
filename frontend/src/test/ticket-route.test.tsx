@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
 import { routeTree } from "@/routeTree.gen";
@@ -44,7 +44,10 @@ describe("private ticket route", () => {
     localStorage.clear();
     vi.spyOn(api, "getPrivateTicket").mockResolvedValue(ticket);
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it.each(["waiting", "called", "serving", "completed", "cancelled", "no_show"] as const)(
     "renders the %s lifecycle state",
@@ -54,6 +57,34 @@ describe("private ticket route", () => {
       expect(await screen.findByText(status.replace("_", " "))).toBeInTheDocument();
     },
   );
+
+  it.each([
+    ["waiting", "ожидают", "Вы в очереди"],
+    ["called", "вызван", "Ваша очередь!"],
+    ["serving", "обслуживается", "Вас обслуживают"],
+    ["completed", "завершён", "Готово. Хорошего дня!"],
+    ["cancelled", "отменён", "Ваш талон отменён"],
+    ["no_show", "не явился", "Вы пропустили очередь"],
+  ] as const)("localizes the %s ticket state", async (status, badge, heading) => {
+    localStorage.setItem("kezek-customer-locale-v1", "ru");
+    vi.spyOn(api, "getPrivateTicket").mockResolvedValue({
+      ...ticket,
+      status,
+      counterName: "Window 2",
+    });
+    await renderTicket();
+
+    expect(await screen.findByText(badge)).toBeVisible();
+    expect(screen.getByRole("heading", { name: heading })).toBeVisible();
+    expect(screen.getByText("Demo Organization")).toBeVisible();
+    expect(screen.getByText("Consultation")).toBeVisible();
+    if (status === "waiting") {
+      fireEvent.click(screen.getByRole("button", { name: "Отменить талон" }));
+      expect(await screen.findByText("Отменить талон?")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Назад" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Подтвердить" })).toBeVisible();
+    }
+  });
 
   it("explains unavailable estimates and shows last refresh feedback", async () => {
     await renderTicket();

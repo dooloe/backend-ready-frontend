@@ -659,8 +659,10 @@ selection. The current visitor journey is English-only; the existing directory,
 join and ticket work (#33–#35) is complete. Created #54 as a P1 follow-up for
 English, Kazakh and Russian customer-facing translations, locale-aware formats,
 accessible language selection and persistence. It has no blocking dependencies
-and carries `new-mvp`, `frontend`, `ui-ux` and `enhancement`. The issue is open;
-implementation has not started.
+and carries `new-mvp`, `frontend`, `ui-ux` and `enhancement`. Implementation
+started on 2026-10-28; customer-facing translations, locale persistence and
+formatting are in place. Local checks pass, but hosted CI and real-backend
+browser verification are pending, so #54 remains open.
 
 ## New MVP issue #55 — private-ticket browser notifications — 2026-10-28
 

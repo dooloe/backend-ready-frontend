@@ -16,22 +16,36 @@ import { Toaster } from "@/components/ui/sonner";
 import { setSession, useSession } from "@/lib/session";
 import { Ticket, ArrowUpRight } from "lucide-react";
 import { usingMock } from "@/lib/api";
+import {
+  CustomerLocaleProvider,
+  useCustomerLocale,
+  type CustomerLocale,
+} from "@/lib/customer-locale";
 
 function NotFoundComponent() {
+  return (
+    <CustomerLocaleProvider>
+      <NotFoundContent />
+    </CustomerLocaleProvider>
+  );
+}
+
+function NotFoundContent() {
+  const { t } = useCustomerLocale();
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">{t("Page not found")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          {t("The page you're looking for doesn't exist or has been moved.")}
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            {t("Go home")}
           </Link>
         </div>
       </div>
@@ -40,8 +54,17 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
+  return (
+    <CustomerLocaleProvider>
+      <ErrorContent error={error} reset={reset} />
+    </CustomerLocaleProvider>
+  );
+}
+
+function ErrorContent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+  const { t } = useCustomerLocale();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
@@ -50,10 +73,10 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          {t("This page didn't load")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {t("Something went wrong on our end. You can try refreshing or head back home.")}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -63,13 +86,13 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            {t("Try again")}
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            {t("Go home")}
           </a>
         </div>
       </div>
@@ -122,6 +145,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function Nav() {
   const session = useSession();
   const queryClient = useQueryClient();
+  const { locale, setLocale, t } = useCustomerLocale();
   const linkCls = "text-sm text-muted-foreground hover:text-foreground";
   const active = { className: "text-sm font-semibold text-foreground" };
   return (
@@ -130,38 +154,38 @@ function Nav() {
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4"
       >
-        Skip to content
+        {t("Skip to content")}
       </a>
       <div className="mx-auto flex min-h-20 max-w-6xl flex-wrap items-center gap-x-7 gap-y-3 px-5 py-4">
         <Link
           to="/"
           className="flex items-center gap-2 text-2xl font-extrabold tracking-tight"
-          aria-label="Kezek home"
+          aria-label={t("Kezek home")}
         >
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-white">
             <Ticket size={21} />
           </span>
           kezek<span className="text-primary">.</span>
         </Link>
-        <nav aria-label="Main navigation" className="flex flex-1 items-center gap-6">
+        <nav aria-label={t("Main navigation")} className="flex flex-1 items-center gap-6">
           <Link to="/" className={linkCls} activeProps={active} activeOptions={{ exact: true }}>
-            Explore
+            {t("Explore")}
           </Link>
           <Link to="/tickets" className={linkCls} activeProps={active}>
-            My Tickets
+            {t("My Tickets")}
           </Link>
           {session && (
             <Link to="/staff" className={linkCls} activeProps={active}>
-              Staff
+              {t("Staff")}
             </Link>
           )}
           {session?.user.role === "admin" && (
             <Link to="/admin" className={linkCls} activeProps={active}>
-              Admin
+              {t("Admin")}
             </Link>
           )}
         </nav>
-        {usingMock && <span className="status-pill">Demo mode</span>}
+        {usingMock && <span className="status-pill">{t("Demo mode")}</span>}
         {session ? (
           <button
             className={linkCls}
@@ -170,16 +194,30 @@ function Nav() {
               queryClient.clear();
             }}
           >
-            Sign out
+            {t("Sign out")}
           </button>
         ) : (
           <Link
             to="/login"
             className="flex items-center gap-1 text-xs font-medium text-muted-foreground sm:text-sm"
           >
-            Staff sign in <ArrowUpRight size={15} />
+            {t("Staff sign in")} <ArrowUpRight size={15} />
           </Link>
         )}
+        <label className="sr-only" htmlFor="customer-language">
+          {t("Language")}
+        </label>
+        <select
+          id="customer-language"
+          aria-label={t("Language")}
+          className="h-9 rounded-md border border-input bg-white px-2 text-sm"
+          value={locale}
+          onChange={(event) => setLocale(event.target.value as CustomerLocale)}
+        >
+          <option value="en">English</option>
+          <option value="kk">Қазақша</option>
+          <option value="ru">Русский</option>
+        </select>
       </div>
     </header>
   );
@@ -190,7 +228,18 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Nav />
+      <CustomerLocaleProvider>
+        <Nav />
+        <MainContent />
+      </CustomerLocaleProvider>
+    </QueryClientProvider>
+  );
+}
+
+function MainContent() {
+  const { t } = useCustomerLocale();
+  return (
+    <>
       <main
         id="main"
         tabIndex={-1}
@@ -203,12 +252,12 @@ function RootComponent() {
           <span className="font-semibold text-foreground">
             kezek.{" "}
             <span className="ml-3 font-normal text-muted-foreground">
-              Your time, back in your hands.
+              {t("Your time, back in your hands.")}
             </span>
           </span>
-          <span>Virtual queues for Kazakhstan · No customer account needed</span>
+          <span>{t("Virtual queues for Kazakhstan · No customer account needed")}</span>
         </div>
       </footer>
-    </QueryClientProvider>
+    </>
   );
 }

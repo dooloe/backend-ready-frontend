@@ -22,7 +22,7 @@ describe("customer service catalog", () => {
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Couldn't reach the organization service",
+      "Couldn’t reach the organization service",
     );
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 

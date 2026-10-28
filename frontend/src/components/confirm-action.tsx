@@ -10,6 +10,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { useCustomerLocale } from "@/lib/customer-locale";
 export function ConfirmAction({
   children,
   title,
@@ -23,6 +24,7 @@ export function ConfirmAction({
   onConfirm: () => void;
   disabled?: boolean;
 }) {
+  const { t } = useCustomerLocale();
   const [open, setOpen] = useState(false);
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -35,9 +37,9 @@ export function ConfirmAction({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Go back</AlertDialogCancel>
+          <AlertDialogCancel>{t("Go back")}</AlertDialogCancel>
           <AlertDialogAction disabled={disabled} onClick={onConfirm}>
-            Confirm
+            {t("Confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

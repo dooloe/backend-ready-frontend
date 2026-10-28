@@ -99,6 +99,16 @@ describe("anonymous customer joining", () => {
     expect(await screen.findByText("Your digital ticket")).toBeInTheDocument();
   });
 
+  it("localizes the join confirmation while preserving API organization and service names", async () => {
+    localStorage.setItem("kezek-customer-locale-v1", "kk");
+    await renderJoin();
+
+    expect(await screen.findByRole("button", { name: "Растау және кезекке қосылу" })).toBeVisible();
+    expect(screen.getByText(organization.name)).toBeVisible();
+    expect(screen.getByText(serviceSummary.name)).toBeVisible();
+    expect(screen.getByText("2 адам күтуде · шамамен 12 мин күту")).toBeVisible();
+  });
+
   it("disables repeat submissions while the first ticket request is pending", async () => {
     let completeRequest!: () => void;
     const issueTicket = vi.spyOn(api, "issueTicket").mockImplementation(
