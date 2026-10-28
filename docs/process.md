@@ -14,10 +14,10 @@ six existing warnings), typecheck, and production build pass. Focused real-backe
 desktop/mobile staff/admin workflows pass (2 cases); the backend already tests
 duplicate identities, invalid assignment inputs, organization boundaries and
 protected active work. Hosted CI run
-[40634402931](https://github.com/dooloe/backend-ready-frontend/actions/runs/40634402931)
-passed every gate for the implementation commit. The newly added invalid-form
-regression test still needs hosted verification; #40 remains open until that
-check passes.
+[40644302482](https://github.com/dooloe/backend-ready-frontend/actions/runs/40644302482)
+passed every gate, including the full backend suite and desktop/mobile browser
+workflows for the final regression-test commit. All three acceptance criteria
+are verified; Issue #40 was closed.
 
 ## 2026-10-27 — Issue #39 counter configuration
 
