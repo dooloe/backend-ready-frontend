@@ -502,6 +502,25 @@ export const mockApi: KezekApi = {
     return delay({ token, user: { ...user, isActive: u.isActive !== false } });
   },
 
+  getCurrentIdentity() {
+    const { password: _password, ...user } = requireRole("staff");
+    return delay({ ...user, isActive: user.isActive !== false });
+  },
+
+  getCsrfToken() {
+    requireRole("staff");
+    return delay({ csrfToken: "demo-csrf-proof" });
+  },
+
+  logout() {
+    const token = tokenProvider();
+    const data = load();
+    if (!token || !data.sessions[token]) throw new ApiError(401, "Not authenticated");
+    delete data.sessions[token];
+    save();
+    return delay(undefined);
+  },
+
   listCounters() {
     requireRole("staff");
     return delay(load().counters);

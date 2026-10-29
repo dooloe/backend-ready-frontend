@@ -14,6 +14,19 @@ async function loginStaff() {
 }
 
 describe("Kezek mock API", () => {
+  it("keeps the cookie-session auth operations deterministic in isolated mock mode", async () => {
+    token = (await mockApi.login("aigerim", "staff123")).token;
+
+    await expect(mockApi.getCurrentIdentity()).resolves.toMatchObject({
+      id: "stf-aigerim",
+      role: "staff",
+    });
+    await expect(mockApi.getCsrfToken()).resolves.toEqual({ csrfToken: "demo-csrf-proof" });
+    await mockApi.logout();
+
+    await expect(mockApi.getCurrentIdentity()).rejects.toMatchObject({ status: 401 });
+  });
+
   it("issues unique sequential ticket numbers", async () => {
     const [a, b] = await Promise.all([
       mockApi.joinQueue({ serviceId: "svc-reg", customerName: "A" }),

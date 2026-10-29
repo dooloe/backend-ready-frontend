@@ -1447,3 +1447,25 @@ rerun. Hosted CI run
 passed frontend lint, typecheck, unit tests and build, migration/model drift,
 OpenAPI contract parity, backend tests and real-backend desktop/mobile browser
 workflows. All three acceptance criteria were verified; #15 was closed.
+
+## 2026-10-29 — Issue #32 cookie-aware typed API facade
+
+Extended `KezekApi` with typed current-identity, CSRF-proof and logout
+operations. The HTTP adapter now includes browser credentials on all requests,
+fetches and keeps the CSRF proof in memory for cookie-backed mutations, omits
+the transitional bearer token on login/CSRF/logout calls, preserves the legacy
+bearer header for existing screens, and retains structured backend error
+`code`/`details`. Cross-origin cookie sessions reuse the in-memory proof,
+resource IDs are URL-encoded, and base origins are normalized. Existing abort
+support and URL-encoded private-ticket tokens remain intact. The isolated mock
+adapter now provides deterministic behavior for the new auth operations.
+
+Verification: focused HTTP/mock tests **22 passed**, including cookie-only
+mutation headers, typed auth routes, structured API errors, network failures,
+abort-signal forwarding, encoded resource identifiers and private-token routes;
+full frontend Vitest **88
+passed**; typecheck passed; lint has zero errors and seven Fast Refresh
+warnings; production build passed; real-backend desktop/mobile Playwright **8
+passed** through the same-origin proxy, including staff/admin flows using
+session cookies and CSRF proof. Hosted CI verification is pending; Issue #32
+remains open until the hosted gates pass.

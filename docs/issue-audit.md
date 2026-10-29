@@ -694,3 +694,13 @@ the proxy. The full backend suite passed **210 tests** after correcting the
 legacy migration fixture. Hosted CI run
 [40863821799](https://github.com/dooloe/backend-ready-frontend/actions/runs/40863821799)
 passed every gate. AC-1 through AC-3 were verified and #15 was closed.
+
+## Issue #32 cookie-aware typed API facade — in progress
+
+The shared interface and both HTTP/mock adapters now include typed identity,
+CSRF and logout operations. Real requests send credentials, use an in-memory
+session-bound CSRF proof for mutations, retain structured error code/details,
+and keep abort/private-token behavior. Twenty-two focused API/mock and 88 full
+frontend tests, typecheck, lint, build and eight real-backend desktop/mobile
+workflows pass.
+Hosted CI is pending, so keep #32 open until its gates pass.

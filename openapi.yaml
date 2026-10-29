@@ -8,8 +8,9 @@ info:
     is an origin/base prefix; mapped paths already include /api. All request/response JSON uses camelCase.
     Protected calls accept an opaque bearer token or the HttpOnly kezek_session cookie; role requirements come from mock.ts because
     TypeScript alone cannot specify authorization. The mock checks roles but does not establish organization/counter-assignment
-    authorization. No query parameters, pagination, idempotency header, logout/current-user
-    endpoint or separate assignment endpoint is sent by this client. Optional private-ticket Web Push
+    authorization. Cookie-authenticated mutations include credentials and the session-bound X-CSRF-Token proof.
+    Analytics date filters, idempotency headers, current-identity and logout operations are supported; pagination and
+    a separate assignment endpoint are not. Optional private-ticket Web Push
     configuration and subscription endpoints extend this contract without changing ticket lifecycle
     responses. Successful JSON responses are documented
     as 200; the adapter accepts any 2xx with the stated body, so 201 is compatible for creation. Empty

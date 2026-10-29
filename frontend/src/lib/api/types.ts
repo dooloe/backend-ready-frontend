@@ -152,6 +152,10 @@ export interface LoginResponse {
   user: StaffUser;
 }
 
+export interface CsrfTokenResponse {
+  csrfToken: string;
+}
+
 export interface PushConfig {
   enabled: boolean;
   publicKey: string | null;
@@ -166,6 +170,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public code: string | null = null,
+    public details: unknown = null,
   ) {
     super(message);
   }
@@ -191,6 +197,9 @@ export interface KezekApi {
   }): Promise<JoinResponse>;
   // Auth
   login(username: string, password: string): Promise<LoginResponse>;
+  getCurrentIdentity(): Promise<StaffUser>;
+  getCsrfToken(): Promise<CsrfTokenResponse>;
+  logout(): Promise<void>;
   // Staff
   listCounters(): Promise<Counter[]>;
   getQueue(counterId: string): Promise<{ current: TicketView | null; waiting: TicketView[] }>;
