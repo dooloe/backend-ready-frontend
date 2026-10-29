@@ -1,6 +1,6 @@
 # Implementation and verification record
 
-## 2026-10-29 — Issue #14 server-managed cookie sessions (in progress)
+## 2026-10-29 — Issue #14 server-managed cookie sessions
 
 The existing backend already verifies Argon2id passwords, stores only SHA-256
 session-token hashes and enforces an eight-hour expiry. Extended login to set an
@@ -16,7 +16,10 @@ credentials, inactive-user denial, expiration, HTTP cookie attributes, HTTPS
 Secure attribute, and OpenAPI operation/response/security parity. The complete
 backend suite passed (**208 tests**), and real-backend desktop/mobile browser
 workflows passed (**8**). `compileall` and `git diff --check` passed. Hosted CI
-remains pending, so #14 is still open.
+run [40856497561](https://github.com/dooloe/backend-ready-frontend/actions/runs/40856497561)
+passed every gate, including generated OpenAPI parity, the full backend suite,
+and desktop/mobile real-backend workflows for commit `829f6c9`. All three
+acceptance criteria were checked and #14 was closed as completed.
 
 ## 2026-10-28 — Issue #54 customer localization
 
