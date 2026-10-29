@@ -1510,4 +1510,8 @@ Verification: frontend Vitest **107 passed** across 21 files; typecheck passed;
 lint passed with zero errors and seven existing Fast Refresh warnings;
 production build passed; targeted cookie login/logout real-backend Playwright
 passed on desktop and mobile (**2 passed**). Hosted verification for the
-follow-up batch is pending.
+follow-up batch passed in CI run
+[40915868511](https://github.com/dooloe/backend-ready-frontend/actions/runs/40915868511),
+including real-backend desktop/mobile browser workflows. Issues #56–#71 were
+closed after all acceptance criteria were checked. GitHub now reports no open
+Issues.

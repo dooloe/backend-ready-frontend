@@ -705,3 +705,20 @@ frontend tests, typecheck, lint, build and eight real-backend desktop/mobile
 workflows pass. Hosted CI run
 [40868078457](https://github.com/dooloe/backend-ready-frontend/actions/runs/40868078457)
 passed every gate. AC-1 through AC-3 were verified and #32 was closed.
+
+## 2026-10-29 — Authentication and follow-up completion
+
+Issue #36 cookie-session restoration, role navigation, logout and protected
+cache cleanup passed local frontend tests and hosted CI
+[40897295526](https://github.com/dooloe/backend-ready-frontend/actions/runs/40897295526).
+Its three acceptance criteria were verified and the issue was closed.
+
+Reviewed the full existing issue history before creating #56–#71. Each new
+issue has the `follow-up`, `frontend` and `testing` labels. Implemented and
+verified the requested regression tests and small admin form validation
+improvements; frontend Vitest passed **107 tests** across 21 files, typecheck,
+lint and production build passed, and hosted CI
+[40915868511](https://github.com/dooloe/backend-ready-frontend/actions/runs/40915868511)
+passed all backend, migration, OpenAPI and real-backend browser gates. All 16
+acceptance checklists were marked complete and issues #56–#71 were closed.
+The current GitHub issue inventory is **71 closed, 0 open**.
