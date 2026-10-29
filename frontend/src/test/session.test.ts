@@ -61,7 +61,13 @@ describe("cookie-backed browser sessions", () => {
     session.setSession({ token: null, user });
     client.setQueryData(["admin", "services"], [{ id: "private-service" }]);
 
-    client.getQueryCache().config.onError?.(new ApiError(401, "Session expired"));
+    const protectedQuery = client.getQueryCache().build(client, {
+      queryKey: ["expired-auth"],
+      queryFn: async () => [],
+    });
+    client
+      .getQueryCache()
+      .config.onError?.(new ApiError(401, "Session expired"), protectedQuery as never);
 
     expect(session.getSession()).toBeNull();
     expect(client.getQueryCache().getAll()).toHaveLength(0);
