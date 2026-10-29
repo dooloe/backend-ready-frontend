@@ -14,8 +14,14 @@ organization timezone context. No API or ticket URL changes were made.
 Verification: the full frontend suite passed (**78 tests across 16 files**),
 typecheck passed, and the production build passed. Lint passed with zero errors and seven
 Fast Refresh warnings (six existing warnings and one from the new provider).
-`git diff --check` passed. Hosted CI and real-backend customer browser checks
-are pending; #54 remains open until those gates pass.
+`git diff --check` passed. Hosted run
+[40715095683](https://github.com/dooloe/backend-ready-frontend/actions/runs/40715095683)
+passed frontend tests (**78 tests**), lint, typecheck, production build, backend
+tests, migrations and OpenAPI checks. Its desktop/mobile browser checks caught
+stale English-only expectations for operating hours and people counts; those
+expectations now match the localized customer UI. The corrected customer
+journey passes locally on desktop and mobile; hosted rerun is pending. #54
+remains open until all hosted gates pass.
 
 ## 2026-10-28 — Issue #40 staff configuration
 

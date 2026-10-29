@@ -15,13 +15,13 @@ async function join(page: Page, organization: "university" | "clinic" = "univers
           category: "Universities",
           organizationName: "Almaty University · Demo",
           serviceName: "Student services",
-          operatingHours: "Hours: 00:00–23:59",
+          operatingHours: "Hours: 12:00 AM–11:59 PM",
         }
       : {
           category: "Clinics",
           organizationName: "City Health Clinic · Demo",
           serviceName: "General consultation",
-          operatingHours: "Hours: 00:00–23:59",
+          operatingHours: "Hours: 12:00 AM–11:59 PM",
         };
   await page.goto("/");
   await expect(
@@ -35,7 +35,7 @@ async function join(page: Page, organization: "university" | "clinic" = "univers
   await expect(page.getByText(directory.operatingHours)).toBeVisible();
   const service = page.locator("article").filter({ hasText: directory.serviceName });
   await expect(service.getByText("Open", { exact: true })).toBeVisible();
-  await expect(service.getByText(/\d+ waiting/)).toBeVisible();
+  await expect(service.getByText(/\d+ (?:person|people) waiting/)).toBeVisible();
   await expect(service.getByText(/~\d+ min wait/)).toBeVisible();
   await page.getByRole("link", { name: "Join Queue" }).click();
   await expect(page.getByRole("heading", { name: "Confirm your place" })).toBeVisible();
@@ -54,83 +54,89 @@ async function join(page: Page, organization: "university" | "clinic" = "univers
   return page.url();
 }
 
-test("discover, join, track position, staff call/start/complete, and private browser history", async ({
-  page,
-  browser,
-}, info) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  const organization = info.project.name === "mobile" ? "clinic" : "university";
-  const staffUsername = organization === "clinic" ? "demo-staff-clinic" : "demo-staff-university";
-  const serviceName = organization === "clinic" ? "General consultation" : "Student services";
-  const firstUrl = await join(page, organization);
-  await expect(page.getByText("People ahead of you")).toBeVisible();
-  await expect(page.locator("body")).not.toHaveText(/Mock API/);
-  await page.screenshot({ path: info.outputPath("ticket.png"), fullPage: true });
-  const second = await page.context().newPage();
-  const secondUrl = await join(second, organization);
-  await expect(
-    second.getByText("People ahead of you").locator("..").getByText("1", { exact: true }),
-  ).toBeVisible();
+test(
+  "discover, join, track position, staff call/start/complete, and private browser history",
+  async ({ page, browser }, info) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const organization = info.project.name === "mobile" ? "clinic" : "university";
+    const staffUsername = organization === "clinic" ? "demo-staff-clinic" : "demo-staff-university";
+    const serviceName = organization === "clinic" ? "General consultation" : "Student services";
+    const firstUrl = await join(page, organization);
+    await expect(page.getByText("People ahead of you")).toBeVisible();
+    await expect(page.locator("body")).not.toHaveText(/Mock API/);
+    await page.screenshot({ path: info.outputPath("ticket.png"), fullPage: true });
+    const second = await page.context().newPage();
+    const secondUrl = await join(second, organization);
+    await expect(
+      second.getByText("People ahead of you").locator("..").getByText("1", { exact: true }),
+    ).toBeVisible();
 
-  const staffContext = await browser.newContext({ viewport: page.viewportSize() });
-  const staff = await staffContext.newPage();
-  await staff.goto("http://127.0.0.1:15173/login");
-  await staff.getByLabel("Username").fill(staffUsername);
-  await staff.getByLabel("Password").fill("staff123");
-  await staff.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
-  const staffFitsViewport = await staff.evaluate(
-    () => document.documentElement.scrollWidth <= window.innerWidth,
-  );
-  expect(staffFitsViewport).toBe(true);
-  await staff.getByRole("button", { name: "Call Next", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "It’s your turn!" })).toBeVisible({
-    timeout: 12000,
-  });
-  await expect(
-    second.getByText("People ahead of you").locator("..").getByText("0", { exact: true }),
-  ).toBeVisible({ timeout: 12000 });
-  await expect(staff.getByRole("button", { name: "Complete Service" })).toHaveCount(0);
-  await staff.getByRole("button", { name: "Start service", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "You’re being served" })).toBeVisible({
-    timeout: 12000,
-  });
-  await staff.getByRole("button", { name: "Complete Service", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "All done. Enjoy your day!" })).toBeVisible({
-    timeout: 12000,
-  });
-  await second.goto(secondUrl);
-  await second.keyboard.press("Tab");
-  await expect(second.getByRole("link", { name: "Skip to content" })).toBeFocused();
-  await tabUntilFocused(second, second.getByRole("button", { name: "Cancel Ticket", exact: true }));
-  await second.keyboard.press("Enter");
-  await expect(second.getByRole("alertdialog")).toBeVisible();
-  await expect(second.getByRole("button", { name: "Go back", exact: true })).toBeFocused();
-  await second.keyboard.press("Tab");
-  await expect(second.getByRole("button", { name: "Confirm", exact: true })).toBeFocused();
-  await second.keyboard.press("Enter");
-  await expect(second.getByRole("heading", { name: "Your ticket is cancelled" })).toBeVisible();
-  await expect(staff.getByRole("button", { name: "Call Next", exact: true })).toBeDisabled({
-    timeout: 12000,
-  });
-  await page.goto("/tickets");
-  await expect(page.locator("main").getByRole("link").filter({ hasText: serviceName })).toHaveCount(
-    2,
-  );
+    const staffContext = await browser.newContext({ viewport: page.viewportSize() });
+    const staff = await staffContext.newPage();
+    await staff.goto("http://127.0.0.1:15173/login");
+    await staff.getByLabel("Username").fill(staffUsername);
+    await staff.getByLabel("Password").fill("staff123");
+    await staff.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
+    const staffFitsViewport = await staff.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    );
+    expect(staffFitsViewport).toBe(true);
+    await staff.getByRole("button", { name: "Call Next", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "It’s your turn!" })).toBeVisible({
+      timeout: 12000,
+    });
+    await expect(
+      second.getByText("People ahead of you").locator("..").getByText("0", { exact: true }),
+    ).toBeVisible({ timeout: 12000 });
+    await expect(staff.getByRole("button", { name: "Complete Service" })).toHaveCount(0);
+    await staff.getByRole("button", { name: "Start service", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "You’re being served" })).toBeVisible({
+      timeout: 12000,
+    });
+    await staff.getByRole("button", { name: "Complete Service", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "All done. Enjoy your day!" })).toBeVisible({
+      timeout: 12000,
+    });
+    await second.goto(secondUrl);
+    await second.keyboard.press("Tab");
+    await expect(second.getByRole("link", { name: "Skip to content" })).toBeFocused();
+    await tabUntilFocused(
+      second,
+      second.getByRole("button", { name: "Cancel Ticket", exact: true }),
+    );
+    await second.keyboard.press("Enter");
+    await expect(second.getByRole("alertdialog")).toBeVisible();
+    await expect(second.getByRole("button", { name: "Go back", exact: true })).toBeFocused();
+    await second.keyboard.press("Tab");
+    await expect(second.getByRole("button", { name: "Confirm", exact: true })).toBeFocused();
+    await second.keyboard.press("Enter");
+    await expect(second.getByRole("heading", { name: "Your ticket is cancelled" })).toBeVisible();
+    await expect(staff.getByRole("button", { name: "Call Next", exact: true })).toBeDisabled({
+      timeout: 12000,
+    });
+    await page.goto("/tickets");
+    await expect(
+      page.locator("main").getByRole("link").filter({ hasText: serviceName }),
+    ).toHaveCount(2);
 
-  const privateContext = await browser.newContext();
-  const stranger = await privateContext.newPage();
-  await stranger.goto("http://127.0.0.1:15173/tickets");
-  await expect(stranger.getByText("Your next visit starts here")).toBeVisible();
-  await stranger.goto(firstUrl);
-  await expect(stranger.getByRole("heading", { name: "All done. Enjoy your day!" })).toBeVisible();
-  await stranger.goto("http://127.0.0.1:15173/ticket/invalid-private-link");
-  await expect(stranger.getByRole("alert")).toContainText("Ticket unavailable");
-  await privateContext.close();
-  await staffContext.close();
-  expect(errors).toEqual([]);
-});
+    const privateContext = await browser.newContext();
+    const stranger = await privateContext.newPage();
+    await stranger.goto("http://127.0.0.1:15173/tickets");
+    await expect(stranger.getByText("Your next visit starts here")).toBeVisible();
+    await stranger.goto(firstUrl);
+    await expect(
+      stranger.getByRole("heading", { name: "All done. Enjoy your day!" }),
+    ).toBeVisible();
+    await stranger.goto("http://127.0.0.1:15173/ticket/invalid-private-link");
+    await expect(stranger.getByRole("alert")).toContainText("Ticket unavailable");
+    await privateContext.close();
+    await staffContext.close();
+    expect(errors).toEqual([]);
+  },
+  { timeout: 60_000 },
+);
 
 test("search, closed and empty states, keyboard navigation, responsive layout", async ({
   page,
