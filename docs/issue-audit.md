@@ -683,13 +683,14 @@ pass as recorded in `docs/process.md`. Hosted CI run
 passed every gate, including real-backend desktop/mobile workflows. All four
 acceptance criteria were verified and #55 was closed as completed.
 
-## Issue #15 cookie CSRF, logout and browser proxy — in progress
+## Issue #15 cookie CSRF, logout and browser proxy — completed
 
 The implementation now persists session-bound CSRF hashes, rejects cookie
 mutations without matching cookie/header proof, provides session-revoking
 logout, validates supplied login Origins and configures a same-origin Vite
 proxy with explicit credentialed CORS origins. Local focused API/security and
 OpenAPI checks pass; desktop/mobile real-backend browser workflows pass through
-the proxy. A full backend rerun is pending after correcting a legacy migration
-test fixture, and hosted CI evidence is still required. Keep #15 open until the
-full suite and hosted gates pass.
+the proxy. The full backend suite passed **210 tests** after correcting the
+legacy migration fixture. Hosted CI run
+[40863821799](https://github.com/dooloe/backend-ready-frontend/actions/runs/40863821799)
+passed every gate. AC-1 through AC-3 were verified and #15 was closed.

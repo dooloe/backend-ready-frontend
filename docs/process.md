@@ -1442,4 +1442,8 @@ production build passed; lint has zero errors and seven existing Fast Refresh
 warnings; Vitest **82 passed**; real-backend desktop/mobile Playwright **8
 passed** through the same-origin proxy. The first full backend run found a
 legacy fixture issue; the fixture was corrected and the full suite passed on
-rerun. Hosted verification is still required before Issue #15 can be closed.
+rerun. Hosted CI run
+[40863821799](https://github.com/dooloe/backend-ready-frontend/actions/runs/40863821799)
+passed frontend lint, typecheck, unit tests and build, migration/model drift,
+OpenAPI contract parity, backend tests and real-backend desktop/mobile browser
+workflows. All three acceptance criteria were verified; #15 was closed.
