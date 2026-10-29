@@ -678,5 +678,7 @@ are explicit. Implementation now includes the active-ticket opt-in UI,
 permission fallback, API subscription management, VAPID-backed backend delivery,
 generic payloads, per-event duplicate claims, stale/terminal subscription
 cleanup and setup docs. Local frontend/backend and real-backend browser checks
-pass as recorded in `docs/process.md`; the final API contract rerun and hosted
-CI verification are pending, so #55 remains open.
+pass as recorded in `docs/process.md`. Hosted CI run
+[40853309908](https://github.com/dooloe/backend-ready-frontend/actions/runs/40853309908)
+passed every gate, including real-backend desktop/mobile workflows. All four
+acceptance criteria were verified and #55 was closed as completed.

@@ -25,7 +25,7 @@ journey passes locally on desktop and mobile. Corrected hosted run
 passed all frontend, backend, migration, OpenAPI and real-backend desktop/mobile
 browser gates. All five acceptance criteria were checked and #54 was closed.
 
-## 2026-10-29 — Issue #55 private-ticket browser notifications (hosted verification pending)
+## 2026-10-29 — Issue #55 private-ticket browser notifications
 
 Added opt-in Web Push controls to active private-ticket pages, including
 permission-denied and unsupported-browser fallbacks. The frontend uses the
@@ -51,7 +51,10 @@ errors and seven Fast Refresh warnings, and the production build passed. The
 real-backend desktop/mobile browser suite passed **8 workflows**. Both
 documented API contract parity checks passed. A fresh SQLite migration reached
 head and `alembic check` found no model drift; locked backend dependencies
-passed `pip check`. Hosted CI is pending, so #55 stays open.
+passed `pip check`. Hosted CI run
+[40853309908](https://github.com/dooloe/backend-ready-frontend/actions/runs/40853309908)
+passed all gates, including real-backend desktop/mobile workflows. All four
+acceptance criteria were checked and #55 was closed.
 
 ## 2026-10-28 — Issue #40 staff configuration
 
@@ -1388,4 +1391,11 @@ explicit opt-in, authorization through the existing private-ticket token,
 generic privacy-safe payloads, duplicate-delivery prevention, and delivery
 failure isolation from queue operations. Priority is P2; dependencies are #20,
 #34 and #35. Labels are `new-mvp`, `frontend`, `backend` and `enhancement`.
-Implementation has not started.
+Implementation added opt-in browser alerts with denied/unavailable fallbacks,
+private-token-authorized subscription management, CALLED-event delivery,
+generic payloads, duplicate-delivery claims, stale endpoint cleanup and VAPID
+setup instructions. The complete backend suite passed (**207 tests**), frontend
+tests passed (**82 tests**), typecheck, lint and production build passed, and
+real-backend desktop/mobile browser workflows passed (**8**). Hosted CI run
+[40853309908](https://github.com/dooloe/backend-ready-frontend/actions/runs/40853309908)
+passed all gates. All four acceptance criteria were checked and #55 was closed.
