@@ -107,4 +107,29 @@ describe("admin service form", () => {
     );
     expect(name).toHaveValue("Registrar services");
   });
+
+  it("rejects a whitespace-only service name and preserves it for correction", async () => {
+    vi.spyOn(api, "listAdminServices").mockResolvedValue([]);
+    vi.spyOn(api, "listOrganizations").mockResolvedValue([]);
+    const createService = vi.spyOn(api, "createService");
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ServicesTab />
+      </QueryClientProvider>,
+    );
+
+    const name = await screen.findByPlaceholderText("Name");
+    fireEvent.change(name, { target: { value: "   " } });
+    fireEvent.change(screen.getByPlaceholderText("Description"), {
+      target: { value: "Keep this description" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Prefix"), { target: { value: "S" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add service" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Enter a service name.");
+    expect(name).toHaveValue("   ");
+    expect(screen.getByPlaceholderText("Description")).toHaveValue("Keep this description");
+    expect(createService).not.toHaveBeenCalled();
+  });
 });

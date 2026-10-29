@@ -73,6 +73,23 @@ describe("organization service details", () => {
     expect(screen.queryByRole("link", { name: "Join Queue" })).not.toBeInTheDocument();
   });
 
+  it("shows zero waiting visitors and explains an unavailable wait estimate", async () => {
+    vi.spyOn(api, "getOrganization").mockResolvedValue({
+      ...demoOrganization,
+      services: [
+        {
+          ...demoOrganization.services[0]!,
+          waitingCount: 0,
+          estimatedWaitMinutes: null,
+        },
+      ],
+    });
+    await renderOrganization();
+
+    expect(await screen.findByText("0 people waiting")).toBeVisible();
+    expect(screen.getByText("Wait estimate unavailable")).toBeVisible();
+  });
+
   it("offers retry after a recoverable error", async () => {
     const getOrganization = vi
       .spyOn(api, "getOrganization")

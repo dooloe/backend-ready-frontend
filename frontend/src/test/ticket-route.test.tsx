@@ -12,6 +12,7 @@ vi.mock("sonner", async (importOriginal) => {
   return { ...actual, toast: { success: vi.fn(), error: vi.fn() } };
 });
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { routeTree } from "@/routeTree.gen";
 
 const token = "A".repeat(43);
@@ -60,6 +61,7 @@ describe("private ticket route", () => {
   afterEach(() => {
     cleanup();
     queryClients.splice(0).forEach((queryClient) => queryClient.clear());
+    Reflect.deleteProperty(navigator, "clipboard");
     vi.restoreAllMocks();
   });
 
@@ -99,6 +101,39 @@ describe("private ticket route", () => {
     expect(await screen.findByText("Estimate unavailable")).toBeInTheDocument();
     expect(screen.getByText(/Last updated/)).toBeInTheDocument();
     expect(screen.getByText(/Refreshes every 5 seconds/)).toBeInTheDocument();
+  });
+
+  it("shows the assigned counter when the visitor is called", async () => {
+    vi.spyOn(api, "getPrivateTicket").mockResolvedValue({
+      ...ticket,
+      status: "called",
+      counterName: "Window 3",
+    });
+    await renderTicket();
+
+    expect(await screen.findByText("Window 3")).toBeVisible();
+    expect(screen.getByText("Your assigned counter")).toBeVisible();
+    expect(screen.queryByText("People ahead of you")).not.toBeInTheDocument();
+  });
+
+  it("reports when copying the private link succeeds or fails", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    await renderTicket();
+    fireEvent.click(await screen.findByRole("button", { name: "Copy private ticket link" }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.href));
+    expect(toast.success).toHaveBeenCalledWith("Private ticket link copied");
+
+    writeText.mockRejectedValueOnce(new Error("Clipboard permission denied"));
+    fireEvent.click(screen.getByRole("button", { name: "Copy private ticket link" }));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Couldn’t copy. Bookmark this page instead."),
+    );
+    Reflect.deleteProperty(navigator, "clipboard");
   });
 
   it("shows a helpful invalid-link state without exposing ticket details", async () => {

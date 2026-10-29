@@ -594,8 +594,14 @@ test("cookie sessions restore after reload, enforce roles, and revoke access on 
   await expect(page.getByRole("heading", { name: "Administration" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Admin", exact: true })).toBeVisible();
 
+  const logoutResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/auth/logout") && response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  expect((await logoutResponse).status()).toBe(204);
   await expect(page).toHaveURL(/\/login$/);
+  expect(await page.evaluate(async () => (await fetch("/api/auth/me")).status)).toBe(401);
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/login$/);

@@ -1490,3 +1490,24 @@ Verification: `npm test` (**92 passed**); `npm run typecheck` passed;
 warnings; `npm run build` passed; targeted desktop/mobile real-backend
 Playwright authentication checks (**4 passed**). `git diff --check` passed.
 AC-1 through AC-3 for #36 were verified.
+
+## 2026-10-29 — Follow-up regression batch #56–#71
+
+Reviewed all 55 existing Issues before adding a batch of 16 small, testable
+regression follow-ups. Added the `follow-up` label and applied it to every new
+Issue, alongside `frontend` and `testing`. The issues cover session/CSRF error
+handling, Explore filtering, organization queue summaries, private ticket
+display and retry behavior, staff empty/pending states, admin form validation,
+and logout revocation.
+
+Implementation adds Explore directory tests, My Tickets and staff route test
+suites, plus session, organization, ticket, and admin regressions. The admin
+forms now reject whitespace-only service and counter names; service creation
+trims accepted names. The real-backend logout workflow now asserts a 204
+logout response and a 401 from the next current-identity request.
+
+Verification: frontend Vitest **107 passed** across 21 files; typecheck passed;
+lint passed with zero errors and seven existing Fast Refresh warnings;
+production build passed; targeted cookie login/logout real-backend Playwright
+passed on desktop and mobile (**2 passed**). Hosted verification for the
+follow-up batch is pending.

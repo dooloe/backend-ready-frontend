@@ -51,6 +51,41 @@ describe("cookie-backed browser sessions", () => {
     expect(getCsrf).not.toHaveBeenCalled();
   });
 
+  it("keeps an expired session anonymous when the CSRF bootstrap fails", async () => {
+    const session = await import("@/lib/session");
+    localStorage.setItem("kezek-session", JSON.stringify({ token: "old-bearer", user }));
+
+    await expect(
+      session.restoreSession(
+        async () => user,
+        async () => {
+          throw new Error("CSRF endpoint unavailable");
+        },
+      ),
+    ).resolves.toBeNull();
+
+    expect(session.getSessionState()).toEqual({ session: null, ready: true });
+    expect(localStorage.getItem("kezek-session")).toBeNull();
+  });
+
+  it("removes a legacy bearer token when cookie identity is expired", async () => {
+    const [{ ApiError }, session] = await Promise.all([
+      import("@/lib/api/types"),
+      import("@/lib/session"),
+    ]);
+    localStorage.setItem("kezek-session", JSON.stringify({ token: "old-bearer", user }));
+
+    await session.restoreSession(
+      async () => {
+        throw new ApiError(401, "Not authenticated");
+      },
+      async () => undefined,
+    );
+
+    expect(session.getSession()).toBeNull();
+    expect(localStorage.getItem("kezek-session")).toBeNull();
+  });
+
   it("clears protected cached data and identity after an authorization denial", async () => {
     const [{ ApiError }, session, { createAppQueryClient }] = await Promise.all([
       import("@/lib/api/types"),
@@ -68,6 +103,26 @@ describe("cookie-backed browser sessions", () => {
     client
       .getQueryCache()
       .config.onError?.(new ApiError(401, "Session expired"), protectedQuery as never);
+
+    expect(session.getSession()).toBeNull();
+    expect(client.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it("also clears protected cached data after a forbidden response", async () => {
+    const [{ ApiError }, session, { createAppQueryClient }] = await Promise.all([
+      import("@/lib/api/types"),
+      import("@/lib/session"),
+      import("@/router"),
+    ]);
+    const client = createAppQueryClient();
+    session.setSession({ token: null, user });
+    client.setQueryData(["staff", "queue"], [{ id: "private-ticket" }]);
+
+    const deniedQuery = client.getQueryCache().build(client, {
+      queryKey: ["forbidden"],
+      queryFn: async () => [],
+    });
+    client.getQueryCache().config.onError?.(new ApiError(403, "Forbidden"), deniedQuery as never);
 
     expect(session.getSession()).toBeNull();
     expect(client.getQueryCache().getAll()).toHaveLength(0);

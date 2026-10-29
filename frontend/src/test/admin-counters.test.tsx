@@ -82,6 +82,33 @@ describe("admin counter configuration", () => {
     );
   });
 
+  it("prevents blank counter names from being created or saved", async () => {
+    vi.spyOn(api, "listCounters").mockResolvedValue([
+      {
+        id: "counter-1",
+        name: "Counter 1",
+        serviceIds: [],
+        isActive: true,
+        staffId: null,
+      },
+    ]);
+    vi.spyOn(api, "listAdminServices").mockResolvedValue([]);
+    vi.spyOn(api, "listStaff").mockResolvedValue([]);
+    const createCounter = vi.spyOn(api, "createCounter");
+    const updateCounter = vi.spyOn(api, "updateCounter");
+    renderCounters();
+
+    const newName = screen.getByRole("textbox", { name: "Counter name" });
+    fireEvent.change(newName, { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: "Add counter" })).toBeDisabled();
+    expect(createCounter).not.toHaveBeenCalled();
+
+    const existingName = await screen.findByRole("textbox", { name: "Counter name for Counter 1" });
+    fireEvent.change(existingName, { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: "Save name" })).toBeDisabled();
+    expect(updateCounter).not.toHaveBeenCalled();
+  });
+
   it("shows a useful empty state when no counters are configured", async () => {
     vi.spyOn(api, "listCounters").mockResolvedValue([]);
     vi.spyOn(api, "listAdminServices").mockResolvedValue([]);

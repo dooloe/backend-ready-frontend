@@ -434,6 +434,10 @@ export function ServicesTab() {
         aria-label="Add service"
         onSubmit={(event) => {
           event.preventDefault();
+          if (!f.name.trim()) {
+            setScheduleError("Enter a service name.");
+            return;
+          }
           if (!!f.opensAt !== !!f.closesAt) {
             setScheduleError("Set both opening and closing times, or leave both blank.");
             return;
@@ -443,6 +447,7 @@ export function ServicesTab() {
             () =>
               api.createService({
                 ...f,
+                name: f.name.trim(),
                 prefix: f.prefix.trim().toUpperCase(),
                 opensAt: f.opensAt || null,
                 closesAt: f.closesAt || null,
@@ -833,7 +838,13 @@ export function CountersTab() {
         onSubmit={(e) => {
           e.preventDefault();
           act.mutate(
-            () => api.createCounter({ name, serviceIds: [], isActive: true, staffId: null }),
+            () =>
+              api.createCounter({
+                name: name.trim(),
+                serviceIds: [],
+                isActive: true,
+                staffId: null,
+              }),
             { onSuccess: () => setName("") },
           );
         }}
@@ -845,7 +856,7 @@ export function CountersTab() {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <Button disabled={act.isPending}>Add counter</Button>
+        <Button disabled={act.isPending || !name.trim()}>Add counter</Button>
       </form>
       {countersQuery.isPending && <LoadingCards />}
       {countersQuery.isError && (
