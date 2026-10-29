@@ -286,6 +286,9 @@ def test_queue_scoped_call_next_is_fifo_counter_authorized_and_works_when_closed
 def test_queue_scoped_call_next_rejects_unauthorized_and_unsupported_counters(client, store, staff):
     registration_queue = daily_queue_id(store)
     path = f"/api/staff/queues/{registration_queue}/call-next"
+    # The staff fixture also receives a cookie now; clear it to model a new
+    # anonymous browser request before asserting authentication is required.
+    client.cookies.clear()
     assert client.post(path, json={"counterId": "cnt-1"}).status_code == 401
     # Counter 2 supports registration but this staff member is not assigned there.
     assert client.post(path, headers=staff, json={"counterId": "cnt-2"}).status_code == 403
@@ -454,6 +457,7 @@ def test_every_operation_and_response_matches_contract(client, store, contract, 
     check("GET", f"/api/queues/{queue_id}/status", "/api/queues/{queueId}/status")
     ticket = check("POST", "/api/tickets", "/api/tickets", json={"serviceId": "svc-reg", "customerName": "Customer"})
     login = check("POST", "/api/auth/login", "/api/auth/login", json={"username": "admin", "password": "admin123"})
+    check("GET", "/api/auth/me", "/api/auth/me", headers={"Authorization": "Bearer " + login["token"]})
     headers = {"Authorization": "Bearer " + login["token"]}
     check("GET", "/api/admin/services", "/api/admin/services", headers=headers)
     check("PATCH", f"/api/admin/queues/{queue_id}", "/api/admin/queues/{queueId}",
@@ -654,7 +658,13 @@ def test_invalid_bearer_credentials(client, authorization):
 def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock):
     assert client.post("/api/auth/login", json={"username": "admin", "password": "wrong"}).status_code == 401
     assert client.post("/api/auth/login", json={"username": "missing", "password": "admin123"}).status_code == 401
-    result = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"}).json()
+    response = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+    assert response.headers["cache-control"] == "no-store"
+    cookie = response.headers["set-cookie"]
+    assert "kezek_session=" in cookie and "HttpOnly" in cookie
+    assert "Path=/api" in cookie and "SameSite=lax" in cookie and "Max-Age=28800" in cookie
+    assert "Secure" not in cookie
+    result = response.json()
     assert set(result) == {"token", "user"}
     assert set(result["user"]) == {"id", "name", "username", "role", "isActive"}
     assert len(result["token"]) >= 40
@@ -667,10 +677,30 @@ def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock
     assert not verify_password("wrong", record.password_hash)
     headers = {"Authorization": "Bearer " + result["token"]}
     assert client.get("/api/counters", headers=headers).status_code == 200
+    assert client.get("/api/counters").status_code == 200
+    identity = client.get("/api/auth/me")
+    assert identity.status_code == 200 and identity.json()["username"] == "admin"
+    assert identity.headers["cache-control"] == "no-store"
+    with store.db.session(write=True) as session:
+        session.get(UserRow, "stf-admin").is_active = False
+    assert client.post("/api/auth/login", json={"username": "admin", "password": "admin123"}).status_code == 401
+    with store.db.session(write=True) as session:
+        session.get(UserRow, "stf-admin").is_active = True
     clock.advance(hours=8)
     assert client.get("/api/counters", headers=headers).status_code == 401
+    assert client.get("/api/auth/me").status_code == 401
     with store.db.session() as session:
         assert session.get(SessionRow, token_hash(result["token"])) is None
+
+
+def test_login_cookie_is_secure_when_requested_over_https(store):
+    with TestClient(create_app(store), base_url="https://testserver") as secure_client:
+        response = secure_client.post("/api/auth/login", json={
+            "username": "admin", "password": "admin123",
+        })
+    cookie = response.headers["set-cookie"]
+    assert "kezek_session=" in cookie and "HttpOnly" in cookie
+    assert "Secure" in cookie and "SameSite=lax" in cookie
 
 
 def test_password_hashes_are_salted():

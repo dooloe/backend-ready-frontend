@@ -1,5 +1,23 @@
 # Implementation and verification record
 
+## 2026-10-29 — Issue #14 server-managed cookie sessions (in progress)
+
+The existing backend already verifies Argon2id passwords, stores only SHA-256
+session-token hashes and enforces an eight-hour expiry. Extended login to set an
+HttpOnly, SameSite=Lax `kezek_session` cookie scoped to `/api`, with Secure
+enabled for HTTPS (or configurable behind a TLS-terminating proxy). Protected
+routes now accept the session cookie, and `GET /api/auth/me` returns the active
+identity without credential material. The JSON bearer response remains during
+the dependent frontend API migration (#32/#36) to preserve existing clients.
+
+Focused auth and API contract checks passed (**4 tests**): valid cookie
+authentication, identity lookup, hashed token persistence, wrong/missing
+credentials, inactive-user denial, expiration, HTTP cookie attributes, HTTPS
+Secure attribute, and OpenAPI operation/response/security parity. The complete
+backend suite passed (**208 tests**), and real-backend desktop/mobile browser
+workflows passed (**8**). `compileall` and `git diff --check` passed. Hosted CI
+remains pending, so #14 is still open.
+
 ## 2026-10-28 — Issue #54 customer localization
 
 Added an accessible English/Kazakh/Russian language selector for customer

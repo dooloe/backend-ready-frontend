@@ -60,6 +60,7 @@ class Settings:
     seed_demo: bool
     cors_origins: tuple[str, ...]
     environment: str
+    session_cookie_secure: bool | None = None
 
     @classmethod
     def from_environment(cls, database_url: str | None = None):
@@ -72,5 +73,7 @@ class Settings:
         # Overrides are validated without temporarily mutating process environment.
         effective_database_url = (_validated_database_url(database_url) if database_url is not None
                                   else database_url_from_environment())
+        secure_cookie = (None if os.getenv("SESSION_COOKIE_SECURE") is None
+                         else boolean_setting("SESSION_COOKIE_SECURE", "false"))
         return cls(effective_database_url,
-                   seed, origin_settings(), environment)
+                   seed, origin_settings(), environment, secure_cookie)

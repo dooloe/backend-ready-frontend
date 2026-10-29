@@ -69,7 +69,7 @@ required evidence; it does not mean all work on that issue is absent.
 | #11 | Verified | Organization-owned models, same-organization links, legacy data backfill, and history-preserving deletion are covered by migration and database tests. |
 | #12 | Closed (2026-10-26) | Daily queues, ticket events, hashed ticket credentials, scoped idempotency, active-counter uniqueness, legacy backfill and hosted verification pass; see latest process entry. |
 | #13 | Closed (2026-10-26) | Idempotent Asia/Almaty demo seed, assigned staff/counters, development-only credentials, Argon2id hashes, legacy scrypt verification and hosted checks pass. |
-| #14 | Open | Hashed expiring bearer sessions and login pass; inactive-user/current-identity/cookie criteria are unmet. |
+| #14 | In progress | Existing Argon2id verification and hashed/expiring sessions were extended with HttpOnly cookie issuance, cookie authentication and `/api/auth/me`; backend verification is underway. |
 | #15 | Open | Explicit bearer CORS works; planned cookie CSRF and server-side logout/revocation are absent. |
 | #16 | Closed (2026-10-26) | Role, assignment, inactivity, and same-organization protections are implemented and hosted-verified. |
 | #17 | Closed (2026-10-26) | Organization-local schedules, daily queue creation, overnight dates, and hosted checks pass. |

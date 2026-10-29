@@ -1,11 +1,12 @@
 openapi: 3.0.3
 info:
-  title: Kezek — Current Frontend Backend Contract
+  title: Kezek — Frontend and Backend API Contract
   version: 0.1.0
-  description: Derived from frontend/src/lib/api/http.ts, types.ts and mock.ts. This documents the current
-    client, not the future API in docs/plan.md or a claim that a backend is implemented. VITE_API_BASE_URL
+  description: Derived primarily from frontend/src/lib/api/http.ts, types.ts and mock.ts, with implemented
+    backend extensions for current identity and private-ticket Web Push. This documents the current API
+    implementation, not the future API in docs/plan.md. VITE_API_BASE_URL
     is an origin/base prefix; mapped paths already include /api. All request/response JSON uses camelCase.
-    Protected calls use opaque bearer tokens, not cookies; role requirements come from mock.ts because
+    Protected calls accept an opaque bearer token or the HttpOnly kezek_session cookie; role requirements come from mock.ts because
     TypeScript alone cannot specify authorization. The mock checks roles but does not establish organization/counter-assignment
     authorization. No query parameters, pagination, idempotency header, logout/current-user
     endpoint or separate assignment endpoint is sent by this client. Optional private-ticket Web Push
@@ -314,6 +315,26 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginRequest'
+  /api/auth/me:
+    get:
+      operationId: getCurrentIdentity
+      tags:
+      - Auth
+      summary: Get the authenticated staff or admin identity
+      description: Resolves the current identity from the HttpOnly session cookie or a transitional bearer token.
+      responses:
+        '200':
+          description: Authenticated identity without credential material.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
   /api/counters:
     get:
       operationId: listCounters

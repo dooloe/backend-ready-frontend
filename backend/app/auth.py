@@ -59,8 +59,10 @@ def current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
 ) -> StaffUser:
     user = None
-    if credentials is not None:
-        user = request.app.state.store.authenticate(credentials.credentials)
+    token = (credentials.credentials if credentials is not None
+             else request.cookies.get("kezek_session"))
+    if token:
+        user = request.app.state.store.authenticate(token)
     if user is None:
         raise HTTPException(401, "Not authenticated", headers={"WWW-Authenticate": "Bearer"})
     return user

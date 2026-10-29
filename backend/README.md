@@ -1,6 +1,6 @@
 # Kezek database backend
 
-Implements the current frontend's 23 operations from repository-root
+Implements the existing frontend API and server extensions in repository-root
 `openapi.yaml`, using FastAPI with modules for `routers`, `models`, `store` and
 `auth`. SQLAlchemy stores configuration, users, hashed sessions, ticket numbers
 and lifecycle state in a database. The default SQLite file is
@@ -153,11 +153,18 @@ they never use the configured development database.
 
 New passwords use salted Argon2id hashes with explicit work parameters; existing
 scrypt hashes remain verifiable so upgrades preserve current staff/admin access.
-Login returns a random bearer token with an eight-hour lifetime; only its
-SHA-256 digest is retained in the database. Staff and admin may use staff
-endpoints; admin configuration and statistics require admin.
+Login issues a random opaque session with an eight-hour lifetime; only its
+SHA-256 digest is retained in the database. The response sets the
+`kezek_session` cookie as HttpOnly, SameSite=Lax and scoped to `/api`; Secure is
+set for HTTPS requests. Set `SESSION_COOKIE_SECURE=true` when HTTPS terminates
+at a proxy and the backend receives plain HTTP. The JSON bearer token remains
+temporarily for compatibility while the frontend migration is tracked in #32
+and #36. Protected routes accept either the cookie or bearer token, and
+`GET /api/auth/me` returns the current identity without credential material.
+Staff and admin may use staff endpoints; admin configuration and statistics
+require admin.
 Customer service listing, join, ticket lookup and cancellation remain public as
-specified by the current frontend contract. No cookie session is used.
+specified by the current frontend contract.
 
 The API applies an in-process sliding-window limit of 20 login attempts per client
 IP per 15 minutes and 30 ticket joins per client IP per minute. A rejected request
@@ -170,7 +177,9 @@ route also declares the same policy in its document metadata.
 
 `CORS_ORIGINS` accepts a comma-separated list of frontend origins. Defaults are
 `http://localhost:5173,http://127.0.0.1:5173`. Browser requests may send
-`Authorization` and `Content-Type`; no wildcard origin is enabled.
+`Authorization` and `Content-Type`; no wildcard origin is enabled. Cross-origin
+cookie credentials and CSRF protection are tracked separately in #15; use the
+same-origin `/api` proxy for cookie-authenticated browser mutations.
 
 ## Contract behavior
 
