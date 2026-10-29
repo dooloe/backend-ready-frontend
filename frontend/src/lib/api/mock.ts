@@ -485,6 +485,9 @@ export const mockApi: KezekApi = {
     save();
     return delay(toIssuedTicket(ticket));
   },
+  getPushConfig: async () => ({ enabled: false, publicKey: null }),
+  registerTicketPush: async () => undefined,
+  removeTicketPush: async () => undefined,
 
   login(username, password) {
     const d = load();

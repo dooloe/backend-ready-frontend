@@ -5,7 +5,10 @@ import base64
 from datetime import date, datetime, time, timedelta, timezone
 import hashlib
 import hmac
+import json
+import logging
 import math
+import os
 import re
 import secrets
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -24,9 +27,10 @@ from .models import (
 from .scheduling import QueueSchedule, resolve_queue_schedule
 from .orm import (ActiveTicketRow, CounterRow, CounterServiceRow, OrganizationRow,
                   DailyQueueRow, ServiceRow, SessionRow, StaffAssignmentRow, StoreState,
-                  TicketEventRow, TicketRow, UserRow)
+                  PushDeliveryRow, PushSubscriptionRow, TicketEventRow, TicketRow, UserRow)
 
 DEFAULT_ORGANIZATION_ID = "org-demo"
+logger = logging.getLogger(__name__)
 
 
 def utc_now() -> datetime:
@@ -671,8 +675,113 @@ class DatabaseStore:
                 id=new_id(), ticket_id=ticket.id, event_type="cancelled",
                 occurred_at=cancelled_at, actor_user_id=None, counter_id=None,
             ))
+            session.execute(delete(PushSubscriptionRow).where(PushSubscriptionRow.ticket_id == ticket.id))
             session.flush()
             return self._issued_ticket_view(session, ticket)
+
+    def register_push_subscription(self, access_token: str, endpoint: str, p256dh: str, auth: str) -> None:
+        if not self._valid_proof(access_token):
+            raise HTTPException(404, "Ticket not found")
+        access_hash = hashlib.sha256(access_token.encode("ascii")).hexdigest()
+        with self.db.session(write=True) as session:
+            ticket = session.scalar(select(TicketRow).where(TicketRow.accessTokenHash == access_hash))
+            if ticket is None:
+                raise HTTPException(404, "Ticket not found")
+            if ticket.status not in {"waiting", "called", "serving"}:
+                raise HTTPException(409, "Notifications are available for active tickets only")
+            row = session.scalar(select(PushSubscriptionRow).where(
+                PushSubscriptionRow.ticket_id == ticket.id, PushSubscriptionRow.endpoint == endpoint,
+            ))
+            if row is None:
+                session.add(PushSubscriptionRow(
+                    id=new_id(), ticket_id=ticket.id, endpoint=endpoint, p256dh=p256dh,
+                    auth=auth, created_at=self.clock(),
+                ))
+            else:
+                row.p256dh, row.auth, row.disabled_at = p256dh, auth, None
+
+    def remove_push_subscription(self, access_token: str, endpoint: str) -> None:
+        if not self._valid_proof(access_token):
+            raise HTTPException(404, "Ticket not found")
+        access_hash = hashlib.sha256(access_token.encode("ascii")).hexdigest()
+        with self.db.session(write=True) as session:
+            ticket_id = session.scalar(select(TicketRow.id).where(TicketRow.accessTokenHash == access_hash))
+            if ticket_id is None:
+                raise HTTPException(404, "Ticket not found")
+            session.execute(delete(PushSubscriptionRow).where(
+                PushSubscriptionRow.ticket_id == ticket_id, PushSubscriptionRow.endpoint == endpoint,
+            ))
+
+    def dispatch_called_notification(self, ticket_id: str) -> None:
+        """Claim each event/subscription pair once and send generic pushes after the queue commit."""
+        vapid_private_key = os.getenv("VAPID_PRIVATE_KEY")
+        claims_email = os.getenv("VAPID_CLAIMS_EMAIL")
+        if not (vapid_private_key and claims_email):
+            return
+        pending = []
+        try:
+            with self.db.session(write=True) as session:
+                called_event = session.scalar(select(TicketEventRow).where(
+                    TicketEventRow.ticket_id == ticket_id, TicketEventRow.event_type == "called",
+                ).order_by(TicketEventRow.occurred_at.desc(), TicketEventRow.id.desc()).limit(1))
+                if called_event is None:
+                    return
+                subscriptions = list(session.scalars(select(PushSubscriptionRow).where(
+                    PushSubscriptionRow.ticket_id == ticket_id,
+                    PushSubscriptionRow.disabled_at.is_(None),
+                )))
+                for subscription in subscriptions:
+                    exists = session.scalar(select(PushDeliveryRow.id).where(
+                        PushDeliveryRow.event_id == called_event.id,
+                        PushDeliveryRow.subscription_id == subscription.id,
+                    ))
+                    if exists is not None:
+                        continue
+                    session.add(PushDeliveryRow(
+                        id=new_id(), event_id=called_event.id,
+                        subscription_id=subscription.id, created_at=self.clock(),
+                    ))
+                    pending.append({
+                        "id": subscription.id, "endpoint": subscription.endpoint,
+                        "p256dh": subscription.p256dh, "auth": subscription.auth,
+                    })
+                session.flush()
+        except Exception:
+            # Notification persistence is best-effort and runs after queue state commits.
+            logger.warning("Browser push could not be scheduled for a called ticket")
+            return
+        if not pending:
+            return
+        try:
+            from pywebpush import WebPushException, webpush
+        except ImportError:
+            logger.error("Browser push delivery is configured but pywebpush is unavailable")
+            return
+        payload = json.dumps({
+            "title": "Kezek queue update",
+            "body": "Your turn is approaching. Open Kezek to see your ticket.",
+        })
+        for item in pending:
+            try:
+                webpush(
+                    subscription_info={"endpoint": item["endpoint"],
+                                       "keys": {"p256dh": item["p256dh"], "auth": item["auth"]}},
+                    data=payload, vapid_private_key=vapid_private_key,
+                    vapid_claims={"sub": claims_email}, ttl=60, timeout=2,
+                )
+            except WebPushException as exc:
+                status_code = getattr(getattr(exc, "response", None), "status_code", None)
+                if status_code in {400, 404, 410}:
+                    try:
+                        with self.db.session(write=True) as session:
+                            row = session.get(PushSubscriptionRow, item["id"])
+                            if row is not None:
+                                row.disabled_at = self.clock()
+                    except Exception:
+                        logger.warning("Stale browser push subscription could not be disabled")
+                logger.warning("Browser push delivery failed (status=%s)", status_code)
+            except Exception:
+                logger.warning("Browser push delivery failed")
 
     @staticmethod
     def _queue_state(session, service: ServiceRow, instant: datetime, *, create: bool = False):
@@ -828,6 +937,7 @@ class DatabaseStore:
             ))
             if target in ("completed", "no_show"):
                 session.execute(delete(ActiveTicketRow).where(ActiveTicketRow.ticket_id == ticket_id))
+                session.execute(delete(PushSubscriptionRow).where(PushSubscriptionRow.ticket_id == ticket_id))
             session.flush()
             return self._view(session, ticket)
 

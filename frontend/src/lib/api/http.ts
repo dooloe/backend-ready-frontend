@@ -51,6 +51,11 @@ export function createHttpApi(baseUrl: string, getToken: () => string | null): K
       req<IssuedTicket>("GET", `/api/tickets/${encodeURIComponent(token)}`, undefined, {}, signal),
     cancelPrivateTicket: (token) =>
       req<IssuedTicket>("POST", `/api/tickets/${encodeURIComponent(token)}/cancel`),
+    getPushConfig: () => req("GET", "/api/push/config"),
+    registerTicketPush: (token, subscription) =>
+      req("POST", `/api/tickets/${encodeURIComponent(token)}/push-subscriptions`, subscription),
+    removeTicketPush: (token, endpoint) =>
+      req("DELETE", `/api/tickets/${encodeURIComponent(token)}/push-subscriptions`, { endpoint }),
     issueTicket: ({ queueId, accessToken, idempotencyKey }) =>
       req<JoinResponse>(
         "POST",

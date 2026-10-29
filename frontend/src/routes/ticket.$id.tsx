@@ -8,6 +8,7 @@ import { ticketIsPollingActive, ticketRefetchInterval } from "@/lib/ticket-polli
 import { saveTicketToken } from "@/lib/saved-tickets";
 import { Button } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/confirm-action";
+import { TicketNotifications } from "@/components/ticket-notifications";
 import { LoadError, LoadingCards } from "@/components/customer-ui";
 import { useCustomerLocale } from "@/lib/customer-locale";
 export const Route = createFileRoute("/ticket/$id")({
@@ -147,6 +148,9 @@ function TicketPage() {
               )}
               {t.status === "completed" && (
                 <CheckCircle2 className="mx-auto text-emerald-600" size={36} />
+              )}
+              {isPrivateToken && ["waiting", "called", "serving"].includes(t.status) && (
+                <TicketNotifications accessToken={id} />
               )}
               <div className="mt-7 space-y-3 text-left">
                 <p className="text-xs font-semibold text-muted-foreground">

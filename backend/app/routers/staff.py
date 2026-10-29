@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from ..auth import require_staff
 from ..models import Counter, QueueCallNextRequest, QueueView, StaffCounterQueue, StaffUser, TicketView
@@ -28,14 +28,21 @@ def get_queue(counterId: str, store: Store, actor: Actor):
 
 
 @router.post("/counters/{counterId}/call-next", response_model=TicketView | None, operation_id="callNext", openapi_extra=roles)
-def call_next(counterId: str, store: Store, actor: Actor):
-    return store.call_next(counterId, actor)
+def call_next(counterId: str, store: Store, actor: Actor, background_tasks: BackgroundTasks):
+    ticket = store.call_next(counterId, actor)
+    if ticket is not None:
+        background_tasks.add_task(store.dispatch_called_notification, ticket.id)
+    return ticket
 
 
 @router.post("/staff/queues/{queueId}/call-next", response_model=TicketView | None,
              operation_id="callNextQueue", openapi_extra=roles)
-def call_next_in_queue(queueId: str, body: QueueCallNextRequest, store: Store, actor: Actor):
-    return store.call_next_in_queue(queueId, body.counterId, actor)
+def call_next_in_queue(queueId: str, body: QueueCallNextRequest, store: Store, actor: Actor,
+                       background_tasks: BackgroundTasks):
+    ticket = store.call_next_in_queue(queueId, body.counterId, actor)
+    if ticket is not None:
+        background_tasks.add_task(store.dispatch_called_notification, ticket.id)
+    return ticket
 
 
 @router.post("/tickets/{id}/start", response_model=TicketView, operation_id="startService", openapi_extra=roles)

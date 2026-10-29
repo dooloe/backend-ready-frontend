@@ -3,7 +3,7 @@
 from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Role = Literal["staff", "admin"]
 TicketStatus = Literal["waiting", "called", "serving", "completed", "cancelled", "no_show"]
@@ -111,6 +111,36 @@ class JoinQueueRequest(Model):
 
 class AnonymousJoinRequest(Model):
     accessToken: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
+
+
+class PushSubscriptionKeys(Model):
+    p256dh: str = Field(pattern=r"^[A-Za-z0-9_-]{80,100}$")
+    auth: str = Field(pattern=r"^[A-Za-z0-9_-]{20,30}$")
+
+
+class PushSubscriptionRequest(Model):
+    endpoint: AnyHttpUrl = Field(max_length=2048)
+    keys: PushSubscriptionKeys
+
+    @field_validator("endpoint")
+    @classmethod
+    def endpoint_must_use_https(cls, value):
+        if value.scheme != "https" or value.username is not None or value.password is not None:
+            raise ValueError("Push endpoint must be HTTPS without embedded credentials")
+        host = value.host.lower().rstrip(".")
+        if not any(host == suffix or host.endswith("." + suffix)
+                   for suffix in ("googleapis.com", "mozilla.com", "apple.com")):
+            raise ValueError("Unsupported browser push endpoint")
+        return value
+
+
+class PushEndpointRequest(Model):
+    endpoint: AnyHttpUrl = Field(max_length=2048)
+
+
+class PushConfig(Model):
+    enabled: bool
+    publicKey: str | None
 
 
 class QueueCallNextRequest(Model):

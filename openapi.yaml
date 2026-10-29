@@ -8,7 +8,9 @@ info:
     Protected calls use opaque bearer tokens, not cookies; role requirements come from mock.ts because
     TypeScript alone cannot specify authorization. The mock checks roles but does not establish organization/counter-assignment
     authorization. No query parameters, pagination, idempotency header, logout/current-user
-    endpoint or separate assignment endpoint is sent by this client. Successful JSON responses are documented
+    endpoint or separate assignment endpoint is sent by this client. Optional private-ticket Web Push
+    configuration and subscription endpoints extend this contract without changing ticket lifecycle
+    responses. Successful JSON responses are documented
     as 200; the adapter accepts any 2xx with the stated body, so 201 is compatible for creation. Empty
     DELETE success must be 204. Errors use the structured ApiError envelope with the legacy detail alias
     consumed by http.ts; the current FastAPI server implements these documented response components.
@@ -199,6 +201,90 @@ paths:
         schema:
           type: string
           pattern: ^[A-Za-z0-9_-]{43}$
+  /api/push/config:
+    get:
+      operationId: getPushConfig
+      tags: [Customer]
+      summary: Read whether private-ticket browser alerts are configured
+      responses:
+        '200':
+          description: Public push configuration; contains no private VAPID key.
+          headers:
+            Cache-Control:
+              schema: {type: string, enum: [no-store]}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushConfig'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security: []
+  /api/tickets/{token}/push-subscriptions:
+    post:
+      operationId: registerPrivateTicketPush
+      tags: [Customer]
+      summary: Enable browser alerts for a private ticket
+      description: Associates a subscription with a ticket authorized by its private token hash. Subscription keys are never returned.
+      responses:
+        '204':
+          description: Subscription registered.
+          headers:
+            Cache-Control:
+              schema: {type: string, enum: [no-store]}
+        '404':
+          $ref: '#/components/responses/PrivateTicketNotFound'
+        '409':
+          $ref: '#/components/responses/PrivateTicketConflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/UnexpectedError'
+        default:
+          $ref: '#/components/responses/PrivateTicketUnexpected'
+      security: []
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscriptionRequest'
+    delete:
+      operationId: removePrivateTicketPush
+      tags: [Customer]
+      summary: Disable browser alerts for a private ticket
+      responses:
+        '204':
+          description: Subscription removed if present.
+          headers:
+            Cache-Control:
+              schema: {type: string, enum: [no-store]}
+        '404':
+          $ref: '#/components/responses/PrivateTicketNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/PrivateTicketUnexpected'
+      security: []
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushEndpointRequest'
   /api/auth/login:
     post:
       operationId: login
@@ -1150,6 +1236,38 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
   schemas:
+    PushConfig:
+      type: object
+      additionalProperties: false
+      required: [enabled, publicKey]
+      properties:
+        enabled: {type: boolean}
+        publicKey: {type: string, nullable: true}
+    PushSubscriptionKeys:
+      type: object
+      additionalProperties: false
+      required: [p256dh, auth]
+      properties:
+        p256dh:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{80,100}$
+        auth:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{20,30}$
+    PushSubscriptionRequest:
+      type: object
+      additionalProperties: false
+      required: [endpoint, keys]
+      properties:
+        endpoint: {type: string, format: uri}
+        keys:
+          $ref: '#/components/schemas/PushSubscriptionKeys'
+    PushEndpointRequest:
+      type: object
+      additionalProperties: false
+      required: [endpoint]
+      properties:
+        endpoint: {type: string, format: uri}
     Role:
       type: string
       enum:

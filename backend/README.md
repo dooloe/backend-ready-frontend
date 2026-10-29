@@ -1,6 +1,6 @@
 # Kezek database backend
 
-Implements the current frontend's 20 operations from repository-root
+Implements the current frontend's 23 operations from repository-root
 `openapi.yaml`, using FastAPI with modules for `routers`, `models`, `store` and
 `auth`. SQLAlchemy stores configuration, users, hashed sessions, ticket numbers
 and lifecycle state in a database. The default SQLite file is
@@ -45,6 +45,36 @@ make backend DATABASE_URL=sqlite:////absolute/path/kezek.db
 `backend/.env.example` documents settings. Export them in the terminal; the
 template is not automatically loaded. Do not put real connection credentials
 in tracked files. Local SQLite databases and journal files are ignored by Git.
+
+## Optional browser notifications
+
+Web Push is opt-in and is available only when all three VAPID settings are
+configured. Generate and retain the private key outside the repository (the
+`vapid` command is installed with the backend requirements):
+
+```bash
+sudo install -d -m 700 /etc/kezek/push
+cd /etc/kezek/push
+vapid --gen
+vapid --applicationServerKey --private-key /etc/kezek/push/private_key.pem
+```
+
+Copy the printed application server key into `VAPID_PUBLIC_KEY`. Set
+`VAPID_PRIVATE_KEY` to the protected absolute path of `private_key.pem` and set
+`VAPID_CLAIMS_EMAIL` to a contact such as `mailto:ops@example.org`. Restrict
+the private key file to the backend service account and never commit or log it.
+The API publishes only the public key when all settings are present. Browser
+push requires HTTPS in deployed environments; localhost is treated as a secure
+context by browsers. Chromium, Firefox and Safari push service host domains are
+accepted to prevent customer-supplied endpoints from turning delivery into an
+arbitrary server-side request.
+
+Subscriptions are authorized by the ticket's private link and are removed
+when the ticket becomes terminal or the push service reports the endpoint as
+stale. Alerts contain only a generic message; the ticket page remains the
+source of current position and status. Delivery is attempted after the queue
+transition commits, with a short network timeout; errors do not undo the
+transition. A persisted event/subscription claim prevents duplicate sends.
 
 Alembic migrations run automatically against the configured database during
 backend startup. `backend/alembic.ini` and `backend/migrations/` hold the

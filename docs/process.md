@@ -1,6 +1,6 @@
 # Implementation and verification record
 
-## 2026-10-28 — Issue #54 customer localization (hosted verification pending)
+## 2026-10-28 — Issue #54 customer localization
 
 Added an accessible English/Kazakh/Russian language selector for customer
 pages. First visit follows the first supported browser language (English is the
@@ -20,8 +20,38 @@ passed frontend tests (**78 tests**), lint, typecheck, production build, backend
 tests, migrations and OpenAPI checks. Its desktop/mobile browser checks caught
 stale English-only expectations for operating hours and people counts; those
 expectations now match the localized customer UI. The corrected customer
-journey passes locally on desktop and mobile; hosted rerun is pending. #54
-remains open until all hosted gates pass.
+journey passes locally on desktop and mobile. Corrected hosted run
+[40815523125](https://github.com/dooloe/backend-ready-frontend/actions/runs/40815523125)
+passed all frontend, backend, migration, OpenAPI and real-backend desktop/mobile
+browser gates. All five acceptance criteria were checked and #54 was closed.
+
+## 2026-10-29 — Issue #55 private-ticket browser notifications (hosted verification pending)
+
+Added opt-in Web Push controls to active private-ticket pages, including
+permission-denied and unsupported-browser fallbacks. The frontend uses the
+existing API facade; its service worker displays only a generic alert and
+opens My Tickets. The backend links subscriptions only after resolving the
+existing private access-token hash, removes them on ticket cancellation or
+terminal service state, and disables endpoints reported stale by the push
+service. Staff call-next operations schedule delivery after committing the
+CALLED transition. Each called-event/subscription pair is claimed once before
+delivery, and delivery failures are logged without changing queue state.
+
+Added the push subscription migration, typed API methods and OpenAPI contract,
+pinned `pywebpush` dependencies, and VAPID setup/security instructions. Backend
+coverage includes unauthorized subscription access, endpoint validation,
+opt-in/out, called-event delivery, generic payload contents, duplicate
+prevention, stale endpoint cleanup, terminal-ticket cleanup and delivery
+failure. Frontend tests exercise explicit enable/disable and permission and
+availability fallbacks.
+
+Local verification: the complete backend suite passed (**207 tests**),
+frontend tests passed (**82 tests**), typecheck passed, lint passed with zero
+errors and seven Fast Refresh warnings, and the production build passed. The
+real-backend desktop/mobile browser suite passed **8 workflows**. Both
+documented API contract parity checks passed. A fresh SQLite migration reached
+head and `alembic check` found no model drift; locked backend dependencies
+passed `pip check`. Hosted CI is pending, so #55 stays open.
 
 ## 2026-10-28 — Issue #40 staff configuration
 

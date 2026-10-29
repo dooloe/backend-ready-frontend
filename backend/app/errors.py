@@ -14,16 +14,14 @@ logger = logging.getLogger(__name__)
 def _private_ticket_response_headers(request: Request, headers=None):
     result = dict(headers or {})
     segments = request.url.path.split("/")
-    private_ticket_path = (
-        len(segments) == 4 and segments[1:3] == ["api", "tickets"]
-    ) or (
-        len(segments) == 5 and segments[1:3] == ["api", "tickets"] and segments[4] == "cancel"
+    private_ticket_path = segments[1:3] == ["api", "tickets"] and (
+        (len(segments) == 4 and request.method == "GET")
+        or (len(segments) == 5 and segments[4] == "cancel" and request.method == "POST")
+        or (len(segments) == 5 and segments[4] == "push-subscriptions"
+            and request.method in {"POST", "DELETE"})
     )
-    if (request.method == "GET" and len(segments) == 4) or (
-        request.method == "POST" and len(segments) == 5 and segments[4] == "cancel"
-    ):
-        if private_ticket_path:
-            result["Cache-Control"] = "no-store"
+    if private_ticket_path:
+        result["Cache-Control"] = "no-store"
     return result
 
 

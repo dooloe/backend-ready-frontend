@@ -661,8 +661,10 @@ English, Kazakh and Russian customer-facing translations, locale-aware formats,
 accessible language selection and persistence. It has no blocking dependencies
 and carries `new-mvp`, `frontend`, `ui-ux` and `enhancement`. Implementation
 started on 2026-10-28; customer-facing translations, locale persistence and
-formatting are in place. Local checks pass, but hosted CI and real-backend
-browser verification are pending, so #54 remains open.
+formatting are complete. Hosted CI run
+[40815523125](https://github.com/dooloe/backend-ready-frontend/actions/runs/40815523125)
+passed every gate, including real-backend desktop/mobile workflows. All five
+acceptance criteria were checked and #54 was closed as completed.
 
 ## New MVP issue #55 — private-ticket browser notifications — 2026-10-28
 
@@ -672,4 +674,9 @@ for optional browser push alerts when a ticket is called. This is separate from
 the ticket page's status polling and introduces no account requirement. It is
 P2, depends on #20, #34 and #35, and carries `new-mvp`, `frontend`, `backend`
 and `enhancement`. Delivery, privacy and duplicate-event acceptance criteria
-are explicit; implementation has not started.
+are explicit. Implementation now includes the active-ticket opt-in UI,
+permission fallback, API subscription management, VAPID-backed backend delivery,
+generic payloads, per-event duplicate claims, stale/terminal subscription
+cleanup and setup docs. Local frontend/backend and real-backend browser checks
+pass as recorded in `docs/process.md`; the final API contract rerun and hosted
+CI verification are pending, so #55 remains open.

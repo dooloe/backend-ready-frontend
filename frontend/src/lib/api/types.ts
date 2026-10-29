@@ -152,6 +152,16 @@ export interface LoginResponse {
   user: StaffUser;
 }
 
+export interface PushConfig {
+  enabled: boolean;
+  publicKey: string | null;
+}
+
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -171,6 +181,9 @@ export interface KezekApi {
   joinQueue(input: { serviceId: string; customerName: string }): Promise<TicketView>;
   getPrivateTicket(accessToken: string, signal?: AbortSignal): Promise<IssuedTicket>;
   cancelPrivateTicket(accessToken: string): Promise<IssuedTicket>;
+  getPushConfig(): Promise<PushConfig>;
+  registerTicketPush(accessToken: string, subscription: PushSubscriptionPayload): Promise<void>;
+  removeTicketPush(accessToken: string, endpoint: string): Promise<void>;
   issueTicket(input: {
     queueId: string;
     accessToken: string;

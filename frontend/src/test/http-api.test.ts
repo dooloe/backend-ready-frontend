@@ -16,10 +16,19 @@ describe("private ticket client", () => {
 
     await api.getPrivateTicket("a/b + token");
     await api.cancelPrivateTicket("a/b + token");
+    await api.getPushConfig();
+    await api.registerTicketPush("a/b + token", {
+      endpoint: "https://fcm.googleapis.com/fcm/send/example",
+      keys: { p256dh: "p256dh", auth: "auth" },
+    });
+    await api.removeTicketPush("a/b + token", "https://fcm.googleapis.com/fcm/send/example");
 
     expect(fetchMock.mock.calls.map(([url, init]) => [init.method, url])).toEqual([
       ["GET", "http://localhost:8000/api/tickets/a%2Fb%20%2B%20token"],
       ["POST", "http://localhost:8000/api/tickets/a%2Fb%20%2B%20token/cancel"],
+      ["GET", "http://localhost:8000/api/push/config"],
+      ["POST", "http://localhost:8000/api/tickets/a%2Fb%20%2B%20token/push-subscriptions"],
+      ["DELETE", "http://localhost:8000/api/tickets/a%2Fb%20%2B%20token/push-subscriptions"],
     ]);
   });
 

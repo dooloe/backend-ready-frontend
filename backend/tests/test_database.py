@@ -205,7 +205,7 @@ def test_fresh_file_database_is_initialized_at_alembic_head(tmp_path):
         names = set(inspect(connection).get_table_names())
         version = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
     assert names == set(Base.metadata.tables) | {"alembic_version"}
-    assert version == "9ca12ef41d60"
+    assert version == "7e1cf9d924ab"
     assert {"organizations", "staff_assignments", "daily_queues", "ticket_events"}.issubset(names)
     store.close()
 
@@ -271,7 +271,7 @@ def test_pre_migration_file_database_is_stamped_without_losing_data(tmp_path):
         assert {event.event_type for event in session.scalars(select(TicketEventRow).where(
             TicketEventRow.ticket_id == "legacy-ticket"))} == {"issued", "completed"}
     with migrated.db.engine.connect() as connection:
-        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "9ca12ef41d60"
+        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "7e1cf9d924ab"
     migrated.close()
 
 

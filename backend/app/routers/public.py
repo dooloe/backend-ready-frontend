@@ -1,12 +1,40 @@
 from typing import Annotated
+import os
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
-from ..models import AnonymousJoinRequest, IssuedTicket, JoinQueueRequest, JoinResponse, Organization, QueueSummary, Service, ServiceSummary, TicketView
+from ..models import (AnonymousJoinRequest, IssuedTicket, JoinQueueRequest, JoinResponse,
+                      Organization, PushConfig, PushEndpointRequest, PushSubscriptionRequest,
+                      QueueSummary, Service, ServiceSummary, TicketView)
 from ..store import DatabaseStore, get_store
 
 router = APIRouter(prefix="/api", tags=["Customer"])
 Store = Annotated[DatabaseStore, Depends(get_store)]
+
+
+@router.get("/push/config", response_model=PushConfig, operation_id="getPushConfig")
+def get_push_config(response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    public_key = os.getenv("VAPID_PUBLIC_KEY")
+    enabled = bool(public_key and os.getenv("VAPID_PRIVATE_KEY") and os.getenv("VAPID_CLAIMS_EMAIL"))
+    return PushConfig(enabled=enabled, publicKey=public_key if enabled else None)
+
+
+@router.post("/tickets/{token}/push-subscriptions", status_code=status.HTTP_204_NO_CONTENT,
+             operation_id="registerPrivateTicketPush")
+def register_push_subscription(token: str, body: PushSubscriptionRequest, store: Store, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    if not (os.getenv("VAPID_PUBLIC_KEY") and os.getenv("VAPID_PRIVATE_KEY")
+            and os.getenv("VAPID_CLAIMS_EMAIL")):
+        raise HTTPException(503, "Browser notifications are not configured")
+    store.register_push_subscription(token, str(body.endpoint), body.keys.p256dh, body.keys.auth)
+
+
+@router.delete("/tickets/{token}/push-subscriptions", status_code=status.HTTP_204_NO_CONTENT,
+               operation_id="removePrivateTicketPush")
+def remove_push_subscription(token: str, body: PushEndpointRequest, store: Store, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    store.remove_push_subscription(token, str(body.endpoint))
 
 
 @router.get("/services", response_model=list[Service], operation_id="listServices")

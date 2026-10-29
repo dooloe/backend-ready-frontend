@@ -234,6 +234,32 @@ class TicketEventRow(Base):
     counter_id: Mapped[str | None] = mapped_column(ForeignKey("counters.id", ondelete="RESTRICT"))
 
 
+class PushSubscriptionRow(Base):
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (
+        UniqueConstraint("ticket_id", "endpoint", name="unique_ticket_push_endpoint"),
+        Index("push_subscription_ticket", "ticket_id", "disabled_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False)
+    endpoint: Mapped[str] = mapped_column(String(2048), nullable=False)
+    p256dh: Mapped[str] = mapped_column(String(256), nullable=False)
+    auth: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column("created_at", UTCDateTime(), nullable=False)
+    disabled_at: Mapped[datetime | None] = mapped_column("disabled_at", UTCDateTime())
+
+
+class PushDeliveryRow(Base):
+    __tablename__ = "push_deliveries"
+    __table_args__ = (UniqueConstraint("event_id", "subscription_id", name="unique_push_event_subscription"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    event_id: Mapped[str] = mapped_column(ForeignKey("ticket_events.id", ondelete="CASCADE"), nullable=False)
+    subscription_id: Mapped[str] = mapped_column(ForeignKey("push_subscriptions.id", ondelete="CASCADE"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column("created_at", UTCDateTime(), nullable=False)
+
+
 class ActiveTicketRow(Base):
     """Portable uniqueness for a counter's active ticket, without partial indexes."""
 

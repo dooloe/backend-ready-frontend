@@ -429,7 +429,7 @@ def dereference(schema, document):
     return {"anyOf": [result, {"type": "null"}]} if schema.get("nullable") else result
 
 
-def test_every_operation_and_response_matches_contract(client, store, contract):
+def test_every_operation_and_response_matches_contract(client, store, contract, monkeypatch):
     seen = set()
 
     def check(method, actual_path, contract_path, *, expected_override=None, **kwargs):
@@ -476,6 +476,18 @@ def test_every_operation_and_response_matches_contract(client, store, contract):
           expected_override="200", headers={"Idempotency-Key": proof(20)}, json={"accessToken": proof(21)})
     assert issued["ticket"]["id"]
     check("GET", f"/api/tickets/{proof(21)}", "/api/tickets/{token}")
+    monkeypatch.setenv("VAPID_PUBLIC_KEY", "B" * 87)
+    monkeypatch.setenv("VAPID_PRIVATE_KEY", "test-private-key")
+    monkeypatch.setenv("VAPID_CLAIMS_EMAIL", "mailto:ops@example.test")
+    check("GET", "/api/push/config", "/api/push/config")
+    subscription = {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/contract-test",
+        "keys": {"p256dh": "A" * 87, "auth": "B" * 22},
+    }
+    check("POST", f"/api/tickets/{proof(21)}/push-subscriptions",
+          "/api/tickets/{token}/push-subscriptions", expected_override="204", json=subscription)
+    check("DELETE", f"/api/tickets/{proof(21)}/push-subscriptions",
+          "/api/tickets/{token}/push-subscriptions", json={"endpoint": subscription["endpoint"]})
     check("POST", f"/api/tickets/{proof(21)}/cancel", "/api/tickets/{token}/cancel")
     queue_id = daily_queue_id(store)
     check("POST", f"/api/staff/queues/{queue_id}/call-next", "/api/staff/queues/{queueId}/call-next",
