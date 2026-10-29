@@ -1,14 +1,19 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { useSession } from "@/lib/session";
+import { restoreSession, useSessionState } from "@/lib/session";
 import { ConfirmAction } from "@/components/confirm-action";
 import { LoadError, LoadingCards } from "@/components/customer-ui";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/staff")({
+  beforeLoad: async () => {
+    if (typeof window === "undefined") return;
+    const session = await restoreSession(api.getCurrentIdentity, api.getCsrfToken);
+    if (!session) throw redirect({ to: "/login" });
+  },
   head: () => ({
     meta: [
       { title: "Staff dashboard — Kezek" },
@@ -21,7 +26,17 @@ export const Route = createFileRoute("/staff")({
 });
 
 function StaffPage() {
-  const session = useSession();
+  const { session, ready } = useSessionState();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (ready && !session) navigate({ to: "/login" });
+  }, [navigate, ready, session]);
+  if (!ready)
+    return (
+      <p role="status" className="text-muted-foreground">
+        Checking your session…
+      </p>
+    );
   if (!session)
     return (
       <p className="text-muted-foreground">

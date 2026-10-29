@@ -1,10 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Building2, MapPin } from "lucide-react";
 import { api, type Role, type StaffUser } from "@/lib/api";
-import { useSession } from "@/lib/session";
+import { restoreSession, useSessionState } from "@/lib/session";
 import { ConfirmAction } from "@/components/confirm-action";
 import { LoadError, LoadingCards } from "@/components/customer-ui";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/admin")({
+  beforeLoad: async () => {
+    if (typeof window === "undefined") return;
+    const session = await restoreSession(api.getCurrentIdentity, api.getCsrfToken);
+    if (!session) throw redirect({ to: "/login" });
+    if (session.user.role !== "admin") throw redirect({ to: "/staff" });
+  },
   head: () => ({
     meta: [
       { title: "Admin — Kezek" },
@@ -42,7 +48,18 @@ function useAct() {
 }
 
 function AdminPage() {
-  const session = useSession();
+  const { session, ready } = useSessionState();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (ready && !session) navigate({ to: "/login" });
+    else if (ready && session?.user.role !== "admin") navigate({ to: "/staff" });
+  }, [navigate, ready, session]);
+  if (!ready)
+    return (
+      <p role="status" className="text-muted-foreground">
+        Checking your session…
+      </p>
+    );
   if (session?.user.role !== "admin")
     return (
       <p className="text-muted-foreground">

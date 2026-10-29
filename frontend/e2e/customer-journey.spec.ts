@@ -571,3 +571,59 @@ test("staff no-show confirmation and essential admin configuration", async ({
   await expect(staff.getByRole("button", { name: renamedBrowserCounterName }).last()).toBeVisible();
   await context.close();
 });
+
+test("cookie sessions restore after reload, enforce roles, and revoke access on logout", async ({
+  page,
+}) => {
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByLabel("Username")).toBeEnabled();
+
+  await page.getByLabel("Username").fill("admin");
+  await page.getByLabel("Password").fill("incorrect-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Invalid username or password");
+
+  await page.getByLabel("Password").fill("admin123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Administration" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Admin", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("kezek-session"))).toBeNull();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Administration" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Admin", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.getByLabel("Username").fill("aigerim");
+  await page.getByLabel("Password").fill("staff123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Service desk" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Admin", exact: true })).toHaveCount(0);
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/staff$/);
+  await expect(page.getByRole("heading", { name: "Service desk" })).toBeVisible();
+});
+
+test("an expired cookie session cannot open a protected dashboard", async ({ page }) => {
+  await page.context().addCookies([
+    {
+      name: "kezek_session",
+      value: "e2e-expired-session",
+      url: "http://127.0.0.1:15173/api",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
+
+  await page.goto("/admin");
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { name: "Administration" })).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("kezek-session"))).toBeNull();
+});

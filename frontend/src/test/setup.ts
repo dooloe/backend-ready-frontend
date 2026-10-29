@@ -1,4 +1,9 @@
 import "@testing-library/jest-dom/vitest";
+import { setSession } from "@/lib/session";
+
+// Rendered route tests run without an HTTP backend; begin with a resolved
+// anonymous browser session so the app bootstrap does not make live requests.
+setSession(null);
 
 Object.defineProperty(window, "scrollTo", {
   writable: true,

@@ -1,13 +1,20 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, usingMock } from "@/lib/api";
-import { setSession } from "@/lib/session";
+import { restoreSession, setSession, useSessionState } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/login")({
+  beforeLoad: async () => {
+    if (typeof window === "undefined") return;
+    const session = await restoreSession(api.getCurrentIdentity, api.getCsrfToken);
+    if (session) {
+      throw redirect({ to: session.user.role === "admin" ? "/admin" : "/staff" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Staff sign in — Kezek" },
@@ -21,19 +28,30 @@ export const Route = createFileRoute("/login")({
 
 function Login() {
   const hydrated = useHydrated();
+  const sessionState = useSessionState();
   const [username, setU] = useState("");
   const [password, setP] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const login = useMutation({
-    mutationFn: () => api.login(username, password),
+    meta: { authFlow: true },
+    mutationFn: async () => {
+      const result = await api.login(username, password);
+      if (!usingMock) await api.getCsrfToken();
+      return result;
+    },
     onSuccess: (s) => {
       queryClient.clear();
-      setSession(s);
+      setSession({ ...s, token: usingMock ? s.token : null });
       setP("");
       navigate({ to: s.user.role === "admin" ? "/admin" : "/staff" });
     },
   });
+  useEffect(() => {
+    if (sessionState.ready && sessionState.session) {
+      navigate({ to: sessionState.session.user.role === "admin" ? "/admin" : "/staff" });
+    }
+  }, [navigate, sessionState.ready, sessionState.session]);
   return (
     <div className="mx-auto max-w-sm rounded-2xl border bg-card p-8">
       <h1 className="text-2xl font-bold">Staff sign in</h1>
@@ -45,7 +63,7 @@ function Login() {
         }}
       >
         <Input
-          disabled={!hydrated}
+          disabled={!hydrated || !sessionState.ready}
           aria-label="Username"
           autoComplete="username"
           required
@@ -55,7 +73,7 @@ function Login() {
         />
         <Input
           type="password"
-          disabled={!hydrated}
+          disabled={!hydrated || !sessionState.ready}
           aria-label="Password"
           autoComplete="current-password"
           required
@@ -68,8 +86,8 @@ function Login() {
             {login.error.message}
           </p>
         )}
-        <Button className="w-full" disabled={!hydrated || login.isPending}>
-          Sign in
+        <Button className="w-full" disabled={!hydrated || !sessionState.ready || login.isPending}>
+          {login.isPending ? "Signing in…" : "Sign in"}
         </Button>
       </form>
       {(import.meta.env.DEV || usingMock) && (

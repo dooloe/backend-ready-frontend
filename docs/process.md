@@ -1472,3 +1472,21 @@ session cookies and CSRF proof. Hosted CI run
 passed lint, typecheck, frontend tests/build, migration/model drift, OpenAPI
 contract parity, backend tests and real-backend desktop/mobile workflows. AC-1
 through AC-3 were verified; #32 was closed.
+
+## 2026-10-29 — Issue #36 cookie session navigation
+
+Staff/admin browser sessions now restore their identity and CSRF proof from
+the HttpOnly cookie after reload. The frontend keeps only the user identity in
+memory, removes any legacy localStorage token, routes unauthenticated users to
+sign-in, routes staff away from admin pages, and clears protected query data on
+logout or a 401/403 response. Added unit coverage for cookie restoration,
+expiry, protected-cache clearing and failed login, plus real-backend browser
+coverage for reload, roles and logout. Fixed a hydration case where the route
+loader ran only on the server and a protected page stayed visible after the
+client session check.
+
+Verification: `npm test` (**92 passed**); `npm run typecheck` passed;
+`npm run lint` passed with zero errors and seven existing Fast Refresh
+warnings; `npm run build` passed; targeted desktop/mobile real-backend
+Playwright authentication checks (**4 passed**). `git diff --check` passed.
+AC-1 through AC-3 for #36 were verified.

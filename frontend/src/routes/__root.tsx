@@ -1,21 +1,28 @@
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
   useRouter,
+  useNavigate,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
-import { setSession, useSession } from "@/lib/session";
+import { restoreSession, setSession, useSessionState } from "@/lib/session";
 import { Ticket, ArrowUpRight } from "lucide-react";
-import { usingMock } from "@/lib/api";
+import { api, usingMock } from "@/lib/api";
 import {
   CustomerLocaleProvider,
   useCustomerLocale,
@@ -143,8 +150,18 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function Nav() {
-  const session = useSession();
+  const { session, ready } = useSessionState();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const logout = useMutation({
+    mutationFn: api.logout,
+    onSuccess: () => {
+      setSession(null);
+      queryClient.clear();
+      navigate({ to: "/login" });
+    },
+    onError: () => toast.error("Could not sign out. Check your connection and try again."),
+  });
   const { locale, setLocale, t } = useCustomerLocale();
   const linkCls = "text-sm text-muted-foreground hover:text-foreground";
   const active = { className: "text-sm font-semibold text-foreground" };
@@ -187,22 +204,20 @@ function Nav() {
         </nav>
         {usingMock && <span className="status-pill">{t("Demo mode")}</span>}
         {session ? (
-          <button
-            className={linkCls}
-            onClick={() => {
-              setSession(null);
-              queryClient.clear();
-            }}
-          >
-            {t("Sign out")}
+          <button className={linkCls} disabled={logout.isPending} onClick={() => logout.mutate()}>
+            {logout.isPending ? "Signing out…" : t("Sign out")}
           </button>
-        ) : (
+        ) : ready ? (
           <Link
             to="/login"
             className="flex items-center gap-1 text-xs font-medium text-muted-foreground sm:text-sm"
           >
             {t("Staff sign in")} <ArrowUpRight size={15} />
           </Link>
+        ) : (
+          <span className="text-xs text-muted-foreground" role="status">
+            Checking session…
+          </span>
         )}
         <label className="sr-only" htmlFor="customer-language">
           {t("Language")}
@@ -228,12 +243,20 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <SessionBootstrap />
       <CustomerLocaleProvider>
         <Nav />
         <MainContent />
       </CustomerLocaleProvider>
     </QueryClientProvider>
   );
+}
+
+function SessionBootstrap() {
+  useEffect(() => {
+    void restoreSession(api.getCurrentIdentity, api.getCsrfToken);
+  }, []);
+  return null;
 }
 
 function MainContent() {

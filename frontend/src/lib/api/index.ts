@@ -10,5 +10,5 @@ setTokenProvider(getToken);
 
 /** Real backend by default. Mock mode requires explicit development opt-in. */
 export const api: KezekApi =
-  import.meta.env["VITE_USE_MOCK"] === "true" ? mockApi : createHttpApi(baseUrl, getToken);
+  import.meta.env["VITE_USE_MOCK"] === "true" ? mockApi : createHttpApi(baseUrl, () => null);
 export const usingMock = import.meta.env["VITE_USE_MOCK"] === "true";
