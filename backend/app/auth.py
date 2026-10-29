@@ -52,19 +52,37 @@ def token_hash(token: str) -> str:
 
 
 bearer = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
+SESSION_COOKIE_NAME = "kezek_session"
+CSRF_COOKIE_NAME = "kezek_csrf"
+CSRF_HEADER_NAME = "x-csrf-token"
+
+
+def request_session_token(request: Request) -> str | None:
+    authorization = request.headers.get("authorization")
+    if authorization is not None:
+        scheme, separator, value = authorization.partition(" ")
+        return value if separator and scheme.lower() == "bearer" and value else None
+    return request.cookies.get(SESSION_COOKIE_NAME)
 
 
 def current_user(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
 ) -> StaffUser:
+    authorization = request.headers.get("authorization")
+    cookie_token = request.cookies.get(SESSION_COOKIE_NAME) if authorization is None else None
+    token = credentials.credentials if credentials is not None else request_session_token(request)
     user = None
-    token = (credentials.credentials if credentials is not None
-             else request.cookies.get("kezek_session"))
     if token:
         user = request.app.state.store.authenticate(token)
     if user is None:
         raise HTTPException(401, "Not authenticated", headers={"WWW-Authenticate": "Bearer"})
+    if (cookie_token is not None and request.method in {"POST", "PUT", "PATCH", "DELETE"}
+            and not request.app.state.store.verify_csrf(
+                cookie_token, request.cookies.get(CSRF_COOKIE_NAME),
+                request.headers.get(CSRF_HEADER_NAME),
+            )):
+        raise HTTPException(403, "CSRF validation failed")
     return user
 
 

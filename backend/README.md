@@ -132,11 +132,13 @@ API documentation: <http://127.0.0.1:8000/docs>. Generated schema:
 In a separate terminal, enable the real HTTP client instead of the browser mock:
 
 ```bash
-VITE_API_BASE_URL=http://127.0.0.1:8000 npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173
+npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173
 ```
 
-Open <http://127.0.0.1:5173>. Setting `VITE_API_BASE_URL` does not include `/api`;
-the frontend already adds that prefix. Restart Vite if its environment changes.
+Open <http://127.0.0.1:5173>. Vite proxies `/api` to the backend on port 8000,
+so browser requests remain same-origin. Set `VITE_API_BASE_URL` to a backend
+origin only for a separate-origin deployment; the frontend adds the `/api`
+prefix. Restart Vite if its environment changes.
 
 ## Demo seed and access
 
@@ -175,11 +177,11 @@ limits at their gateway. Uvicorn access logs omit query strings and redact priva
 ticket IDs. Responses set `Referrer-Policy: no-referrer`; the frontend ticket
 route also declares the same policy in its document metadata.
 
-`CORS_ORIGINS` accepts a comma-separated list of frontend origins. Defaults are
-`http://localhost:5173,http://127.0.0.1:5173`. Browser requests may send
-`Authorization` and `Content-Type`; no wildcard origin is enabled. Cross-origin
-cookie credentials and CSRF protection are tracked separately in #15; use the
-same-origin `/api` proxy for cookie-authenticated browser mutations.
+`CORS_ORIGINS` accepts a comma-separated explicit list of frontend origins.
+Defaults are `http://localhost:5173,http://127.0.0.1:5173`; wildcard origins are
+not accepted. Credentialed CORS permits `Authorization`, `Content-Type`, and
+`X-CSRF-Token`. Same-origin Vite proxying is the preferred development setup.
+Cookie-authenticated mutations require the session-bound CSRF proof.
 
 ## Contract behavior
 

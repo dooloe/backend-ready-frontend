@@ -205,7 +205,7 @@ def test_fresh_file_database_is_initialized_at_alembic_head(tmp_path):
         names = set(inspect(connection).get_table_names())
         version = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
     assert names == set(Base.metadata.tables) | {"alembic_version"}
-    assert version == "7e1cf9d924ab"
+    assert version == "51d968a2c4f0"
     assert {"organizations", "staff_assignments", "daily_queues", "ticket_events"}.issubset(names)
     store.close()
 
@@ -228,11 +228,13 @@ def test_pre_migration_file_database_is_stamped_without_losing_data(tmp_path):
             "INSERT INTO users (id,name,username,role,password_hash) "
             "VALUES ('legacy-user','Legacy Staff','legacy','staff','existing-hash')"
         )
-        session.add(SessionRow(
-            token_hash="f" * 64, user_id="legacy-user",
-            expires_at=datetime(2026, 10, 21, 10, tzinfo=timezone.utc),
-        ))
-        session.flush()
+        # This fixture deliberately writes the legacy schema before the new
+        # CSRF column is added by the startup migration.
+        session.connection().exec_driver_sql(
+            "INSERT INTO sessions (token_hash,user_id,expires_at) "
+            "VALUES (?,?,?)",
+            ("f" * 64, "legacy-user", "2026-10-21 10:00:00"),
+        )
         session.connection().exec_driver_sql(
             "INSERT INTO counters (id,name,is_active,staff_id,deleted) "
             "VALUES ('legacy-counter','Legacy Counter',1,'legacy-user',0)"
@@ -271,7 +273,7 @@ def test_pre_migration_file_database_is_stamped_without_losing_data(tmp_path):
         assert {event.event_type for event in session.scalars(select(TicketEventRow).where(
             TicketEventRow.ticket_id == "legacy-ticket"))} == {"issued", "completed"}
     with migrated.db.engine.connect() as connection:
-        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "7e1cf9d924ab"
+        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "51d968a2c4f0"
     migrated.close()
 
 

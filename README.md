@@ -26,8 +26,9 @@ Ctrl+C stops both servers. `make help` lists commands; custom ports work with
 
 For separate terminals and all configuration details, see
 [backend setup](backend/README.md) and [frontend development](frontend/README.md).
-The frontend uses the real backend at `http://localhost:8000` by default.
-`VITE_API_BASE_URL` overrides this origin. Browser-local mock mode requires
+Vite proxies same-origin `/api` requests to `http://127.0.0.1:8000` by default.
+Set `VITE_API_BASE_URL` only when connecting directly to a separately hosted
+backend with explicit credentialed CORS. Browser-local mock mode requires
 explicit `VITE_USE_MOCK=true` for isolated UI development.
 
 `DATABASE_URL` selects the database, defaulting to `backend/data/kezek.db`.

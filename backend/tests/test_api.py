@@ -459,6 +459,7 @@ def test_every_operation_and_response_matches_contract(client, store, contract, 
     login = check("POST", "/api/auth/login", "/api/auth/login", json={"username": "admin", "password": "admin123"})
     check("GET", "/api/auth/me", "/api/auth/me", headers={"Authorization": "Bearer " + login["token"]})
     headers = {"Authorization": "Bearer " + login["token"]}
+    check("GET", "/api/auth/csrf", "/api/auth/csrf", headers=headers)
     check("GET", "/api/admin/services", "/api/admin/services", headers=headers)
     check("PATCH", f"/api/admin/queues/{queue_id}", "/api/admin/queues/{queueId}",
           headers=headers, json={"isOpen": False})
@@ -511,6 +512,7 @@ def test_every_operation_and_response_matches_contract(client, store, contract, 
     check("GET", "/api/admin/analytics", "/api/admin/analytics", headers=headers)
     check("DELETE", f"/api/admin/services/{service['id']}", "/api/admin/services/{serviceId}", headers=headers)
     check("DELETE", f"/api/admin/counters/{counter['id']}", "/api/admin/counters/{counterId}", headers=headers)
+    check("POST", "/api/auth/logout", "/api/auth/logout", expected_override="204", headers=headers)
     expected = {op["operationId"] for methods in contract["paths"].values() for op in methods.values()}
     assert seen == expected
 
@@ -663,6 +665,7 @@ def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock
     cookie = response.headers["set-cookie"]
     assert "kezek_session=" in cookie and "HttpOnly" in cookie
     assert "Path=/api" in cookie and "SameSite=lax" in cookie and "Max-Age=28800" in cookie
+    assert "kezek_csrf=" in cookie and "Path=/" in cookie
     assert "Secure" not in cookie
     result = response.json()
     assert set(result) == {"token", "user"}
@@ -670,7 +673,8 @@ def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock
     assert len(result["token"]) >= 40
     with store.db.session() as session:
         assert session.get(SessionRow, result["token"]) is None
-        assert session.get(SessionRow, token_hash(result["token"])) is not None
+        session_row = session.get(SessionRow, token_hash(result["token"]))
+        assert session_row is not None and session_row.csrf_token_hash is not None
         record = session.get(UserRow, "stf-admin")
     assert record.password_hash.startswith("$argon2id$")
     assert verify_password("admin123", record.password_hash)
@@ -700,7 +704,41 @@ def test_login_cookie_is_secure_when_requested_over_https(store):
         })
     cookie = response.headers["set-cookie"]
     assert "kezek_session=" in cookie and "HttpOnly" in cookie
+    assert "kezek_csrf=" in cookie
     assert "Secure" in cookie and "SameSite=lax" in cookie
+
+
+def test_cookie_mutations_require_session_bound_csrf_and_logout_revokes_session(client, store):
+    login = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+    assert login.status_code == 200
+    bearer_token = login.json()["token"]
+    csrf = client.get("/api/auth/csrf")
+    assert csrf.status_code == 200 and csrf.headers["cache-control"] == "no-store", csrf.text
+    csrf_token = csrf.json()["csrfToken"]
+    assert len(csrf_token) == 43 and csrf_token != bearer_token
+
+    queue = daily_queue_id(store)
+    path = f"/api/admin/queues/{queue}"
+    body = {"isOpen": False}
+    assert client.patch(path, json=body).status_code == 403
+    assert client.patch(path, headers={"X-CSRF-Token": "invalid"}, json=body).status_code == 403
+
+    # A second login rotates the session-bound proof, invalidating the old one.
+    rotated = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+    assert rotated.status_code == 200
+    assert client.patch(path, headers={"X-CSRF-Token": csrf_token}, json=body).status_code == 403
+    new_csrf = client.get("/api/auth/csrf").json()["csrfToken"]
+    assert client.patch(path, headers={"X-CSRF-Token": new_csrf}, json=body).status_code == 200
+    assert client.post("/api/auth/logout").status_code == 403
+    assert client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf_token}).status_code == 403
+
+    logout = client.post("/api/auth/logout", headers={"X-CSRF-Token": new_csrf})
+    assert logout.status_code == 204 and logout.content == b""
+    assert "Max-Age=0" in logout.headers["set-cookie"]
+    assert client.get("/api/auth/me").status_code == 401
+    assert client.get("/api/auth/csrf").status_code == 401
+    with store.db.session() as session:
+        assert session.get(SessionRow, token_hash(rotated.json()["token"])) is None
 
 
 def test_password_hashes_are_salted():

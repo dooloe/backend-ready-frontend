@@ -156,15 +156,48 @@ class DatabaseStore:
         return Counter(id=row.id, name=row.name, serviceIds=ids, isActive=row.isActive, staffId=row.staffId)
 
     def login(self, request: LoginRequest) -> LoginResponse:
+        response, _ = self._login(request, issue_csrf=False)
+        return response
+
+    def login_with_csrf(self, request: LoginRequest) -> tuple[LoginResponse, str]:
+        return self._login(request, issue_csrf=True)
+
+    def _login(self, request: LoginRequest, *, issue_csrf: bool):
         with self.db.session(write=True) as session:
             row = session.scalar(select(UserRow).where(UserRow.username == request.username))
             valid = verify_password(request.password, row.password_hash if row else _DUMMY_PASSWORD_HASH)
             if row is None or not row.is_active or not valid:
                 raise HTTPException(401, "Invalid username or password", headers={"WWW-Authenticate": "Bearer"})
             token = secrets.token_urlsafe(32)
+            csrf_token = secrets.token_urlsafe(32) if issue_csrf else None
             session.add(SessionRow(token_hash=token_hash(token), user_id=row.id,
-                                   expires_at=self.clock() + timedelta(hours=8)))
-            return LoginResponse(token=token, user=self._user(row))
+                                   expires_at=self.clock() + timedelta(hours=8),
+                                   csrf_token_hash=token_hash(csrf_token) if csrf_token else None))
+            response = LoginResponse(token=token, user=self._user(row))
+            return (response, csrf_token) if csrf_token is not None else (response, None)
+
+    def verify_csrf(self, session_token: str, cookie_token: str | None, header_token: str | None) -> bool:
+        if (not self._valid_proof(session_token) or not self._valid_proof(cookie_token)
+                or not self._valid_proof(header_token)
+                or not hmac.compare_digest(cookie_token, header_token)):
+            return False
+        with self.db.session() as session:
+            row = session.get(SessionRow, token_hash(session_token))
+            return (row is not None and row.expires_at > self.clock()
+                    and row.csrf_token_hash is not None
+                    and hmac.compare_digest(token_hash(cookie_token), row.csrf_token_hash))
+
+    def logout(self, session_token: str) -> bool:
+        if not self._valid_proof(session_token):
+            return False
+        with self.db.session(write=True) as session:
+            row = session.get(SessionRow, token_hash(session_token))
+            if row is None or row.expires_at <= self.clock():
+                if row is not None:
+                    session.delete(row)
+                return False
+            session.delete(row)
+            return True
 
     def authenticate(self, token: str) -> StaffUser | None:
         with self.db.session(write=True) as session:

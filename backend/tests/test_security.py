@@ -69,6 +69,36 @@ def test_referrer_policy_is_applied_to_success_and_error_responses(client):
     assert failure.headers["referrer-policy"] == "no-referrer"
 
 
+def test_credentialed_cors_allows_configured_origins_and_rejects_untrusted_login(client):
+    origin = "http://localhost:5173"
+    preflight = client.options("/api/admin/services", headers={
+        "Origin": origin,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type,x-csrf-token",
+    })
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == origin
+    assert preflight.headers["access-control-allow-credentials"] == "true"
+    assert "x-csrf-token" in preflight.headers["access-control-allow-headers"].lower()
+
+    rejected_preflight = client.options("/api/admin/services", headers={
+        "Origin": "https://untrusted.example",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type,x-csrf-token",
+    })
+    assert rejected_preflight.status_code == 400
+    assert "access-control-allow-origin" not in rejected_preflight.headers
+    rejected_login = client.post("/api/auth/login", headers={"Origin": "https://untrusted.example"},
+                                json={"username": "admin", "password": "admin123"})
+    assert rejected_login.status_code == 403
+    allowed_login = client.post("/api/auth/login", headers={"Origin": origin},
+                                json={"username": "admin", "password": "admin123"})
+    assert allowed_login.status_code == 200
+    assert allowed_login.headers["access-control-allow-origin"] == origin
+    assert allowed_login.headers["access-control-allow-credentials"] == "true"
+    assert "kezek_session=" in allowed_login.headers["set-cookie"]
+
+
 def test_access_log_filter_redacts_ticket_paths_and_all_query_strings():
     access_filter = SensitiveAccessLogFilter()
     samples = [

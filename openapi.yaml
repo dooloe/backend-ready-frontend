@@ -3,7 +3,7 @@ info:
   title: Kezek — Frontend and Backend API Contract
   version: 0.1.0
   description: Derived primarily from frontend/src/lib/api/http.ts, types.ts and mock.ts, with implemented
-    backend extensions for current identity and private-ticket Web Push. This documents the current API
+    backend extensions for cookie authentication, CSRF, logout, current identity and private-ticket Web Push. This documents the current API
     implementation, not the future API in docs/plan.md. VITE_API_BASE_URL
     is an origin/base prefix; mapped paths already include /api. All request/response JSON uses camelCase.
     Protected calls accept an opaque bearer token or the HttpOnly kezek_session cookie; role requirements come from mock.ts because
@@ -292,8 +292,8 @@ paths:
       tags:
       - Auth
       summary: Authenticate staff or admin
-      description: 'Public credential exchange. Returns token and user; subsequent protected calls send
-        Authorization: Bearer <token>. There are no logout or current-user HTTP operations in this client.'
+      description: 'Public credential exchange. Sets an HttpOnly kezek_session cookie and a readable,
+        session-bound kezek_csrf cookie. The transitional JSON token remains for existing bearer clients.'
       responses:
         '200':
           description: Success; JSON body required. The client also accepts another successful 2xx status
@@ -331,6 +331,44 @@ paths:
                 $ref: '#/components/schemas/StaffUser'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+  /api/auth/csrf:
+    get:
+      operationId: getCsrfToken
+      tags:
+      - Auth
+      summary: Get the session-bound CSRF proof
+      description: Returns the CSRF cookie value only when it matches the authenticated session's stored hash.
+      responses:
+        '200':
+          description: CSRF proof for protected cookie-authenticated mutations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+      security:
+      - BearerAuth: []
+  /api/auth/logout:
+    post:
+      operationId: logout
+      tags:
+      - Auth
+      summary: Revoke the current staff/admin session
+      description: Revokes the persisted session and clears session and CSRF cookies. Cookie requests require X-CSRF-Token.
+      responses:
+        '204':
+          description: Session revoked and cookies expired.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         default:
           $ref: '#/components/responses/UnexpectedError'
       security:
@@ -1810,6 +1848,14 @@ components:
           description: Bearer access token; no JWT format is assumed.
         user:
           $ref: '#/components/schemas/StaffUser'
+    CsrfTokenResponse:
+      type: object
+      additionalProperties: false
+      required: [csrfToken]
+      properties:
+        csrfToken:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
     QueueView:
       type: object
       required:

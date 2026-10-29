@@ -54,7 +54,8 @@ def create_app(store: DatabaseStore | None = None, *, database_url: str | None =
         CORSMiddleware,
         allow_origins=origins,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-CSRF-Token"],
+        allow_credentials=True,
     )
 
     install_error_handlers(application)

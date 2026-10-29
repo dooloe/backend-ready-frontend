@@ -5,8 +5,7 @@ import type { KezekApi } from "./types";
 
 export * from "./types";
 
-const baseUrl =
-  (import.meta.env["VITE_API_BASE_URL"] as string | undefined) ?? "http://localhost:8000";
+const baseUrl = (import.meta.env["VITE_API_BASE_URL"] as string | undefined) ?? "";
 setTokenProvider(getToken);
 
 /** Real backend by default. Mock mode requires explicit development opt-in. */

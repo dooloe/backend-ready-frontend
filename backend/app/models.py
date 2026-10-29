@@ -96,6 +96,10 @@ class LoginResponse(Model):
     user: StaffUser
 
 
+class CsrfTokenResponse(Model):
+    csrfToken: str
+
+
 class JoinQueueRequest(Model):
     serviceId: str
     customerName: str

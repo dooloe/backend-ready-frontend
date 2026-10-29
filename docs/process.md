@@ -1420,3 +1420,26 @@ tests passed (**82 tests**), typecheck, lint and production build passed, and
 real-backend desktop/mobile browser workflows passed (**8**). Hosted CI run
 [40853309908](https://github.com/dooloe/backend-ready-frontend/actions/runs/40853309908)
 passed all gates. All four acceptance criteria were checked and #55 was closed.
+
+## 2026-10-29 — Issue #15 cookie CSRF, logout and browser proxy
+
+Added a session-bound CSRF token hash and migration. Cookie-authenticated
+mutations now require the matching readable CSRF cookie and `X-CSRF-Token`
+header; bearer-authenticated requests retain compatibility during the client
+migration. Login sets HttpOnly session and readable CSRF cookies, validates a
+present Origin against the request origin or explicit configured CORS origins,
+and logout revokes the session and clears both cookies. Added `/api/auth/csrf`
+and `/api/auth/logout`, explicit credentialed CORS headers, a same-origin Vite
+`/api` proxy, and docs for the browser/backend contract. The E2E server config
+now points the proxy at its isolated backend so the browser workflow exercises
+the real proxy path.
+
+Verification: full backend suite **210 passed**; focused CSRF/logout, CORS and
+OpenAPI parity tests **4 passed**; the legacy-schema migration fixture **1
+passed**; temporary SQLite
+`alembic upgrade head` and `alembic check` passed; frontend typecheck and
+production build passed; lint has zero errors and seven existing Fast Refresh
+warnings; Vitest **82 passed**; real-backend desktop/mobile Playwright **8
+passed** through the same-origin proxy. The first full backend run found a
+legacy fixture issue; the fixture was corrected and the full suite passed on
+rerun. Hosted verification is still required before Issue #15 can be closed.

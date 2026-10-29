@@ -19,7 +19,11 @@ export default defineConfig({
     {
       command: "npm run dev -- --host 127.0.0.1 --port 15173 --strictPort",
       url: "http://127.0.0.1:15173",
-      env: { VITE_API_BASE_URL: "http://127.0.0.1:18765", VITE_USE_MOCK: "false" },
+      env: {
+        VITE_API_BASE_URL: "",
+        VITE_API_PROXY_TARGET: "http://127.0.0.1:18765",
+        VITE_USE_MOCK: "false",
+      },
       reuseExistingServer: false,
       timeout: 30000,
     },
