@@ -293,8 +293,9 @@ test("staff no-show confirmation and essential admin configuration", async ({
     timeout: 12000,
   });
   await staff.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(staff).toHaveURL(/\/login$/);
   await staff.goto("http://127.0.0.1:15173/admin");
-  await expect(staff.getByText("Admins only.")).toBeVisible();
+  await expect(staff).toHaveURL(/\/login$/);
   const expiredContext = await browser.newContext({ viewport: page.viewportSize() });
   const expiredStaff = await expiredContext.newPage();
   await expiredStaff.addInitScript(() => {
@@ -316,9 +317,8 @@ test("staff no-show confirmation and essential admin configuration", async ({
   });
   expect(expiredResponse.status()).toBe(401);
   await expiredStaff.goto("http://127.0.0.1:15173/staff");
-  await expect(expiredStaff.getByRole("alert")).toContainText("Couldn’t load your counters", {
-    timeout: 15000,
-  });
+  await expect(expiredStaff).toHaveURL(/\/login$/);
+  await expect(expiredStaff.getByRole("heading", { name: "Service desk" })).toHaveCount(0);
   await expiredContext.close();
   await staff.goto("http://127.0.0.1:15173/login");
   await expect(staff.getByLabel("Username")).toBeEnabled();
