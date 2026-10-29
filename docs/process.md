@@ -1467,5 +1467,8 @@ full frontend Vitest **88
 passed**; typecheck passed; lint has zero errors and seven Fast Refresh
 warnings; production build passed; real-backend desktop/mobile Playwright **8
 passed** through the same-origin proxy, including staff/admin flows using
-session cookies and CSRF proof. Hosted CI verification is pending; Issue #32
-remains open until the hosted gates pass.
+session cookies and CSRF proof. Hosted CI run
+[40868078457](https://github.com/dooloe/backend-ready-frontend/actions/runs/40868078457)
+passed lint, typecheck, frontend tests/build, migration/model drift, OpenAPI
+contract parity, backend tests and real-backend desktop/mobile workflows. AC-1
+through AC-3 were verified; #32 was closed.
