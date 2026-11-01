@@ -99,6 +99,39 @@ def test_credentialed_cors_allows_configured_origins_and_rejects_untrusted_login
     assert "kezek_session=" in allowed_login.headers["set-cookie"]
 
 
+def test_network_frontend_origin_allows_cookie_admin_login_and_csrf(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    origin = "http://172.22.159.149:8080"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'network-origin.db'}")
+    # Simulate a running Makefile launch with a stale local-only CORS list.
+    monkeypatch.setenv("CORS_ORIGINS", "http://localhost:5173")
+    with TestClient(create_app()) as client:
+        login = client.post("/api/auth/login", headers={"Origin": origin}, json={
+            "username": "admin", "password": "admin123",
+        })
+        assert login.status_code == 200
+        assert login.headers["access-control-allow-origin"] == origin
+        assert login.headers["access-control-allow-credentials"] == "true"
+        assert login.json()["user"]["role"] == "admin"
+
+        csrf = client.get("/api/auth/csrf", headers={"Origin": origin})
+        assert csrf.status_code == 200
+        assert csrf.headers["access-control-allow-origin"] == origin
+        identity = client.get("/api/auth/me", headers={"Origin": origin})
+        assert identity.status_code == 200
+        assert identity.json()["role"] == "admin"
+
+        update = client.patch("/api/admin/services/svc-reg", headers={
+            "Origin": origin,
+            "X-CSRF-Token": csrf.json()["csrfToken"],
+        }, json={"name": "Origin check passed"})
+        assert update.status_code == 200
+        assert update.headers["access-control-allow-origin"] == origin
+
+
 def test_access_log_filter_redacts_ticket_paths_and_all_query_strings():
     access_filter = SensitiveAccessLogFilter()
     samples = [

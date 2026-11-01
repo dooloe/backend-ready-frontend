@@ -19,12 +19,16 @@ non-failing and remain visible.
 For local development against the running FastAPI backend:
 
 ```sh
-VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
+The development server proxies same-origin `/api` requests to
+`http://127.0.0.1:8000` by default. Set `VITE_API_PROXY_TARGET` if the backend
+uses another local port. Set `VITE_API_BASE_URL` only when connecting directly to
+a separately hosted backend, and configure its exact credentialed CORS origin.
 Set `VITE_API_BASE_URL` for builds too when connecting a built frontend to the
-backend. The default backend origin is `http://localhost:8000`. Browser-local mocks
-require explicit `VITE_USE_MOCK=true` and have separate data and login state.
+backend. Browser-local mocks require explicit `VITE_USE_MOCK=true` and have
+separate data and login state.
 See [backend setup](../backend/README.md) for the API, SQLite connection settings
 and development accounts.
 

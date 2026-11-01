@@ -9,14 +9,14 @@ BACKEND_PYTHON := $(VENV)/bin/python
 HOST ?= 127.0.0.1
 BACKEND_PORT ?= 8000
 FRONTEND_PORT ?= 5173
-API_URL ?= http://127.0.0.1:$(BACKEND_PORT)
-CORS_ORIGINS ?= http://localhost:$(FRONTEND_PORT),http://127.0.0.1:$(FRONTEND_PORT)
+API_URL ?=
+CORS_ORIGINS ?= http://localhost:$(FRONTEND_PORT),http://127.0.0.1:$(FRONTEND_PORT),http://172.22.159.149:8080
 DATABASE_URL ?= sqlite:///$(abspath backend/data/kezek.db)
 SEED_DEMO_DATA ?= true
 export DATABASE_URL SEED_DEMO_DATA
 
 BACKEND_COMMAND = env CORS_ORIGINS="$(CORS_ORIGINS)" "$(BACKEND_PYTHON)" -m uvicorn app.main:app --app-dir backend --host "$(HOST)" --port "$(BACKEND_PORT)" --reload
-FRONTEND_COMMAND = env VITE_API_BASE_URL="$(API_URL)" $(NPM) --prefix frontend run dev -- --host "$(HOST)" --port "$(FRONTEND_PORT)" --strictPort
+FRONTEND_COMMAND = env VITE_API_BASE_URL="$(API_URL)" VITE_API_PROXY_TARGET="http://127.0.0.1:$(BACKEND_PORT)" $(NPM) --prefix frontend run dev -- --host "$(HOST)" --port "$(FRONTEND_PORT)" --strictPort
 
 .PHONY: help install install-backend install-frontend dev run backend frontend check-backend test test-backend test-frontend build
 

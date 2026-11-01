@@ -7,6 +7,8 @@ from urllib.parse import urlsplit
 
 from sqlalchemy.engine import make_url
 
+NETWORK_FRONTEND_ORIGIN = "http://172.22.159.149:8080"
+
 
 def _validated_database_url(value: str) -> str:
     try:
@@ -36,7 +38,12 @@ def boolean_setting(name: str, default: str) -> bool:
 
 def origin_settings() -> tuple[str, ...]:
     origins = []
-    for value in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(","):
+    configured_origins = os.getenv(
+        "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173",
+    )
+    # This workspace is also served through its fixed network preview address.
+    # Keep that one origin available even when Make passes a custom local list.
+    for value in (*configured_origins.split(","), NETWORK_FRONTEND_ORIGIN):
         value = value.strip()
         if not value:
             continue
