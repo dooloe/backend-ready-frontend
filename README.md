@@ -49,6 +49,20 @@ cd backend
 
 All sample organizations are labeled Demo. Existing organizations and tickets remain intact. Staff demo accounts are listed in [the local demo guide](docs/redesign.md).
 
+## Docker
+
+Build the frontend and Python API image from the repository root, then run the
+combined application on port 8000:
+
+```sh
+docker build -t kezek .
+docker run --rm -p 8000:8000 -v kezek-data:/app/data kezek
+```
+
+FastAPI serves the generated frontend shell and static assets alongside `/api`.
+The named volume keeps the default SQLite database across container recreation.
+Set `DATABASE_URL` to use another database connection.
+
 ## Verification and contributor workflow
 
 ```sh

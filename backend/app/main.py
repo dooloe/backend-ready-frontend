@@ -1,9 +1,12 @@
 """ASGI entry point with a DATABASE_URL-configured SQLAlchemy store."""
 
 from contextlib import asynccontextmanager
+import os
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from .routers import admin, auth, public, staff
 from .settings import Settings
@@ -62,6 +65,31 @@ def create_app(store: DatabaseStore | None = None, *, database_url: str | None =
 
     for router in (public.router, auth.router, staff.router, admin.router):
         application.include_router(router)
+
+    frontend_static_dir = os.getenv("FRONTEND_STATIC_DIR")
+    if frontend_static_dir:
+        static_root = Path(frontend_static_dir).resolve()
+        shell_path = static_root / "_shell.html"
+
+        @application.get("/{frontend_path:path}", include_in_schema=False)
+        def serve_frontend(frontend_path: str, request: Request):
+            if frontend_path == "api" or frontend_path.startswith("api/"):
+                raise HTTPException(404, "Not found")
+
+            file_path = (static_root / frontend_path).resolve()
+            if file_path.is_relative_to(static_root) and file_path.is_file():
+                headers = (
+                    {"Cache-Control": "public, max-age=31536000, immutable"}
+                    if frontend_path.startswith("assets/") else None
+                )
+                return FileResponse(file_path, headers=headers)
+
+            if "text/html" not in request.headers.get("accept", ""):
+                raise HTTPException(404, "Not found")
+            if not shell_path.is_file():
+                raise HTTPException(503, "Frontend shell is unavailable")
+            return FileResponse(shell_path)
+
     install_access_log_redaction()
     return SafeErrorBoundary(application)
 
