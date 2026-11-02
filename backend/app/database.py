@@ -81,6 +81,9 @@ class Database:
             code = getattr(exc.orig, "sqlite_errorcode", 0) or 0
             if self.is_sqlite and (code & 255) in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
                 raise HTTPException(503, "Database busy; retry the request", headers={"Retry-After": "1"}) from exc
+            sqlstate = getattr(exc.orig, "sqlstate", None) or getattr(exc.orig, "pgcode", None)
+            if not self.is_sqlite and sqlstate in {"40001", "40P01", "55P03"}:
+                raise HTTPException(503, "Database busy; retry the request", headers={"Retry-After": "1"}) from exc
             raise
 
     def create_schema(self):

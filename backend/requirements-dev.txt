@@ -36,6 +36,8 @@ pycparser==3.12
 py-vapid==1.9.6
 pywebpush==2.5.0
 propcache==0.5.4
+psycopg==3.3.6
+psycopg-binary==3.3.6
 pytest==9.1.1
 PyYAML==6.0.3
 referencing==0.37.0
