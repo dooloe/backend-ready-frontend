@@ -24,8 +24,9 @@ backend/.venv/bin/python -m pytest backend/tests -q
 backend/.venv/bin/python -m uvicorn app.main:app --app-dir backend --reload
 ```
 
-For runtime dependencies alone, install `backend/requirements.txt`. The `.in`
-files declare direct dependencies; the `.txt` files pin the tested resolution.
+For runtime dependencies alone, install `backend/requirements.txt`. It includes
+the PostgreSQL Psycopg driver. The `.in` files declare direct dependencies; the
+`.txt` files pin the tested resolution.
 
 ## Database configuration
 
@@ -114,10 +115,19 @@ including on existing databases. This never resets existing records.
 
 The ORM models, normalized relationships, UTC timestamp type and store queries
 use portable SQLAlchemy constructs. Driver configuration and SQLite-specific
-pragmas/locking are isolated in `app/database.py`. A future PostgreSQL setup can
-use a URL such as `postgresql+psycopg://user:password@host/database` after adding
-its driver and running integration tests. PostgreSQL schema compilation is
-checked, but a live PostgreSQL server is not yet supported by verified tests.
+pragmas/locking are isolated in `app/database.py`. PostgreSQL uses
+`postgresql+psycopg://user:password@host/database`; its migrations, locking,
+read/write API flow and session persistence are covered by the live test in
+`tests/test_postgresql.py` when `KEZEK_POSTGRES_TEST_URL` points to a disposable
+database whose name contains `test`. The test creates and drops a unique schema.
+
+Use `docker compose up -d --build` for the combined PostgreSQL deployment. Its
+named volume is `postgres-data`. Existing SQLite deployments can be copied with
+`python -m app.sqlite_import --source /path/to/kezek.db` while `DATABASE_URL`
+points at an empty PostgreSQL database. The command snapshots SQLite read-only,
+validates source integrity and foreign keys, verifies row counts, and refuses to
+merge into populated PostgreSQL tables. The containerized import procedure and
+rollback precautions are documented in the root README.
 
 SQLite mutations use a write reservation before mutable reads, with a bounded
 10-second lock wait. Other row-locking engines use a transactional singleton

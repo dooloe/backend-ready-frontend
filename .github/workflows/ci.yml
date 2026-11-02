@@ -16,6 +16,20 @@ jobs:
   verify:
     name: Frontend, backend, migrations, and browser workflows
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kezek_test
+          POSTGRES_USER: kezek
+          POSTGRES_PASSWORD: kezek_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kezek -d kezek_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -81,6 +95,11 @@ jobs:
       - name: Test backend
         run: backend/.venv/bin/python -m pytest backend/tests -q -p no:cacheprovider
 
+      - name: Exercise application against live PostgreSQL
+        env:
+          KEZEK_POSTGRES_TEST_URL: postgresql+psycopg://kezek:kezek_test_only@127.0.0.1:5432/kezek_test
+        run: backend/.venv/bin/python -m pytest backend/tests/test_postgresql.py -q -p no:cacheprovider
+
       - name: Install Chromium and system dependencies
         working-directory: frontend
         run: npx playwright install --with-deps chromium
@@ -88,3 +107,6 @@ jobs:
       - name: Run real-backend desktop and mobile workflows
         working-directory: frontend
         run: npm run test:e2e
+
+      - name: Verify PostgreSQL data through the browser across container recreation
+        run: bash scripts/test-postgres-e2e.sh

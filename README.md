@@ -3,7 +3,8 @@
 Kezek helps visitors discover participating organizations, check service queues,
 join without an account, and follow a private digital ticket. The customer
 experience and staff queue workflow use the existing React/TanStack frontend,
-FastAPI API and persistent SQLite backend. Development startup includes clearly
+FastAPI API and SQLAlchemy-backed database. PostgreSQL is the container runtime;
+SQLite remains the local development default. Development startup includes clearly
 labeled demo organizations; they are examples, not real service providers.
 
 See the [customer journey and demo credentials](docs/redesign.md),
@@ -33,8 +34,7 @@ explicit `VITE_USE_MOCK=true` for isolated UI development.
 
 `DATABASE_URL` selects the database, defaulting to `backend/data/kezek.db`.
 Export environment settings from [the example](backend/.env.example); it is not
-automatically loaded. SQLite is tested; PostgreSQL driver integration is future
-work. Startup applies Alembic migrations without resetting existing data. With
+automatically loaded. Both SQLite and PostgreSQL are supported. Startup applies Alembic migrations without resetting existing data. With
 `APP_ENV=development` and `SEED_DEMO_DATA=true`, startup adds any missing Demo
 organizations and staff accounts to new and existing databases.
 
@@ -49,19 +49,50 @@ cd backend
 
 All sample organizations are labeled Demo. Existing organizations and tickets remain intact. Staff demo accounts are listed in [the local demo guide](docs/redesign.md).
 
-## Docker
+## Docker with PostgreSQL
 
-Build the frontend and Python API image from the repository root, then run the
-combined application on port 8000:
+The Compose stack builds the frontend and Python API into one application image
+and runs PostgreSQL as its persistent database. Choose a URL-safe password for
+this Compose configuration and export it before starting:
 
 ```sh
-docker build -t kezek .
-docker run --rm -p 8000:8000 -v kezek-data:/app/data kezek
+export POSTGRES_PASSWORD='choose-a-long-url-safe-password'
+docker compose up -d --build
 ```
 
-FastAPI serves the generated frontend shell and static assets alongside `/api`.
-The named volume keeps the default SQLite database across container recreation.
-Set `DATABASE_URL` to use another database connection.
+Open <http://127.0.0.1:8000>. FastAPI serves the generated frontend and `/api`
+from the same origin. The named `postgres-data` volume survives app and database
+container recreation; `docker compose down -v` intentionally deletes it. Set
+`APP_ENV=production` and `SEED_DEMO_DATA=false` for production deployments, and
+provision production accounts through the deployment's approved process.
+
+### Import an existing SQLite database
+
+The importer takes a consistent SQLite online-backup snapshot, migrates that
+snapshot, validates its integrity and foreign keys, then copies all application
+records in a transaction to an empty PostgreSQL database. It never writes to or
+deletes the original SQLite file. Keep a separate backup before migration.
+Import before starting the app for the first time, because the importer refuses
+to merge into a database that already has application records:
+
+```sh
+export POSTGRES_PASSWORD='choose-a-long-url-safe-password'
+docker compose up -d db
+docker compose run --build --rm \
+  -v "$PWD/backend/data/kezek.db:/import/kezek.db:ro" \
+  --entrypoint python app -m app.sqlite_import --source /import/kezek.db
+docker compose up -d app
+```
+
+After verifying the new deployment, retain the SQLite database and its backup
+according to your data-retention policy. Do not use `docker compose down -v` on
+a volume containing data you need.
+
+The backend has a live PostgreSQL integration test. The dedicated Playwright
+workflow starts an isolated Compose project, creates a customer ticket through
+the served frontend, recreates the app and PostgreSQL containers, and confirms
+the private ticket still loads. Run it with `bash scripts/test-postgres-e2e.sh`;
+it removes only the uniquely named test project's volume when it exits.
 
 ## Verification and contributor workflow
 

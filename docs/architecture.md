@@ -1,8 +1,8 @@
 # Kezek — MVP Architecture
 
-**Status:** Selected architecture; implementation is pending.  
-**Scope:** Local/demo MVP defined in [plan.md](plan.md).  
-**Selected option:** Existing React frontend + FastAPI + SQLAlchemy + SQLite.
+**Status:** Current implementation architecture.
+**Scope:** Existing application and the local/demo MVP defined in [plan.md](plan.md).
+**Selected option:** Existing React frontend + FastAPI + SQLAlchemy; SQLite for local development and PostgreSQL for container deployments.
 
 This document describes the intended architecture, not completed functionality. The plan remains the source of truth for product scope and acceptance criteria. Preserve working frontend code and record justified deviations in `docs/decisions.md` before implementation.
 
@@ -16,7 +16,7 @@ This document describes the intended architecture, not completed functionality. 
 | Server state | TanStack Query | Fetching, cache invalidation, polling and request states |
 | API client | Central `frontend/src/lib/api` facade | One typed boundary between UI and backend |
 | Backend | Python, FastAPI, Pydantic, Uvicorn | REST endpoints, validation and application server |
-| Persistence | SQLAlchemy 2.x, SQLite | Relational data and transactional queue operations |
+| Persistence | SQLAlchemy 2.x, SQLite and PostgreSQL | Relational data and transactional queue operations |
 | Migrations | Alembic | Versioned database schema changes |
 | API contract | REST, OpenAPI | Documented requests, responses, errors and permissions |
 | Authentication | Server-managed sessions, HttpOnly cookies | Staff/admin authentication |
@@ -34,11 +34,11 @@ flowchart TD
     Client -->|REST JSON /api| Routes[FastAPI routers + Pydantic schemas]
     Routes --> Services[Domain services + authorization]
     Services --> Repositories[SQLAlchemy repositories]
-    Repositories --> DB[(SQLite database)]
+    Repositories --> DB[(SQLite or PostgreSQL database)]
     Alembic[Alembic migrations] --> DB
 ```
 
-The frontend presents data and collects user intent. FastAPI is authoritative for permissions, queue availability, ticket positions, state transitions and analytics. SQLite is the durable source of truth. Browser caches and mocks never determine the actual queue state.
+The frontend presents data and collects user intent. FastAPI is authoritative for permissions, queue availability, ticket positions, state transitions and analytics. The configured SQL database is the durable source of truth. Browser caches and mocks never determine the actual queue state.
 
 ## 3. Application structure
 
@@ -98,9 +98,9 @@ Calculate position from authoritative waiting tickets. Estimate wait using waiti
 
 ## 6. Persistence and concurrency
 
-SQLite is selected for a reproducible local/demo setup. Keep its database file on local persistent storage, outside source control. Enable foreign keys on every connection, configure a bounded busy timeout and use WAL mode to improve reader/writer coexistence. WAL still permits only one writer at a time.
+SQLite remains the reproducible local/demo default. PostgreSQL is the Docker Compose runtime and should use its named persistent volume or managed persistent storage. Enable SQLite foreign keys on every connection, configure its bounded busy timeout and use WAL mode to improve reader/writer coexistence. PostgreSQL uses transactional row locking through the singleton store-state row. Both backends run the same Alembic migrations and SQLAlchemy models.
 
-Use one database session per request, short transactions and a deliberate writer-locking strategy for queue mutations. For read-then-write operations such as join and call-next, acquire the SQLite write reservation before reading mutable queue state, for example with a correctly configured `BEGIN IMMEDIATE` transaction. An in-process mutex alone is insufficient across processes.
+Use one database session per request, short transactions and a deliberate writer-locking strategy for queue mutations. For read-then-write operations such as join and call-next, SQLite acquires a write reservation before reading mutable queue state; PostgreSQL locks the singleton store-state row. An in-process mutex alone is insufficient across processes.
 
 - **Join:** validate queue availability, resolve idempotency, allocate the daily sequence, insert the ticket and append its event in one transaction.
 - **Call next:** validate staff assignment and counter availability, select the oldest waiting ticket, assign it and append its event in one transaction.
@@ -110,7 +110,7 @@ Enforce uniqueness for service/date queues, queue/sequence numbers, queue/ticket
 
 Define and test retry semantics for join before implementation, including a lost creation response: retries must not issue another ticket, and the token strategy must remain compatible with hash-only token storage. Handle database lock contention with bounded retries or a structured retryable error, never an unbounded wait.
 
-Start with a single backend application worker for the demo; database transactions and constraints must still enforce correctness. A move to PostgreSQL requires migrations, revised locking and concurrency tests rather than only a connection-string change.
+Start with a single backend application worker for the demo; database transactions and constraints must still enforce correctness. The SQLite importer takes a read-only source snapshot, validates it, and imports into an empty PostgreSQL destination transactionally. PostgreSQL integration tests exercise actual API reads and writes; the Docker Playwright check confirms data remains available after app and database container recreation.
 
 ## 7. Authentication and authorization
 
@@ -124,7 +124,7 @@ Every protected service operation verifies role, organization and any required c
 
 ## 8. Local operation and configuration
 
-Run the frontend development server and FastAPI as separate processes. Configure API routing, the SQLite path, session secrets and allowed origins through documented environment variables. Keep `.env`, database files and credentials out of Git; provide non-secret `.env.example` files.
+Run the frontend development server and FastAPI as separate processes for local development. Configure API routing, `DATABASE_URL`, session settings and allowed origins through documented environment variables. Docker Compose runs FastAPI with PostgreSQL and serves the built frontend from the same origin. Keep `.env`, database files and credentials out of Git; provide non-secret `.env.example` files.
 
 Apply Alembic migrations before startup against a fresh database. Provide a repeatable development seed containing an organization, services, counters and clearly labeled demo staff/admin accounts. Restarting the backend must preserve tickets and their history.
 
@@ -134,6 +134,7 @@ Redis, background workers, message brokers, WebSockets and notification provider
 
 - **Backend:** Pytest verifies state transitions, organization isolation, assignments, timezone boundaries, private-token access, idempotency, analytics and persistence after restart.
 - **Concurrency:** parallel API requests against an isolated file-backed SQLite database verify distinct ticket numbers, single ticket assignment and the one-active-ticket-per-counter rule. Exercise the actual transaction configuration.
+- **PostgreSQL:** run migrations and API-level read/write/session persistence against an isolated PostgreSQL schema; the Playwright Compose workflow verifies customer data after recreating both app and database containers.
 - **Frontend:** Vitest and Testing Library verify joining, ticket states, recoverable polling failures, protected navigation and form validation.
 - **Browser:** Playwright verifies customer join through staff completion, customer cancellation, admin configuration and unauthorized access against the real backend.
 - **Delivery:** lint, type checks, API contract consistency, migrations, seed and documented clean setup must pass before claiming the integrated MVP is complete.

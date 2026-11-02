@@ -1,0 +1,15 @@
+services:
+  db:
+    environment:
+      POSTGRES_DB: kezek_test
+      POSTGRES_USER: kezek
+      POSTGRES_PASSWORD: kezek_test_only
+
+  app:
+    environment:
+      APP_ENV: development
+      SEED_DEMO_DATA: "true"
+      DATABASE_URL: postgresql+psycopg://kezek:kezek_test_only@db:5432/kezek_test
+      CORS_ORIGINS: http://127.0.0.1:${KEZEK_TEST_PORT:-18080}
+    ports:
+      - "127.0.0.1:${KEZEK_TEST_PORT:-18080}:8000"

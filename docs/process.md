@@ -1515,3 +1515,33 @@ follow-up batch passed in CI run
 including real-backend desktop/mobile browser workflows. Issues #56–#71 were
 closed after all acceptance criteria were checked. GitHub now reports no open
 Issues.
+
+## 2026-11-02 — PostgreSQL migration #73 and persistence workflow #74
+
+Added the pinned Psycopg 3 driver and configured PostgreSQL as the Docker
+Compose runtime while retaining SQLite for local development. Added a SQLite
+import command that snapshots the source read-only, applies migrations to the
+snapshot, validates integrity and foreign keys, refuses populated targets,
+imports in one transaction and checks row counts. Updated PostgreSQL contention
+errors to return a retryable response. The Compose database uses a named volume
+at PostgreSQL 18's `/var/lib/postgresql` data root.
+
+Added a live PostgreSQL integration test that imports a real SQLite fixture,
+checks imported API data, creates a new customer ticket, authenticates admin,
+and checks ticket and session persistence across an app restart. CI now starts
+PostgreSQL and runs this check. Added a feature-specific Playwright test and
+isolated Compose runner that issue a customer ticket, verify staff sign-in and
+call-next, recreate both containers, and recheck the customer ticket and staff
+session. The test issue uses the `e2e-test` label.
+
+Verification: the backend suite passed (**213 passed, 1 skipped**); the SQLite
+import unit tests passed (**2 tests**), and PostgreSQL integration was skipped locally because no
+PostgreSQL service is available, and the temporary SQLite Alembic upgrade and
+drift check passed. Frontend typecheck passed, lint passed with zero errors and
+seven existing Fast Refresh warnings, and Vitest passed (**111 tests**). The
+production frontend build reached prerender but the sandbox denied its local
+preview-server bind (`listen EPERM 127.0.0.1`). Docker/Compose execution is also
+blocked because the installed snap cannot run without `cap_dac_override`.
+Compose and CI YAML parsed, Python compileall, shell syntax and `git diff --check`
+passed. Issues #73 and #74 remain open until the live PostgreSQL
+integration and browser container-recreation checks run successfully.
