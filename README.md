@@ -117,6 +117,17 @@ The script then prompts privately for the initial account passwords. See the
 [Render free plan limits](https://render.com/docs/free) and the [production
 bootstrap instructions](backend/README.md#production-organization-and-account-bootstrap).
 
+To change the password of an existing Render admin, use the same hidden
+External Database URL prompt and run
+`backend/.venv/bin/python backend/update_admin_password.py`. Set
+`APP_ENV=production` and `SEED_DEMO_DATA=false` first. The command verifies
+that the target is an existing active account with the `admin` role in
+Render's PostgreSQL database named `kezek`. It prints only account IDs,
+usernames, roles, and active status; if there is more than one candidate, it
+requires an exact username or ID selection. It updates only the selected
+account's password hash and revokes that account's sessions. It refuses to
+create an account or change its role/status.
+
 ### Import an existing SQLite database
 
 The importer takes a consistent SQLite online-backup snapshot, migrates that
