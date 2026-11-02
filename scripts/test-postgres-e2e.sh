@@ -15,11 +15,12 @@ export KEZEK_TEST_PORT="$port"
 export POSTGRES_PASSWORD=kezek_test_only
 export KEZEK_REPO_ROOT="$root"
 
-compose=(docker compose -p "$project" -f compose.yaml -f compose.test.yaml)
+compose=(docker compose -p "$project" -f docker-compose.yaml -f compose.test.yaml)
 cleanup() {
   "${compose[@]}" down --volumes --remove-orphans
 }
 trap cleanup EXIT
 
 "${compose[@]}" up -d --build --wait
+KEZEK_E2E_BASE_URL="http://127.0.0.1:${port}" npm --prefix frontend run test:compose
 KEZEK_E2E_BASE_URL="http://127.0.0.1:${port}" npm --prefix frontend run test:postgres

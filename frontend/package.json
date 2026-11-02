@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:postgres": "playwright test --config=playwright.postgres.config.ts"
+    "test:postgres": "playwright test --config=playwright.postgres.config.ts",
+    "test:compose": "playwright test --config=playwright.compose.config.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"

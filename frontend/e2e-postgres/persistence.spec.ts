@@ -1,6 +1,23 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 
+test("Compose app serves the frontend and migrated, seeded PostgreSQL API", async ({ page }) => {
+  const schema = await page.request.get("/openapi.json");
+  expect(schema.ok()).toBeTruthy();
+  expect((await schema.json()).info.title).toBe("Kezek API");
+
+  const organizations = await page.request.get("/api/organizations");
+  expect(organizations.ok()).toBeTruthy();
+  expect(await organizations.json()).toEqual(
+    expect.arrayContaining([expect.objectContaining({ name: "Almaty University · Demo" })]),
+  );
+
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Get your ticket online. Wait where it suits you." }),
+  ).toBeVisible({ timeout: 30000 });
+});
+
 function recreate(service: "app" | "db") {
   const project = process.env.COMPOSE_PROJECT_NAME;
   if (!project) throw new Error("COMPOSE_PROJECT_NAME must identify this isolated test stack");
@@ -11,7 +28,7 @@ function recreate(service: "app" | "db") {
       "-p",
       project,
       "-f",
-      "compose.yaml",
+      "docker-compose.yaml",
       "-f",
       "compose.test.yaml",
       "up",
