@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: kezek
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/organizations
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SEED_DEMO_DATA
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kezek-db
+          property: connectionString
+
+databases:
+  - name: kezek-db
+    databaseName: kezek
+    user: kezek
+    plan: free
+    region: oregon

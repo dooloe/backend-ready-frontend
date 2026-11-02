@@ -29,6 +29,12 @@ def _validated_origin(name: str) -> str | None:
 
 
 def _validated_database_url(value: str) -> str:
+    # Render Postgres connection strings use postgres:// or postgresql://,
+    # while this project installs Psycopg 3 (not psycopg2).
+    if value.startswith("postgres://"):
+        value = "postgresql+psycopg://" + value.removeprefix("postgres://")
+    elif value.startswith("postgresql://"):
+        value = "postgresql+psycopg://" + value.removeprefix("postgresql://")
     try:
         parsed = make_url(value)
         if not parsed.drivername or (parsed.get_backend_name() == "sqlite" and parsed.database in {None, ""}) or (parsed.get_backend_name() != "sqlite" and not parsed.database):

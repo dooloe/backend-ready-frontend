@@ -90,6 +90,33 @@ hosted database, run `backend/provision_production.py` from a trusted checkout
 with the database URL supplied through a private environment setting. See the
 [production bootstrap details](backend/README.md#production-organization-and-account-bootstrap).
 
+## Render deployment
+
+Render deploys the application image from `Dockerfile` and PostgreSQL as a
+separate managed service. In Render, create a Blueprint from this repository and
+select `render.yaml`; it configures both resources on the Free plans and uses
+the app's Render-provided `onrender.com` hostname. Do not upgrade either
+resource if you want to keep this deployment free. Free web services sleep
+after 15 minutes without requests, and free Render Postgres is limited to 1 GB,
+has no backups, and expires 30 days after creation. This is suitable for a
+short demo, not durable production data.
+
+After the first deploy is healthy, copy the database's **External Database
+URL** from the Render dashboard. Render Free web services do not provide shell
+access, so run the bootstrap from a trusted local checkout, entering that URL
+at a hidden prompt:
+
+```sh
+read -rsp 'Render external DATABASE_URL: ' DATABASE_URL; echo
+export DATABASE_URL APP_ENV=production SEED_DEMO_DATA=false
+backend/.venv/bin/python backend/provision_production.py
+unset DATABASE_URL
+```
+
+The script then prompts privately for the initial account passwords. See the
+[Render free plan limits](https://render.com/docs/free) and the [production
+bootstrap instructions](backend/README.md#production-organization-and-account-bootstrap).
+
 ### Import an existing SQLite database
 
 The importer takes a consistent SQLite online-backup snapshot, migrates that
