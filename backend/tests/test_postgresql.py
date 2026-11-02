@@ -1,15 +1,22 @@
 """Live PostgreSQL checks. Run with KEZEK_POSTGRES_TEST_URL to an isolated DB."""
 
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
+import base64
 import os
+from pathlib import Path
 from uuid import uuid4
 
+from alembic import command
+from alembic.config import Config
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import IntegrityError
 
 from app.main import create_app
+from app.orm import DailyQueueRow, ServiceRow, TicketEventRow, TicketRow, UserRow
 from app.sqlite_import import import_sqlite_database
 
 
@@ -35,6 +42,10 @@ def postgres_test_url() -> Iterator[str]:
         with admin_engine.begin() as connection:
             connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
         admin_engine.dispose()
+
+
+def _proof(value: int) -> str:
+    return base64.urlsafe_b64encode(bytes([value]) * 32).decode().rstrip("=")
 
 
 def test_postgresql_import_and_application_persistence_across_restart(
@@ -90,6 +101,19 @@ def test_postgresql_import_and_application_persistence_across_restart(
             "/api/admin/services", headers={"Authorization": f"Bearer {session_token}"}
         )
         assert admin_services.status_code == 200
+        staff_login = first.post(
+            "/api/auth/login", json={"username": "aigerim", "password": "staff123"}
+        )
+        assert staff_login.status_code == 200
+        staff_headers = {"Authorization": f"Bearer {staff_login.json()['token']}"}
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            calls = list(
+                pool.map(
+                    lambda _: first.post("/api/counters/cnt-1/call-next", headers=staff_headers),
+                    (1, 2),
+                )
+            )
+        assert sorted(response.status_code for response in calls) == [200, 409]
 
     # A new FastAPI application and SQLAlchemy engine must observe the writes.
     with TestClient(create_app(database_url=postgres_test_url)) as second:
@@ -106,3 +130,93 @@ def test_postgresql_import_and_application_persistence_across_restart(
         )
         assert admin_services.status_code == 200
         assert any(row["id"] == "svc-reg" for row in admin_services.json())
+
+
+def test_postgresql_constraints_rollback_idempotency_races_timezone_and_analytics(
+    postgres_test_url, monkeypatch
+):
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("SEED_DEMO_DATA", "true")
+
+    with TestClient(create_app(database_url=postgres_test_url)) as client:
+        store = client.app.state.store
+        admin_login = client.post(
+            "/api/auth/login", json={"username": "admin", "password": "admin123"}
+        )
+        assert admin_login.status_code == 200
+        admin_headers = {"Authorization": f"Bearer {admin_login.json()['token']}"}
+
+        with pytest.raises(IntegrityError):
+            with store.db.session(write=True) as session:
+                session.add(
+                    UserRow(
+                        id="duplicate-admin",
+                        organization_id="org-demo",
+                        name="Duplicate",
+                        username="admin",
+                        email="duplicate@example.invalid",
+                        role="admin",
+                        password_hash="unused",
+                        is_active=True,
+                    )
+                )
+
+        with pytest.raises(RuntimeError, match="rollback"):
+            with store.db.session(write=True) as session:
+                service = session.get(ServiceRow, "svc-reg")
+                service.name = "Uncommitted PostgreSQL change"
+                session.flush()
+                raise RuntimeError("rollback")
+        assert next(row for row in store.list_services() if row.id == "svc-reg").name == "Registrar Office"
+
+        with store.db.session() as session:
+            queue_id = session.scalar(
+                select(DailyQueueRow.id)
+                .where(DailyQueueRow.service_id == "svc-reg")
+                .order_by(DailyQueueRow.business_date.desc())
+                .limit(1)
+            )
+        assert queue_id is not None
+
+        key, access = _proof(101), _proof(102)
+        headers = {"Idempotency-Key": key}
+        payload = {"accessToken": access}
+        first = client.post(f"/api/queues/{queue_id}/tickets", headers=headers, json=payload)
+        replay = client.post(f"/api/queues/{queue_id}/tickets", headers=headers, json=payload)
+        assert first.status_code == 201, first.text
+        assert replay.status_code == 200, replay.text
+        assert replay.json()["ticket"]["id"] == first.json()["ticket"]["id"]
+
+        def issue_pair(value: int):
+            return client.post(
+                f"/api/queues/{queue_id}/tickets",
+                headers={"Idempotency-Key": _proof(value)},
+                json={"accessToken": _proof(value + 1)},
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            concurrent = list(pool.map(issue_pair, (103, 105)))
+        assert all(response.status_code == 201 for response in concurrent)
+        assert len({response.json()["ticket"]["id"] for response in concurrent}) == 2
+
+        created_ids = [first.json()["ticket"]["id"]] + [
+            response.json()["ticket"]["id"] for response in concurrent
+        ]
+        with store.db.session() as session:
+            rows = list(session.scalars(select(TicketRow).where(TicketRow.id.in_(created_ids))))
+            events = list(
+                session.scalars(select(TicketEventRow).where(TicketEventRow.ticket_id.in_(created_ids)))
+            )
+        assert len(rows) == len(created_ids)
+        assert len(events) >= len(created_ids)
+        assert all(row.createdAt.tzinfo is not None for row in rows)
+        assert all(event.ticket_id in created_ids and event.occurred_at.tzinfo is not None for event in events)
+
+        analytics = client.get("/api/admin/analytics", headers=admin_headers)
+        assert analytics.status_code == 200, analytics.text
+        assert analytics.json()["issued"] >= len(created_ids)
+
+        migration_config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+        with store.db.engine.connect() as connection:
+            migration_config.attributes["connection"] = connection
+            command.check(migration_config)

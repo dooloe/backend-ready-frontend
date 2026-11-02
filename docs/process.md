@@ -1528,17 +1528,20 @@ at PostgreSQL 18's `/var/lib/postgresql` data root.
 
 Added a live PostgreSQL integration test that imports a real SQLite fixture,
 checks imported API data, creates a new customer ticket, authenticates admin,
-and checks ticket and session persistence across an app restart. CI now starts
-PostgreSQL and runs this check. Added a feature-specific Playwright test and
+and checks ticket and session persistence across an app restart. A second live
+test covers PostgreSQL constraints, rollback, idempotency, concurrent ticket
+issuance, timezone-aware values, analytics and Alembic drift. CI starts
+PostgreSQL and runs these checks. Added a feature-specific Playwright test and
 isolated Compose runner that issue a customer ticket, verify staff sign-in and
 call-next, recreate both containers, and recheck the customer ticket and staff
 session. The test issue uses the `e2e-test` label.
 
-Verification: the backend suite passed (**213 passed, 1 skipped**); the SQLite
-import unit tests passed (**2 tests**), and PostgreSQL integration was skipped locally because no
-PostgreSQL service is available, and the temporary SQLite Alembic upgrade and
-drift check passed. Frontend typecheck passed, lint passed with zero errors and
-seven existing Fast Refresh warnings, and Vitest passed (**111 tests**). The
+Verification: the backend suite passed (**213 passed, 2 skipped**); the SQLite
+import unit tests passed (**2 tests**), and both live PostgreSQL tests are
+skipped locally because no PostgreSQL service is available. The temporary
+SQLite Alembic upgrade and drift check passed. Frontend typecheck passed, lint
+passed with zero errors and seven existing Fast Refresh warnings, and Vitest
+passed (**111 tests**). The
 production frontend build reached prerender but the sandbox denied its local
 preview-server bind (`listen EPERM 127.0.0.1`). Docker/Compose execution is also
 blocked because the installed snap cannot run without `cap_dac_override`.
