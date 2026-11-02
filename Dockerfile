@@ -36,6 +36,7 @@ COPY --chown=app:app backend/app/ ./app/
 COPY --chown=app:app backend/migrations/ ./migrations/
 COPY --chown=app:app backend/alembic.ini ./alembic.ini
 COPY --chown=app:app backend/seed_directory.py ./seed_directory.py
+COPY --chown=app:app backend/provision_production.py ./provision_production.py
 COPY --from=frontend-build --chown=app:app /build/frontend/.output/public/ ./frontend/
 
 RUN chown -R app:app /app

@@ -10,14 +10,18 @@ from uuid import uuid4
 from alembic import command
 from alembic.config import Config
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import IntegrityError
 
 from app.main import create_app
+from app.models import LoginRequest
 from app.orm import DailyQueueRow, ServiceRow, TicketEventRow, TicketRow, UserRow
 from app.sqlite_import import import_sqlite_database
+from app.store import DatabaseStore
+from provision_production import provision
 
 
 @pytest.fixture
@@ -220,3 +224,63 @@ def test_postgresql_constraints_rollback_idempotency_races_timezone_and_analytic
         with store.db.engine.connect() as connection:
             migration_config.attributes["connection"] = connection
             command.check(migration_config)
+
+
+def test_production_bootstrap_creates_two_real_organizations_and_initial_users(
+    postgres_test_url, monkeypatch
+):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SEED_DEMO_DATA", "false")
+    store = DatabaseStore(postgres_test_url, seed_demo=False)
+    try:
+        assert store.db.engine.dialect.name == "postgresql"
+        provision(store, {
+            "admin": "private-admin-test-password",
+            "uni_staff": "private-uni-test-password",
+            "health_staff": "private-health-test-password",
+        })
+        admin = store.login(LoginRequest(
+            username="admin", password="private-admin-test-password",
+        )).user
+        organizations = store.list_organizations()
+        assert {(row.name, row.location) for row in organizations} == {
+            ("Almaty University", "Almaty, Kazakhstan"),
+            ("City Health Clinic", "Astana, Kazakhstan"),
+        }
+        assert {service.name for service in store.list_admin_services(admin)} == {
+            "Dormitory Support", "Tuition Payment", "Primary Care Consultation",
+        }
+        assert {user.username for user in store.list_staff(admin)} == {
+            "admin", "uni_staff", "health_staff",
+        }
+        assert {counter.organizationId for counter in store.list_counters(admin)} == {
+            "org-university", "org-health-clinic",
+        }
+        health_staff = next(
+            user for user in store.list_staff(admin) if user.username == "health_staff"
+        )
+        assert [counter.id for counter in store.list_counters(health_staff)] == ["counter-clinic"]
+        with pytest.raises(HTTPException) as denied:
+            store.queue("counter-uni", health_staff)
+        assert denied.value.status_code == 404
+
+        clinic_service = next(
+            service for service in store.list_admin_services(admin)
+            if service.name == "Primary Care Consultation"
+        )
+        store.update_service(clinic_service.id, {"description": "Configured in test"}, admin)
+        provision(store, {
+            "admin": "must-not-reset",
+            "uni_staff": "must-not-reset",
+            "health_staff": "must-not-reset",
+        })
+        refreshed = next(
+            service for service in store.list_admin_services(admin)
+            if service.id == clinic_service.id
+        )
+        assert refreshed.description == "Configured in test"
+        assert store.login(LoginRequest(
+            username="admin", password="private-admin-test-password",
+        )).user.isPlatformAdmin
+    finally:
+        store.close()

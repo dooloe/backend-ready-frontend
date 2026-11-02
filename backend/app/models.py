@@ -3,7 +3,7 @@
 from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Role = Literal["staff", "admin"]
 TicketStatus = Literal["waiting", "called", "serving", "completed", "cancelled", "no_show"]
@@ -14,6 +14,7 @@ class Model(BaseModel):
 
 
 class ServiceCreate(Model):
+    organizationId: str | None = Field(default=None, validation_alias=AliasChoices("organizationId", "organization_id"))
     name: str
     description: str
     prefix: str
@@ -47,6 +48,7 @@ class ServiceUpdate(Model):
 
 
 class CounterCreate(Model):
+    organizationId: str | None = Field(default=None, validation_alias=AliasChoices("organizationId", "organization_id"))
     name: str
     serviceIds: list[str]
     isActive: bool
@@ -66,6 +68,8 @@ class CounterUpdate(Model):
 
 class StaffUser(Model):
     id: str
+    organizationId: str | None = Field(default=None, validation_alias="organization_id")
+    isPlatformAdmin: bool = Field(default=False, validation_alias="is_platform_admin")
     name: str
     username: str
     role: Role
@@ -73,6 +77,7 @@ class StaffUser(Model):
 
 
 class StaffCreate(Model):
+    organizationId: str | None = Field(default=None, validation_alias=AliasChoices("organizationId", "organization_id"))
     name: str
     username: str
     role: Role

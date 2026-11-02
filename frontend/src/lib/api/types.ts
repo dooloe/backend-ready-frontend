@@ -4,6 +4,7 @@ export type TicketStatus = "waiting" | "called" | "serving" | "completed" | "can
 
 export interface Service {
   id: string;
+  organizationId?: string | undefined;
   name: string;
   description: string;
   prefix: string; // e.g. "A" -> tickets A-001
@@ -17,6 +18,7 @@ export interface Service {
 
 export interface Counter {
   id: string;
+  organizationId?: string | undefined;
   name: string;
   serviceIds: string[];
   isActive: boolean;
@@ -25,6 +27,8 @@ export interface Counter {
 
 export interface StaffUser {
   id: string;
+  organizationId?: string | undefined;
+  isPlatformAdmin?: boolean | undefined;
   name: string;
   username: string;
   role: Role;

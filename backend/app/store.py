@@ -60,6 +60,7 @@ class DatabaseStore:
     def __init__(self, database_url: str | None = None, *, seed_demo: bool = True,
                  seed_tickets: bool = True, clock: Callable[[], datetime] = utc_now):
         self.db = Database(configured_database_url() if database_url is None else database_url)
+        self.seed_demo = seed_demo
         self.clock = clock
         try:
             self.db.create_schema()
@@ -164,7 +165,8 @@ class DatabaseStore:
     def _counter(session, row) -> Counter:
         ids = list(session.scalars(select(CounterServiceRow.service_id).where(
             CounterServiceRow.counter_id == row.id).order_by(CounterServiceRow.service_id)))
-        return Counter(id=row.id, name=row.name, serviceIds=ids, isActive=row.isActive, staffId=row.staffId)
+        return Counter(id=row.id, organizationId=row.organization_id, name=row.name,
+                       serviceIds=ids, isActive=row.isActive, staffId=row.staffId)
 
     def login(self, request: LoginRequest) -> LoginResponse:
         response, _ = self._login(request, issue_csrf=False)
@@ -229,7 +231,10 @@ class DatabaseStore:
         with self.db.session() as session:
             now = self.clock()
             result = []
-            for org in session.scalars(select(OrganizationRow).order_by(OrganizationRow.name)):
+            organizations = session.scalars(select(OrganizationRow).order_by(OrganizationRow.name))
+            for org in organizations:
+                if not self.seed_demo and is_demo_organization(org):
+                    continue
                 services = []
                 for row in session.scalars(select(ServiceRow).where(
                     ServiceRow.organization_id == org.id, ServiceRow.deleted.is_(False))):
@@ -256,7 +261,7 @@ class DatabaseStore:
     def list_organization_services(self, organization_id: str) -> list[ServiceSummary]:
         with self.db.session(write=True) as session:
             organization = session.get(OrganizationRow, organization_id)
-            if organization is None:
+            if organization is None or (not self.seed_demo and is_demo_organization(organization)):
                 raise HTTPException(404, "Organization not found")
             now = self.clock()
             summaries = []
@@ -362,16 +367,17 @@ class DatabaseStore:
     def set_queue_override(self, queue_id: str, is_open: bool, actor: StaffUser) -> QueueSummary:
         with self.db.session(write=True) as session:
             actor_row = self._actor_row(session, actor, admin=True)
+            organization_ids = self._admin_organization_ids(session, actor_row)
             queue = session.scalar(select(DailyQueueRow).where(
                 DailyQueueRow.id == queue_id,
-                DailyQueueRow.organization_id == actor_row.organization_id,
+                DailyQueueRow.organization_id.in_(organization_ids),
             ))
             if queue is None:
                 raise HTTPException(404, "Queue not found")
             service = session.get(ServiceRow, queue.service_id)
             organization = session.get(OrganizationRow, queue.organization_id)
             if (service is None or service.deleted or organization is None
-                    or service.organization_id != actor_row.organization_id):
+                    or service.organization_id not in organization_ids):
                 raise HTTPException(404, "Queue not found")
 
             now = self.clock()
@@ -402,14 +408,22 @@ class DatabaseStore:
 
     def list_services(self) -> list[Service]:
         with self.db.session() as session:
-            return [self._service(row) for row in session.scalars(
-                select(ServiceRow).where(ServiceRow.deleted.is_(False)).order_by(ServiceRow.id))]
+            result = []
+            for row in session.scalars(
+                select(ServiceRow).where(ServiceRow.deleted.is_(False)).order_by(ServiceRow.id)
+            ):
+                organization = session.get(OrganizationRow, row.organization_id)
+                if not self.seed_demo and is_demo_organization(organization):
+                    continue
+                result.append(self._service(row))
+            return result
 
     def list_admin_services(self, actor: StaffUser) -> list[Service]:
         with self.db.session() as session:
             actor_row = self._actor_row(session, actor, admin=True)
+            organization_ids = self._admin_organization_ids(session, actor_row)
             return [self._service(row) for row in session.scalars(select(ServiceRow).where(
-                ServiceRow.organization_id == actor_row.organization_id,
+                ServiceRow.organization_id.in_(organization_ids),
                 ServiceRow.deleted.is_(False),
             ).order_by(ServiceRow.id))]
 
@@ -424,6 +438,33 @@ class DatabaseStore:
             raise HTTPException(403, "Role is not allowed")
         return row
 
+    def _admin_organization_ids(self, session, actor_row: UserRow) -> tuple[str, ...]:
+        if actor_row.is_platform_admin:
+            return tuple(
+                organization.id for organization in session.scalars(
+                    select(OrganizationRow).order_by(OrganizationRow.id)
+                ) if self.seed_demo or not is_demo_organization(organization)
+            )
+        if not self.seed_demo and is_demo_organization(
+            session.get(OrganizationRow, actor_row.organization_id)
+        ):
+            return ()
+        return (actor_row.organization_id,)
+
+    def _authorize_admin_organization(self, session, actor_row: UserRow, organization_id: str) -> None:
+        organization = session.get(OrganizationRow, organization_id)
+        if organization is None or (not self.seed_demo and is_demo_organization(organization)):
+            raise HTTPException(404, "Organization not found")
+        if not actor_row.is_platform_admin and organization_id != actor_row.organization_id:
+            raise HTTPException(404, "Organization not found")
+
+    def _admin_row(self, session, model, key: str, kind: str, actor_row: UserRow):
+        row = session.get(model, key)
+        if (row is None or getattr(row, "deleted", False)
+                or row.organization_id not in self._admin_organization_ids(session, actor_row)):
+            raise HTTPException(404, f"{kind} not found")
+        return row
+
     @staticmethod
     def _organization_row(session, model, key: str, kind: str, organization_id: str):
         row = session.get(model, key)
@@ -434,8 +475,10 @@ class DatabaseStore:
     def list_counters(self, actor: StaffUser) -> list[Counter]:
         with self.db.session() as session:
             actor_row = self._actor_row(session, actor)
+            organization_ids = (self._admin_organization_ids(session, actor_row)
+                                if actor_row.role == "admin" else (actor_row.organization_id,))
             query = select(CounterRow).where(
-                CounterRow.organization_id == actor_row.organization_id,
+                CounterRow.organization_id.in_(organization_ids),
                 CounterRow.deleted.is_(False),
             )
             if actor_row.role != "admin":
@@ -453,8 +496,10 @@ class DatabaseStore:
         with self.db.session() as session:
             actor_row = self._actor_row(session, actor)
             claimed_counter_ids = set(session.scalars(select(ActiveTicketRow.counter_id)))
+            organization_ids = (self._admin_organization_ids(session, actor_row)
+                                if actor_row.role == "admin" else (actor_row.organization_id,))
             query = select(CounterRow).where(
-                CounterRow.organization_id == actor_row.organization_id,
+                CounterRow.organization_id.in_(organization_ids),
             )
             if actor_row.role != "admin":
                 query = query.join(
@@ -473,15 +518,15 @@ class DatabaseStore:
                 if (counter.deleted or not counter.isActive) and counter.id not in claimed_counter_ids:
                     continue
                 service_ids = list(session.scalars(select(CounterServiceRow.service_id).where(
-                    CounterServiceRow.organization_id == actor_row.organization_id,
+                    CounterServiceRow.organization_id.in_(organization_ids),
                     CounterServiceRow.counter_id == counter.id,
                 )))
                 counter_services = {row.id: row for row in session.scalars(select(ServiceRow).where(
-                    ServiceRow.organization_id == actor_row.organization_id,
+                    ServiceRow.organization_id.in_(organization_ids),
                     ServiceRow.id.in_(service_ids), ServiceRow.deleted.is_(False),
                 ))} if service_ids else {}
                 services = list(session.scalars(select(ServiceRow).where(
-                    ServiceRow.organization_id == actor_row.organization_id,
+                    ServiceRow.organization_id.in_(organization_ids),
                     ServiceRow.id.in_(service_ids), ServiceRow.deleted.is_(False),
                     ServiceRow.isActive.is_(True),
                 ).order_by(ServiceRow.id))) if service_ids else []
@@ -499,9 +544,9 @@ class DatabaseStore:
                     capacity = session.scalar(select(func.count()).select_from(CounterRow).join(
                         CounterServiceRow, CounterServiceRow.counter_id == CounterRow.id,
                     ).where(
-                        CounterServiceRow.organization_id == actor_row.organization_id,
+                        CounterServiceRow.organization_id.in_(organization_ids),
                         CounterServiceRow.service_id == service.id,
-                        CounterRow.organization_id == actor_row.organization_id,
+                        CounterRow.organization_id.in_(organization_ids),
                         CounterRow.deleted.is_(False), CounterRow.isActive.is_(True),
                     )) or 0
                     summaries.append(QueueSummary(
@@ -517,7 +562,7 @@ class DatabaseStore:
                     if (ticket.status in {"called", "serving"} and ticket.counterId == counter.id
                             and ticket.dailyQueueId):
                         service = session.get(ServiceRow, ticket.serviceId)
-                        if service is None or service.organization_id != actor_row.organization_id:
+                        if service is None or service.organization_id not in organization_ids:
                             service = None
                     else:
                         service = None
@@ -874,9 +919,11 @@ class DatabaseStore:
             session.flush()
             return self._view(session, ticket)
 
-    @staticmethod
-    def _authorize_counter(session, counter: CounterRow, actor_row: UserRow, *, require_active: bool = True) -> None:
-        if counter.organization_id != actor_row.organization_id:
+    def _authorize_counter(self, session, counter: CounterRow, actor_row: UserRow, *, require_active: bool = True) -> None:
+        organization = session.get(OrganizationRow, counter.organization_id)
+        if (organization is None or (not self.seed_demo and is_demo_organization(organization))
+                or (counter.organization_id != actor_row.organization_id
+                    and not actor_row.is_platform_admin)):
             raise HTTPException(404, "Counter not found")
         if actor_row.role != "admin" and session.get(StaffAssignmentRow, (actor_row.id, counter.id)) is None:
             raise HTTPException(403, "Counter is not assigned to this staff member")
@@ -922,7 +969,8 @@ class DatabaseStore:
         with self.db.session(write=True) as session:
             actor_row = self._actor_row(session, actor)
             queue = session.get(DailyQueueRow, queue_id)
-            if queue is None or queue.organization_id != actor_row.organization_id:
+            if (queue is None or (queue.organization_id != actor_row.organization_id
+                                  and not actor_row.is_platform_admin)):
                 raise HTTPException(404, "Queue not found")
             counter = self._get(session, CounterRow, counter_id, "Counter")
             self._authorize_counter(session, counter, actor_row)
@@ -963,7 +1011,8 @@ class DatabaseStore:
             actor_row = self._actor_row(session, actor)
             ticket = self._ticket_row(session, ticket_id)
             service = session.get(ServiceRow, ticket.serviceId)
-            if service is None or service.organization_id != actor_row.organization_id:
+            if (service is None or (service.organization_id != actor_row.organization_id
+                                    and not actor_row.is_platform_admin)):
                 raise HTTPException(404, "Ticket not found")
             if ticket.counterId is None:
                 raise HTTPException(409, "Ticket is not assigned to a counter")
@@ -991,8 +1040,12 @@ class DatabaseStore:
     def create_service(self, request: ServiceCreate, actor: StaffUser) -> Service:
         with self.db.session(write=True) as session:
             actor_row = self._actor_row(session, actor, admin=True)
-            data = request.model_dump()
-            row = ServiceRow(id=new_id(), organization_id=actor_row.organization_id,
+            data = request.model_dump(exclude={"organizationId"})
+            organization_id = request.organizationId or actor_row.organization_id
+            self._authorize_admin_organization(session, actor_row, organization_id)
+            if session.get(OrganizationRow, organization_id) is None:
+                raise HTTPException(404, "Organization not found")
+            row = ServiceRow(id=new_id(), organization_id=organization_id,
                              durationMinutes=data["avgServiceMinutes"], **data)
             session.add(row)
             session.flush()
@@ -1001,7 +1054,7 @@ class DatabaseStore:
     def update_service(self, service_id: str, patch: dict, actor: StaffUser) -> Service:
         with self.db.session(write=True) as session:
             actor_row = self._actor_row(session, actor, admin=True)
-            row = self._organization_row(session, ServiceRow, service_id, "Service", actor_row.organization_id)
+            row = self._admin_row(session, ServiceRow, service_id, "Service", actor_row)
             updated = Service(**(self._service(row).model_dump() | patch))
             if (updated.opensAt is None) != (updated.closesAt is None):
                 raise HTTPException(422, "Both opening and closing hours must be configured")
@@ -1022,8 +1075,8 @@ class DatabaseStore:
         with self.db.session(write=True) as session:
             actor_row = self._actor_row(session, actor, admin=True)
             row = session.get(ServiceRow, service_id)
-            if row is not None and row.organization_id != actor_row.organization_id:
-                raise HTTPException(404, "Service not found")
+            if row is not None:
+                self._authorize_admin_organization(session, actor_row, row.organization_id)
             if row is not None and not row.deleted:
                 row.deleted = True
                 session.execute(delete(CounterServiceRow).where(CounterServiceRow.service_id == service_id))
@@ -1050,10 +1103,13 @@ class DatabaseStore:
     def create_counter(self, request: CounterCreate, actor: StaffUser) -> Counter:
         with self.db.session(write=True) as session:
             actor_row = self._actor_row(session, actor, admin=True)
-            organization_id = actor_row.organization_id
+            organization_id = request.organizationId or actor_row.organization_id
+            self._authorize_admin_organization(session, actor_row, organization_id)
+            if session.get(OrganizationRow, organization_id) is None:
+                raise HTTPException(404, "Organization not found")
             self._validate_counter_links(session, request, organization_id)
             row = CounterRow(id=new_id(), organization_id=organization_id,
-                             **request.model_dump(exclude={"serviceIds"}))
+                             **request.model_dump(exclude={"serviceIds", "organizationId"}))
             session.add(row)
             session.flush()
             self._replace_links(session, row.id, request.serviceIds)
@@ -1065,7 +1121,7 @@ class DatabaseStore:
     def update_counter(self, counter_id: str, patch: dict, actor: StaffUser) -> Counter:
         with self.db.session(write=True) as session:
             actor_row = self._actor_row(session, actor, admin=True)
-            row = self._organization_row(session, CounterRow, counter_id, "Counter", actor_row.organization_id)
+            row = self._admin_row(session, CounterRow, counter_id, "Counter", actor_row)
             updated = Counter(**(self._counter(session, row).model_dump() | patch))
             self._validate_counter_links(session, updated, row.organization_id)
             claim = session.get(ActiveTicketRow, counter_id)
@@ -1088,8 +1144,8 @@ class DatabaseStore:
         with self.db.session(write=True) as session:
             actor_row = self._actor_row(session, actor, admin=True)
             row = session.get(CounterRow, counter_id)
-            if row is not None and row.organization_id != actor_row.organization_id:
-                raise HTTPException(404, "Counter not found")
+            if row is not None:
+                self._authorize_admin_organization(session, actor_row, row.organization_id)
             if row is not None and not row.deleted:
                 row.deleted = True
                 session.execute(delete(CounterServiceRow).where(CounterServiceRow.counter_id == counter_id))
@@ -1100,9 +1156,13 @@ class DatabaseStore:
                 actor_row = self._actor_row(session, actor, admin=True)
                 if session.scalar(select(UserRow.id).where(UserRow.username == request.username)):
                     raise HTTPException(409, "Username already taken")
+                organization_id = request.organizationId or actor_row.organization_id
+                self._authorize_admin_organization(session, actor_row, organization_id)
+                if session.get(OrganizationRow, organization_id) is None:
+                    raise HTTPException(404, "Organization not found")
                 encoded = hash_password(request.password)
-                data = request.model_dump(exclude={"password"})
-                row = UserRow(id=new_id(), organization_id=actor_row.organization_id,
+                data = request.model_dump(exclude={"password", "organizationId"})
+                row = UserRow(id=new_id(), organization_id=organization_id,
                               email=f"{data['username']}@example.invalid", is_active=True,
                               password_hash=encoded, **data)
                 session.add(row)
@@ -1114,15 +1174,16 @@ class DatabaseStore:
     def list_staff(self, actor: StaffUser) -> list[StaffUser]:
         with self.db.session() as session:
             actor_row = self._actor_row(session, actor, admin=True)
+            organization_ids = self._admin_organization_ids(session, actor_row)
             return [self._user(row) for row in session.scalars(
-                select(UserRow).where(UserRow.organization_id == actor_row.organization_id).order_by(UserRow.id)
+                select(UserRow).where(UserRow.organization_id.in_(organization_ids)).order_by(UserRow.id)
             )]
 
     def update_staff(self, staff_id: str, patch: dict, actor: StaffUser) -> StaffUser:
         try:
             with self.db.session(write=True) as session:
                 actor_row = self._actor_row(session, actor, admin=True)
-                row = self._organization_row(session, UserRow, staff_id, "Staff user", actor_row.organization_id)
+                row = self._admin_row(session, UserRow, staff_id, "Staff user", actor_row)
                 if not patch:
                     return self._user(row)
                 if staff_id == actor_row.id and patch.get("isActive") is False:
@@ -1147,6 +1208,8 @@ class DatabaseStore:
                         raise HTTPException(409, "Finish the active ticket before deactivating this staff member")
                 for key, value in patch.items():
                     setattr(row, {"isActive": "is_active"}.get(key, key), value)
+                    if key == "role" and value != "admin":
+                        row.is_platform_admin = False
                 if "isActive" in patch or "role" in patch:
                     # Privilege/activation changes must take effect immediately;
                     # display-name and username edits do not alter session scope.
@@ -1159,10 +1222,11 @@ class DatabaseStore:
     def stats(self, actor: StaffUser) -> Stats:
         with self.db.session() as session:
             actor_row = self._actor_row(session, actor, admin=True)
+            organization_ids = self._admin_organization_ids(session, actor_row)
             now = self.clock().astimezone(timezone.utc)
             start = now.replace(hour=0, minute=0, second=0, microsecond=0)
             organization_services = select(ServiceRow.id).where(
-                ServiceRow.organization_id == actor_row.organization_id,
+                ServiceRow.organization_id.in_(organization_ids),
             )
             tickets = list(session.scalars(select(TicketRow).where(
                 TicketRow.serviceId.in_(organization_services),
@@ -1176,7 +1240,7 @@ class DatabaseStore:
 
             by_service = []
             for service in session.scalars(select(ServiceRow).where(
-                ServiceRow.organization_id == actor_row.organization_id,
+                ServiceRow.organization_id.in_(organization_ids),
                 ServiceRow.deleted.is_(False),
             ).order_by(ServiceRow.id)):
                 group = [row for row in tickets if row.serviceId == service.id]
@@ -1187,7 +1251,7 @@ class DatabaseStore:
                     cancelled=sum(row.status == "cancelled" for row in group), avgWaitMinutes=average(group)))
             waiting = session.scalar(select(func.count()).select_from(TicketRow).join(
                 ServiceRow, ServiceRow.id == TicketRow.serviceId).where(
-                ServiceRow.organization_id == actor_row.organization_id,
+                ServiceRow.organization_id.in_(organization_ids),
                 TicketRow.status == "waiting",
             ))
             return Stats(totalToday=len(tickets), waitingNow=waiting,
@@ -1200,6 +1264,7 @@ class DatabaseStore:
             raise HTTPException(422, "dateFrom and dateTo must be supplied together")
         with self.db.session() as session:
             actor_row = self._actor_row(session, actor, admin=True)
+            organization_ids = self._admin_organization_ids(session, actor_row)
             organization = session.get(OrganizationRow, actor_row.organization_id)
             try:
                 zone = ZoneInfo(organization.timezone)
@@ -1218,7 +1283,7 @@ class DatabaseStore:
             tickets = list(session.scalars(
                 select(TicketRow)
                 .join(ServiceRow, ServiceRow.id == TicketRow.serviceId)
-                .where(ServiceRow.organization_id == actor_row.organization_id,
+                .where(ServiceRow.organization_id.in_(organization_ids),
                        TicketRow.createdAt >= start_utc, TicketRow.createdAt < end_utc)
                 .order_by(TicketRow.createdAt, TicketRow.ordinal)
             ))
@@ -1240,7 +1305,7 @@ class DatabaseStore:
             for ticket in tickets:
                 grouped.setdefault(ticket.serviceId, []).append(ticket)
             service_rows = list(session.scalars(select(ServiceRow).where(
-                ServiceRow.organization_id == actor_row.organization_id,
+                ServiceRow.organization_id.in_(organization_ids),
                 ServiceRow.id.in_(grouped.keys()) if grouped else False,
             ).order_by(ServiceRow.name, ServiceRow.id)))
             by_service = []

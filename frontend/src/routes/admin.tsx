@@ -388,6 +388,7 @@ export function StatsTab() {
 }
 
 export function ServicesTab() {
+  const { session } = useSessionState();
   const servicesQuery = useQuery({
     queryKey: ["admin-services"],
     queryFn: api.listAdminServices,
@@ -414,6 +415,7 @@ export function ServicesTab() {
   );
   const act = useAct();
   const [f, setF] = useState({
+    organizationId: "",
     name: "",
     description: "",
     prefix: "",
@@ -447,6 +449,9 @@ export function ServicesTab() {
             () =>
               api.createService({
                 ...f,
+                organizationId: session?.user.isPlatformAdmin
+                  ? f.organizationId || organizationsQuery.data?.[0]?.id
+                  : session?.user.organizationId,
                 name: f.name.trim(),
                 prefix: f.prefix.trim().toUpperCase(),
                 opensAt: f.opensAt || null,
@@ -455,6 +460,7 @@ export function ServicesTab() {
             {
               onSuccess: () =>
                 setF({
+                  organizationId: f.organizationId,
                   name: "",
                   description: "",
                   prefix: "",
@@ -470,6 +476,22 @@ export function ServicesTab() {
       >
         <h3 className="font-semibold">Add a service</h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {session?.user.isPlatformAdmin && (
+            <label className="grid gap-1 text-sm font-medium">
+              Organization
+              <select
+                aria-label="Service organization"
+                className="h-9 rounded-md border bg-background px-2"
+                required
+                value={f.organizationId || organizationsQuery.data?.[0]?.id || ""}
+                onChange={(event) => setF({ ...f, organizationId: event.target.value })}
+              >
+                {(organizationsQuery.data ?? []).map((organization) => (
+                  <option key={organization.id} value={organization.id}>{organization.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="grid gap-1 text-sm font-medium">
             Service name
             <Input
@@ -592,6 +614,7 @@ export function ServicesTab() {
           <AdminServiceCard
             key={service.id}
             service={service}
+            organizationName={organization?.name ?? null}
             queue={summary?.queue ?? null}
             timezone={summary?.timezone ?? organization?.timezone ?? null}
             queueLoading={queueQueries.some((query) => query.isPending)}
@@ -622,6 +645,7 @@ type ServiceForm = {
 
 function AdminServiceCard({
   service,
+  organizationName,
   queue,
   timezone,
   queueLoading,
@@ -630,6 +654,7 @@ function AdminServiceCard({
   onQueueChange,
 }: {
   service: import("@/lib/api").Service;
+  organizationName: string | null;
   queue: import("@/lib/api").QueueSummary | null;
   timezone: string | null;
   queueLoading: boolean;
@@ -675,6 +700,7 @@ function AdminServiceCard({
       <div className="flex flex-wrap items-start gap-4">
         <span className="ticket-code text-2xl">{service.prefix}</span>
         <div className="min-w-0 flex-1">
+          {organizationName && <p className="text-xs text-muted-foreground">{organizationName}</p>}
           <h3 className="font-semibold">{service.name}</h3>
           <p className="text-sm text-muted-foreground">
             {queue?.waiting ?? 0} waiting ·{" "}
@@ -819,6 +845,7 @@ function AdminServiceCard({
 }
 
 export function CountersTab() {
+  const { session } = useSessionState();
   const countersQuery = useQuery({ queryKey: ["counters"], queryFn: api.listCounters });
   const counters = countersQuery.data;
   const { data: services } = useQuery({
@@ -826,8 +853,10 @@ export function CountersTab() {
     queryFn: api.listAdminServices,
   });
   const { data: staff } = useQuery({ queryKey: ["staff"], queryFn: api.listStaff });
+  const organizationsQuery = useQuery({ queryKey: ["organizations"], queryFn: api.listOrganizations });
   const act = useAct();
   const [name, setName] = useState("");
+  const [organizationId, setOrganizationId] = useState("");
   const [counterNames, setCounterNames] = useState<Record<string, string>>({});
   const toggle = (arr: string[], id: string) =>
     arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
@@ -840,6 +869,9 @@ export function CountersTab() {
           act.mutate(
             () =>
               api.createCounter({
+                organizationId: session?.user.isPlatformAdmin
+                  ? organizationId || organizationsQuery.data?.[0]?.id
+                  : session?.user.organizationId,
                 name: name.trim(),
                 serviceIds: [],
                 isActive: true,
@@ -849,6 +881,19 @@ export function CountersTab() {
           );
         }}
       >
+          {session?.user.isPlatformAdmin && (
+            <select
+              aria-label="Counter organization"
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              required
+              value={organizationId || organizationsQuery.data?.[0]?.id || ""}
+              onChange={(event) => setOrganizationId(event.target.value)}
+            >
+              {(organizationsQuery.data ?? []).map((organization) => (
+                <option key={organization.id} value={organization.id}>{organization.name}</option>
+              ))}
+            </select>
+          )}
         <Input
           required
           aria-label="Counter name"
@@ -869,6 +914,9 @@ export function CountersTab() {
       )}
       {counters?.map((c) => (
         <div key={c.id} className={`${card} space-y-3`}>
+          <p className="text-xs text-muted-foreground">
+            {organizationsQuery.data?.find((organization) => organization.id === c.organizationId)?.name ?? "Organization"}
+          </p>
           <div className="flex flex-wrap items-center gap-3">
             <Input
               className="min-w-48 flex-1"
@@ -905,7 +953,7 @@ export function CountersTab() {
               }}
             >
               <option value="">Any staff</option>
-              {staff?.map((s) => (
+              {staff?.filter((s) => s.organizationId === c.organizationId).map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
@@ -930,7 +978,7 @@ export function CountersTab() {
             </ConfirmAction>
           </div>
           <div className="flex flex-wrap gap-2">
-            {services?.map((s) => (
+            {services?.filter((s) => s.organizationId === c.organizationId).map((s) => (
               <Button
                 key={s.id}
                 size="sm"
@@ -952,6 +1000,7 @@ export function CountersTab() {
 }
 
 export function StaffTab() {
+  const { session } = useSessionState();
   const {
     data,
     isPending: loading,
@@ -959,8 +1008,11 @@ export function StaffTab() {
     refetch,
   } = useQuery({ queryKey: ["staff"], queryFn: api.listStaff });
   const countersQuery = useQuery({ queryKey: ["counters"], queryFn: api.listCounters });
+  const organizationsQuery = useQuery({ queryKey: ["organizations"], queryFn: api.listOrganizations });
   const act = useAct();
-  const [f, setF] = useState({ name: "", username: "", password: "", role: "staff" as Role });
+  const [f, setF] = useState({
+    name: "", username: "", password: "", role: "staff" as Role, organizationId: "",
+  });
   const [selectedCounters, setSelectedCounters] = useState<Record<string, string>>({});
   const [edits, setEdits] = useState<
     Record<string, Partial<Pick<StaffUser, "name" | "username" | "role">>>
@@ -971,11 +1023,31 @@ export function StaffTab() {
         className={`${card} grid gap-2 md:grid-cols-5`}
         onSubmit={(e) => {
           e.preventDefault();
-          act.mutate(() => api.createStaff(f), {
-            onSuccess: () => setF({ name: "", username: "", password: "", role: "staff" }),
+          act.mutate(() => api.createStaff({
+            ...f,
+            organizationId: session?.user.isPlatformAdmin
+              ? f.organizationId || organizationsQuery.data?.[0]?.id
+              : session?.user.organizationId,
+          }), {
+            onSuccess: () => setF({
+              name: "", username: "", password: "", role: "staff", organizationId: f.organizationId,
+            }),
           });
         }}
       >
+        {session?.user.isPlatformAdmin && (
+          <select
+            aria-label="Staff organization"
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            required
+            value={f.organizationId || organizationsQuery.data?.[0]?.id || ""}
+            onChange={(event) => setF({ ...f, organizationId: event.target.value })}
+          >
+            {(organizationsQuery.data ?? []).map((organization) => (
+              <option key={organization.id} value={organization.id}>{organization.name}</option>
+            ))}
+          </select>
+        )}
         <Input
           required
           aria-label="Full name"
@@ -1022,6 +1094,9 @@ export function StaffTab() {
         <ul className="divide-y">
           {data?.map((u) => (
             <li key={u.id} className="space-y-3 py-4">
+              <p className="text-xs text-muted-foreground">
+                {organizationsQuery.data?.find((organization) => organization.id === u.organizationId)?.name ?? "Organization"}
+              </p>
               <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto_auto] sm:items-center">
                 <Input
                   required
@@ -1125,7 +1200,7 @@ export function StaffTab() {
                 >
                   <option value="">Select an unassigned counter</option>
                   {(countersQuery.data ?? [])
-                    .filter((counter) => !counter.staffId)
+                    .filter((counter) => !counter.staffId && counter.organizationId === u.organizationId)
                     .map((counter) => (
                       <option key={counter.id} value={counter.id}>
                         {counter.name}

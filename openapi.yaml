@@ -1357,6 +1357,9 @@ components:
       properties:
         id:
           type: string
+        organizationId:
+          type: string
+          nullable: true
         name:
           type: string
         description:
@@ -1388,6 +1391,9 @@ components:
       - isOpen
       - avgServiceMinutes
       properties:
+        organizationId:
+          type: string
+          nullable: true
         name:
           type: string
         description:
@@ -1450,6 +1456,9 @@ components:
       properties:
         id:
           type: string
+        organizationId:
+          type: string
+          nullable: true
         name:
           type: string
         serviceIds:
@@ -1470,6 +1479,9 @@ components:
       - isActive
       - staffId
       properties:
+        organizationId:
+          type: string
+          nullable: true
         name:
           type: string
         serviceIds:
@@ -1511,6 +1523,12 @@ components:
       properties:
         id:
           type: string
+        organizationId:
+          type: string
+          nullable: true
+        isPlatformAdmin:
+          type: boolean
+          default: false
         name:
           type: string
         username:
@@ -1543,6 +1561,9 @@ components:
       - role
       - password
       properties:
+        organizationId:
+          type: string
+          nullable: true
         name:
           type: string
         username:

@@ -99,6 +99,29 @@ tab and view all directory entries with their public queue summaries. See
 `docs/redesign.md` for staff demo credentials. `SEED_DEMO_DATA=false` disables
 sample seeding; production mode rejects sample seeding.
 
+## Production organization and account bootstrap
+
+Production startup never inserts demo records. On a fresh production database,
+run the one-time operator bootstrap from a trusted checkout after exporting the
+production `DATABASE_URL`, `APP_ENV=production`, and `SEED_DEMO_DATA=false`:
+
+```bash
+backend/.venv/bin/python backend/provision_production.py
+```
+
+The command creates Almaty University (Almaty) and City Health Clinic (Astana),
+their requested services, one assigned service counter per organization, and the
+`admin`, `uni_staff`, and `health_staff` accounts. It prompts privately for only
+the passwords of accounts that do not exist yet. Passwords are Argon2id-hashed;
+rerunning the command preserves existing passwords and later organization/service
+edits. Do not pass passwords as command-line arguments or store them in source or
+deployment configuration. The initial admin can manage both organizations while
+staff remain limited to their own organization.
+
+Services start active but closed with no hours configured. Before accepting
+visitors, sign in as the admin, set each service's hours and availability, and
+verify the assigned counters and staff.
+
 To inspect or run migrations manually, use the same `DATABASE_URL` as the
 application:
 

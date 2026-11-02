@@ -81,7 +81,14 @@ frontend and `/api` from the same origin. The named `postgres-data` volume
 survives app and database
 container recreation; `docker compose down -v` intentionally deletes it. Set
 `APP_ENV=production` and `SEED_DEMO_DATA=false` for production deployments, and
-provision production accounts through the deployment's approved process.
+run the secure first-time catalog/account bootstrap with the production database
+URL before opening the site to visitors. The command creates the requested
+Almaty University and City Health Clinic records and prompts for account
+passwords without echoing them. For this Compose image, run
+`docker compose exec -it app python provision_production.py`; for a remotely
+hosted database, run `backend/provision_production.py` from a trusted checkout
+with the database URL supplied through a private environment setting. See the
+[production bootstrap details](backend/README.md#production-organization-and-account-bootstrap).
 
 ### Import an existing SQLite database
 
