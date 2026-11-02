@@ -30,6 +30,42 @@ def test_default_entry_point_serves_seeded_frontend_data(monkeypatch, tmp_path):
     assert [counter["id"] for counter in counters.json()] == ["demo-counter-university"]
 
 
+def test_frontend_routes_serve_shell_on_direct_navigation_and_api_unknowns_stay_json(
+    monkeypatch, tmp_path,
+):
+    from app.main import create_app
+
+    static_root = tmp_path / "frontend"
+    static_root.mkdir()
+    shell = "<!doctype html><html><body>Frontend route shell</body></html>"
+    (static_root / "_shell.html").write_text(shell)
+    monkeypatch.setenv("FRONTEND_STATIC_DIR", str(static_root))
+
+    app = create_app(database_url=f"sqlite:///{tmp_path / 'route-refresh.db'}")
+    frontend_routes = (
+        "/", "/admin", "/login", "/staff", "/tickets",
+        "/organizations/org-university", "/ticket/ticket-id",
+        "/join/org-university/service-id",
+    )
+    with TestClient(app) as client:
+        for path in frontend_routes:
+            response = client.get(path, headers={"Accept": "text/html"})
+            assert response.status_code == 200, path
+            assert response.headers["content-type"].startswith("text/html"), path
+            assert response.text == shell, path
+
+        unknown_api = client.get(
+            "/api/unknown-endpoint", headers={"Accept": "text/html"},
+        )
+
+    assert unknown_api.status_code == 404
+    assert unknown_api.headers["content-type"].startswith("application/json")
+    assert unknown_api.json() == {
+        "code": "NOT_FOUND", "message": "Not found", "details": None,
+        "detail": "Not found",
+    }
+
+
 @pytest.mark.parametrize("variable,value", [
     ("APP_ENV", "staging"), ("SEED_DEMO_DATA", "yes"),
     ("CORS_ORIGINS", "https://example.test/path"),

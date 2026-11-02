@@ -71,8 +71,7 @@ def create_app(store: DatabaseStore | None = None, *, database_url: str | None =
         static_root = Path(frontend_static_dir).resolve()
         shell_path = static_root / "_shell.html"
 
-        @application.get("/{frontend_path:path}", include_in_schema=False)
-        def serve_frontend(frontend_path: str, request: Request):
+        def serve_frontend_path(frontend_path: str, request: Request):
             if frontend_path == "api" or frontend_path.startswith("api/"):
                 raise HTTPException(404, "Not found")
 
@@ -83,12 +82,19 @@ def create_app(store: DatabaseStore | None = None, *, database_url: str | None =
                     if frontend_path.startswith("assets/") else None
                 )
                 return FileResponse(file_path, headers=headers)
-
             if "text/html" not in request.headers.get("accept", ""):
                 raise HTTPException(404, "Not found")
             if not shell_path.is_file():
                 raise HTTPException(503, "Frontend shell is unavailable")
             return FileResponse(shell_path)
+
+        @application.get("/", include_in_schema=False)
+        def serve_frontend_root(request: Request):
+            return serve_frontend_path("", request)
+
+        @application.get("/{frontend_path:path}", include_in_schema=False)
+        def serve_frontend(frontend_path: str, request: Request):
+            return serve_frontend_path(frontend_path, request)
 
     install_access_log_redaction()
     return SafeErrorBoundary(application)
