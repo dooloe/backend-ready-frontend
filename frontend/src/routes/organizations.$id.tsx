@@ -25,6 +25,8 @@ function OrganizationPage() {
       retry: false,
       refetchInterval: (query: Query<IssuedTicket>) =>
         ticketRefetchInterval(query.state.data?.status),
+      refetchIntervalInBackground: true,
+      refetchOnWindowFocus: true,
     })),
   });
   const query = useQuery({

@@ -40,6 +40,8 @@ function TicketPage() {
     queryFn: ({ signal }) => api.getPrivateTicket(id, signal),
     retry: false,
     refetchInterval: (q) => ticketRefetchInterval(q.state.data?.status),
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
   const t = query.data;
   useEffect(() => {

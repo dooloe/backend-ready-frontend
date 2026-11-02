@@ -1548,3 +1548,21 @@ blocked because the installed snap cannot run without `cap_dac_override`.
 Compose and CI YAML parsed, Python compileall, shell syntax and `git diff --check`
 passed. Issues #73 and #74 remain open until the live PostgreSQL
 integration and browser container-recreation checks run successfully.
+
+## 2026-11-02 — Background customer ticket updates #75
+
+Root cause: ticket status polling was configured for five-second refreshes, but
+TanStack Query's default pauses interval refetches while a browser document is
+hidden. A customer who left the ticket in another window could therefore keep
+seeing the old status until returning to that window. Active ticket queries now
+continue polling in the background and explicitly refresh on focus. This applies
+to the private ticket page, My Tickets and saved tickets on organization pages;
+polling still stops at terminal states.
+
+The real-backend Playwright customer/staff flow now places the customer page in
+the hidden-document state while staff calls the next ticket, starts service and
+completes it. Both desktop and mobile runs confirmed the customer page updates
+to each status without reload. Verification: frontend Vitest **111 passed**;
+typecheck passed; lint passed with zero errors and seven existing Fast Refresh
+warnings; targeted desktop/mobile Playwright checks **2 passed**; Prettier and
+`git diff --check` passed. Issue #75 was tracked with the `e2e-test` label.

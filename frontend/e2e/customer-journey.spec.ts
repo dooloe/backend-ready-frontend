@@ -79,6 +79,15 @@ test(
     await staff.getByLabel("Password").fill("staff123");
     await staff.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(staff.getByRole("heading", { name: "Service desk" })).toBeVisible();
+    await page.evaluate(() => {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => "hidden",
+      });
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("hidden");
     const staffFitsViewport = await staff.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     );

@@ -26,6 +26,8 @@ function MyTickets() {
         query.state.data && ["completed", "cancelled", "no_show"].includes(query.state.data.status)
           ? false
           : 5000,
+      refetchIntervalInBackground: true,
+      refetchOnWindowFocus: true,
     })),
   });
   const active = tickets.flatMap((query, index) =>
