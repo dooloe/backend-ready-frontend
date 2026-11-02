@@ -10,6 +10,7 @@ import { LoadError, LoadingCards } from "@/components/customer-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCustomerLocale } from "@/lib/customer-locale";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
@@ -35,15 +36,19 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-function useAct() {
+function useAct(afterError?: () => void) {
   const qc = useQueryClient();
+  const { t } = useCustomerLocale();
   return useMutation({
     mutationFn: (fn: () => Promise<unknown>) => fn(),
     onSuccess: () => {
       toast.success("Changes saved");
       return qc.invalidateQueries();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => {
+      toast.error(t(e.message));
+      afterError?.();
+    },
   });
 }
 
@@ -406,6 +411,8 @@ export function ServicesTab() {
       queryKey: ["admin-organization-services", organization.id],
       queryFn: () => api.listOrganizationServices(organization.id),
       enabled: !!servicesQuery.data,
+      refetchInterval: 60_000,
+      refetchIntervalInBackground: true,
     })),
   });
   const queueByService = new Map(
@@ -662,8 +669,12 @@ function AdminServiceCard({
   onDelete: () => Promise<unknown>;
   onQueueChange: (isOpen: boolean) => Promise<unknown>;
 }) {
+  const { t, formatOperatingHours } = useCustomerLocale();
+  const queryClient = useQueryClient();
   const act = useAct();
-  const queueAction = useAct();
+  const queueAction = useAct(() => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-organization-services"] });
+  });
   const [form, setForm] = useState<ServiceForm>(() => ({
     name: service.name,
     description: service.description,
@@ -675,6 +686,10 @@ function AdminServiceCard({
     closesAt: service.closesAt ?? "",
   }));
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const serviceHours =
+    service.opensAt && service.closesAt
+      ? formatOperatingHours(`${service.opensAt.slice(0, 5)}–${service.closesAt.slice(0, 5)}`)
+      : t("24 hours (no opening or closing times configured)");
 
   return (
     <form
@@ -708,7 +723,12 @@ function AdminServiceCard({
               ? "Wait estimate unavailable"
               : "~" + queue.estimatedWaitMinutes + " min"}
           </p>
-          {timezone && <p className="text-xs text-muted-foreground">Hours shown in {timezone}</p>}
+          <p className="text-xs text-muted-foreground">
+            {t("Service hours: {hours} ({timezone}).", {
+              hours: serviceHours,
+              timezone: timezone ?? t("organization timezone unavailable"),
+            })}
+          </p>
         </div>
         <span className="status-pill" data-status={queue?.isOpen ? "completed" : "cancelled"}>
           {queue
@@ -812,7 +832,7 @@ function AdminServiceCard({
       )}
       {queueAction.isError && (
         <p role="alert" className="text-sm text-destructive">
-          {queueAction.error.message}
+          {t(queueAction.error.message)}
         </p>
       )}
       <div className="flex flex-wrap gap-2">

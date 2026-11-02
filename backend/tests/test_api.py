@@ -1119,7 +1119,26 @@ def test_daily_queue_cannot_be_reopened_outside_configured_hours(client, admin, 
     clock.value = clock.value.replace(hour=12)
     reopen = client.patch(f"/api/admin/queues/{queue_id}", headers=admin, json={"isOpen": True})
     assert reopen.status_code == 409
+    assert reopen.json()["message"] == "Queue cannot open outside configured service hours."
     assert client.get(f"/api/queues/{queue_id}/status").json()["isOpen"] is False
+
+
+def test_queue_open_rejects_stale_business_date_after_almaty_midnight(client, admin, clock):
+    clock.value = datetime(2026, 10, 20, 18, 59, tzinfo=timezone.utc)
+    services = client.get("/api/organizations/org-demo/services").json()
+    queue_id = next(item["queue"]["id"] for item in services if item["id"] == "svc-reg")
+    assert next(item["queue"]["queueDate"] for item in services if item["id"] == "svc-reg") == "2026-10-20"
+
+    # Render's host clock is UTC. 19:00 UTC is midnight on the next
+    # business date in the configured Asia/Almaty organization timezone.
+    clock.value = datetime(2026, 10, 20, 19, 0, tzinfo=timezone.utc)
+    stale_open = client.patch(
+        f"/api/admin/queues/{queue_id}", headers=admin, json={"isOpen": True},
+    )
+    assert stale_open.status_code == 409
+    assert stale_open.json()["message"] == (
+        "This queue belongs to a different business date. Refresh queue status and try again."
+    )
 
 
 def test_counter_changes_cannot_strand_an_active_ticket(client, admin, staff):

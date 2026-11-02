@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api";
+import { CustomerLocaleProvider } from "@/lib/customer-locale";
 import { ServicesTab } from "@/routes/admin";
 
 describe("admin service form", () => {
@@ -24,9 +25,11 @@ describe("admin service form", () => {
       });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
-      <QueryClientProvider client={queryClient}>
-        <ServicesTab />
-      </QueryClientProvider>,
+      <CustomerLocaleProvider>
+        <QueryClientProvider client={queryClient}>
+          <ServicesTab />
+        </QueryClientProvider>
+      </CustomerLocaleProvider>,
     );
 
     fireEvent.change(screen.getByPlaceholderText("Name"), { target: { value: "Registrar" } });
@@ -106,6 +109,88 @@ describe("admin service form", () => {
       "Service hours conflict with an active queue",
     );
     expect(name).toHaveValue("Registrar services");
+  });
+
+  it("shows configured hours in the organization timezone and explains a rejected queue opening", async () => {
+    localStorage.setItem("kezek-customer-locale-v1", "ru");
+    vi.spyOn(api, "listAdminServices").mockResolvedValue([
+      {
+        id: "svc-reg",
+        organizationId: "org-university",
+        name: "Registrar Office",
+        description: "Documents",
+        prefix: "A",
+        isOpen: true,
+        isActive: true,
+        avgServiceMinutes: 6,
+        opensAt: "09:00:00",
+        closesAt: "17:00:00",
+      },
+    ]);
+    vi.spyOn(api, "listOrganizations").mockResolvedValue([
+      {
+        id: "org-university",
+        name: "Almaty University",
+        description: "",
+        category: "Universities",
+        location: "Almaty, Kazakhstan",
+        timezone: "Asia/Almaty",
+        services: [
+          {
+            id: "svc-reg",
+            name: "Registrar Office",
+            description: "Documents",
+            prefix: "A",
+            isOpen: true,
+            avgServiceMinutes: 6,
+            waitingCount: 0,
+            estimatedWaitMinutes: null,
+            operatingHours: "09:00–17:00",
+          },
+        ],
+      },
+    ]);
+    vi.spyOn(api, "listOrganizationServices").mockResolvedValue([
+      {
+        id: "svc-reg",
+        organizationId: "org-university",
+        name: "Registrar Office",
+        description: "Documents",
+        prefix: "A",
+        durationMinutes: 6,
+        opensAt: "09:00",
+        closesAt: "17:00",
+        timezone: "Asia/Almaty",
+        queue: {
+          id: "queue-today",
+          serviceId: "svc-reg",
+          queueDate: "2026-10-20",
+          isOpen: false,
+          waiting: 0,
+          activeCounters: 1,
+          estimatedWaitMinutes: null,
+        },
+      },
+    ]);
+    vi.spyOn(api, "setQueueOverride").mockRejectedValue(
+      new Error("Queue cannot open outside configured service hours."),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <CustomerLocaleProvider>
+        <QueryClientProvider client={queryClient}>
+          <ServicesTab />
+        </QueryClientProvider>
+      </CustomerLocaleProvider>,
+    );
+
+    expect(await screen.findByText("Часы работы: 09:00–17:00 (Asia/Almaty)."))
+      .toBeVisible();
+    fireEvent.click(await screen.findByRole("button", { name: "Open queue" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Нельзя открыть очередь вне установленного времени работы услуги.",
+    );
+    expect(api.setQueueOverride).toHaveBeenCalledWith("queue-today", true);
   });
 
   it("rejects a whitespace-only service name and preserves it for correction", async () => {

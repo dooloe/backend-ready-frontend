@@ -109,6 +109,34 @@ const copy: Record<string, Record<Exclude<CustomerLocale, "en">, string>> = {
   "Tickets available": { kk: "Талон алуға болады", ru: "Талоны доступны" },
   "Tickets unavailable": { kk: "Талон берілмейді", ru: "Выдача талонов недоступна" },
   "Service hours": { kk: "Қызмет уақыты", ru: "Часы работы услуги" },
+  "Service hours: {hours} ({timezone}).": {
+    kk: "Қызмет уақыты: {hours} ({timezone}).",
+    ru: "Часы работы: {hours} ({timezone}).",
+  },
+  "24 hours (no opening or closing times configured)": {
+    kk: "Тәулігіне 24 сағат (ашылу және жабылу уақыты көрсетілмеген)",
+    ru: "Круглосуточно (время открытия и закрытия не задано)",
+  },
+  "organization timezone unavailable": {
+    kk: "ұйымның уақыт белдеуі белгісіз",
+    ru: "часовой пояс организации недоступен",
+  },
+  "Queue cannot open outside configured service hours.": {
+    kk: "Кезекті қызметтің белгіленген жұмыс уақытынан тыс ашу мүмкін емес.",
+    ru: "Нельзя открыть очередь вне установленного времени работы услуги.",
+  },
+  "This queue belongs to a different business date. Refresh queue status and try again.": {
+    kk: "Бұл кезек басқа жұмыс күніне тиесілі. Кезек күйін жаңартып, қайталап көріңіз.",
+    ru: "Эта очередь относится к другой рабочей дате. Обновите состояние очереди и повторите попытку.",
+  },
+  "Service must be active and accepting visits before its queue can open.": {
+    kk: "Кезекті ашу үшін қызмет белсенді болып, келушілерді қабылдауы керек.",
+    ru: "Чтобы открыть очередь, услуга должна быть активна и принимать посетителей.",
+  },
+  "Queue cannot open because the organization schedule or timezone is invalid.": {
+    kk: "Ұйымның жұмыс кестесі немесе уақыт белдеуі қате болғандықтан кезекті ашу мүмкін емес.",
+    ru: "Нельзя открыть очередь: расписание или часовой пояс организации настроены неверно.",
+  },
   "Not provided": { kk: "Көрсетілмеген", ru: "Не указано" },
   "Ticket issuance is unavailable right now. Check the service hours or try again later.": {
     kk: "Қазір талон берілмейді. Қызмет уақытын тексеріңіз немесе кейінірек қайталап көріңіз.",

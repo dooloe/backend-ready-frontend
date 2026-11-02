@@ -387,13 +387,26 @@ class DatabaseStore:
                 )
             except ValueError as exc:
                 if is_open:
-                    raise HTTPException(409, "Cannot open outside service hours or business date") from exc
+                    raise HTTPException(
+                        409, "Queue cannot open because the organization schedule or timezone is invalid."
+                    ) from exc
                 schedule = None
-            if is_open and (
-                not service.isActive or not service.isOpen or schedule is None
-                or not schedule.within_hours or queue.business_date != schedule.business_date
-            ):
-                raise HTTPException(409, "Cannot open outside service hours or business date")
+            if is_open:
+                if not service.isActive or not service.isOpen:
+                    raise HTTPException(
+                        409, "Service must be active and accepting visits before its queue can open."
+                    )
+                if schedule is None:
+                    raise HTTPException(
+                        409, "Queue cannot open because the organization schedule or timezone is invalid."
+                    )
+                if not schedule.within_hours:
+                    raise HTTPException(409, "Queue cannot open outside configured service hours.")
+                if queue.business_date != schedule.business_date:
+                    raise HTTPException(
+                        409,
+                        "This queue belongs to a different business date. Refresh queue status and try again.",
+                    )
 
             target = "open" if is_open else "closed"
             if queue.status != target:
