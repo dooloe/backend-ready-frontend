@@ -55,6 +55,8 @@ export interface IssuedTicket {
   id: string;
   queueId: string;
   organizationName: string;
+  organizationLocation?: string | null;
+  organizationIsDemo?: boolean;
   ticketNumber: string;
   serviceName: string;
   status: TicketStatus;
@@ -244,5 +246,6 @@ export interface Organization {
   category: string;
   location: string | null;
   timezone: string;
+  isDemo?: boolean;
   services: PublicService[];
 }

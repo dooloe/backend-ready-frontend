@@ -17,12 +17,16 @@ export function ConfirmAction({
   description,
   onConfirm,
   disabled = false,
+  cancelText,
+  confirmText,
 }: {
   children: ReactNode;
   title: string;
   description: string;
   onConfirm: () => void;
   disabled?: boolean;
+  cancelText?: string;
+  confirmText?: string;
 }) {
   const { t } = useCustomerLocale();
   const [open, setOpen] = useState(false);
@@ -37,9 +41,9 @@ export function ConfirmAction({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t("Go back")}</AlertDialogCancel>
+          <AlertDialogCancel>{cancelText ?? t("Go back")}</AlertDialogCancel>
           <AlertDialogAction disabled={disabled} onClick={onConfirm}>
-            {t("Confirm")}
+            {confirmText ?? t("Confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

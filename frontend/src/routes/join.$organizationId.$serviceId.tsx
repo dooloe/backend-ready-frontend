@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Ticket, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { LoadError, LoadingCards } from "@/components/customer-ui";
+import { LoadError, LoadingCards, OrgLocation } from "@/components/customer-ui";
 import { saveTicketToken } from "@/lib/saved-tickets";
 import {
   clearPendingJoin,
@@ -15,6 +15,7 @@ import {
   type PendingJoin,
 } from "@/lib/ticket-issuance";
 import { useCustomerLocale } from "@/lib/customer-locale";
+import { isDemoOrganization } from "@/lib/organizations";
 
 export const Route = createFileRoute("/join/$organizationId/$serviceId")({
   head: () => ({ meta: [{ title: "Confirm your place — Kezek" }] }),
@@ -108,24 +109,39 @@ function JoinPage() {
             <Ticket />
           </span>
           <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-            {t("One step away")}
+            {t("Ticket confirmation")}
           </p>
-          <h1 className="mt-3 text-3xl font-bold">{t("Confirm your place")}</h1>
+          <h1 className="mt-3 text-3xl font-bold">{t("Get your ticket")}</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            {t(
-              "Confirm once to receive a private digital ticket. If your connection drops, retrying will recover the same place instead of creating a duplicate.",
-            )}
+            {t("After receiving your ticket, you can track your queue position on the next page.")}
           </p>
           <div className="my-7 space-y-4 rounded-xl bg-background p-5">
-            <p className="text-sm text-muted-foreground">{organizationQuery.data.name}</p>
-            <h2 className="text-xl font-semibold">{service?.name ?? t("Service unavailable")}</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm text-muted-foreground">{organizationQuery.data.name}</p>
+              {(organizationQuery.data.isDemo ??
+                isDemoOrganization(
+                  organizationQuery.data.name,
+                  organizationQuery.data.description,
+                )) && (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                  {t("Demo")}
+                </span>
+              )}
+            </div>
+            <OrgLocation org={organizationQuery.data} />
+            <h2 className="text-xl font-semibold">
+              {service ? t(service.name) : t("Service unavailable")}
+            </h2>
+            {service?.description && (
+              <p className="text-sm text-muted-foreground">{t(service.description)}</p>
+            )}
             {service && queue && (
               <>
                 <span
                   className="status-pill"
                   data-status={queue.isOpen ? "completed" : "cancelled"}
                 >
-                  {t(queue.isOpen ? "Queue open" : "Queue closed")}
+                  {t(queue.isOpen ? "Tickets available" : "Tickets unavailable")}
                 </span>
                 <p className="text-sm text-muted-foreground">
                   {formatCount(queue.waiting, "person")} {t("waiting")} ·{" "}
@@ -141,10 +157,10 @@ function JoinPage() {
           <p className="mb-6 text-sm text-muted-foreground">
             {queue?.isOpen
               ? t(
-                  "Your place is confirmed when the ticket appears. Wait times are approximate. You can cancel while waiting.",
+                  "Waiting times are estimates and may change. Please be near the service location before staff call you.",
                 )
               : t(
-                  "This service isn’t accepting new visitors right now. Please choose another service or check back later.",
+                  "Ticket issuance is currently unavailable for this service. Check the service hours or try again later.",
                 )}
           </p>
           {join.isError && (
@@ -202,14 +218,14 @@ function JoinPage() {
             onClick={() => join.mutate()}
           >
             {join.isPending
-              ? t("Issuing your ticket…")
+              ? t("Getting your ticket…")
               : join.isSuccess
                 ? t("Opening your ticket…")
                 : !queue?.isOpen
                   ? t("Queue closed")
                   : join.isError
                     ? t("Retry ticket request")
-                    : t("Confirm & join queue")}
+                    : t("Get a ticket")}
           </Button>
           <p className="mt-5 flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <ShieldCheck size={16} /> {t("No account. No personal details.")}

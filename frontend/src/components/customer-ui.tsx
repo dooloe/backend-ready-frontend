@@ -44,6 +44,7 @@ export function OrgLocation({ org }: { org: Organization }) {
     </p>
   );
 }
+
 export function QueueSummary({ service }: { service: PublicService }) {
   const { t, formatCount, formatNumber } = useCustomerLocale();
   return (

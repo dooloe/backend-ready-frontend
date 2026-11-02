@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/ticket-polling", () => ({
   ticketIsPollingActive: (status: string | undefined) =>
@@ -100,7 +100,7 @@ describe("private ticket route", () => {
     await renderTicket();
     expect(await screen.findByText("Estimate unavailable")).toBeInTheDocument();
     expect(screen.getByText(/Last updated/)).toBeInTheDocument();
-    expect(screen.getByText(/Refreshes every 5 seconds/)).toBeInTheDocument();
+    expect(screen.getByText(/checks for updates every 5 seconds/)).toBeInTheDocument();
   });
 
   it("shows the assigned counter when the visitor is called", async () => {
@@ -113,6 +113,26 @@ describe("private ticket route", () => {
 
     expect(await screen.findByText("Window 3")).toBeVisible();
     expect(screen.getByText("Your assigned counter")).toBeVisible();
+    expect(screen.queryByText("People ahead of you")).not.toBeInTheDocument();
+  });
+
+  it("distinguishes a waiting ticket with nobody ahead from a staff call", async () => {
+    vi.spyOn(api, "getPrivateTicket").mockResolvedValue({ ...ticket, position: 1 });
+    await renderTicket();
+
+    expect(await screen.findByText("You are next. Please wait for the staff call.")).toBeVisible();
+    expect(screen.queryByText("It’s your turn!")).not.toBeInTheDocument();
+  });
+
+  it("explains that a cancelled ticket no longer holds a queue place", async () => {
+    vi.spyOn(api, "getPrivateTicket").mockResolvedValue({ ...ticket, status: "cancelled" });
+    await renderTicket();
+
+    expect(
+      await screen.findByText(
+        "Your ticket was cancelled. You no longer hold a place in the queue.",
+      ),
+    ).toBeVisible();
     expect(screen.queryByText("People ahead of you")).not.toBeInTheDocument();
   });
 
@@ -163,9 +183,10 @@ describe("private ticket route", () => {
       .mockResolvedValueOnce(ticket)
       .mockResolvedValue({ ...ticket, status: "called", counterName: "Counter 2" });
     const { queryClient } = await renderTicket();
-    fireEvent.click(await screen.findByRole("button", { name: "Cancel Ticket" }));
-    expect(await screen.findByText("Cancel your ticket?")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel ticket" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Cancel this ticket?")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel ticket" }));
     await waitFor(() => expect(cancel).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
     expect(screen.getByText("A-001")).toBeInTheDocument();

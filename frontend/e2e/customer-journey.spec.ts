@@ -14,37 +14,36 @@ async function join(page: Page, organization: "university" | "clinic" = "univers
       ? {
           category: "Universities",
           organizationName: "Almaty University · Demo",
-          serviceName: "Student services",
-          operatingHours: "Hours: 12:00 AM–11:59 PM",
+          serviceName: "Enrollment certificate",
+          operatingHours: "Service hours: 12:00 AM–11:59 PM",
         }
       : {
           category: "Clinics",
           organizationName: "City Health Clinic · Demo",
-          serviceName: "General consultation",
-          operatingHours: "Hours: 12:00 AM–11:59 PM",
+          serviceName: "Primary care consultation",
+          operatingHours: "Service hours: 12:00 AM–11:59 PM",
         };
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Skip the waiting. Keep your place." }),
-  ).toBeVisible();
+    page.getByRole("heading", { name: "Get your ticket online. Wait where it suits you." }),
+  ).toBeVisible({ timeout: 15000 });
   await page.getByRole("button", { name: directory.category, exact: true }).click();
   await expect(page.locator("article")).toHaveCount(1);
   await page.getByRole("link", { name: "View Services" }).click();
   await expect(page.getByRole("heading", { name: directory.organizationName })).toBeVisible();
-  await expect(page.getByText("Service hours listed below · Asia/Almaty")).toBeVisible();
-  await expect(page.getByText(directory.operatingHours)).toBeVisible();
   const service = page.locator("article").filter({ hasText: directory.serviceName });
-  await expect(service.getByText("Open", { exact: true })).toBeVisible();
+  await expect(service.getByText(directory.operatingHours)).toBeVisible();
+  await expect(service.getByText("Tickets available", { exact: true })).toBeVisible();
   await expect(service.getByText(/\d+ (?:person|people) waiting/)).toBeVisible();
   await expect(service.getByText(/~\d+ min wait/)).toBeVisible();
-  await page.getByRole("link", { name: "Join Queue" }).click();
-  await expect(page.getByRole("heading", { name: "Confirm your place" })).toBeVisible();
+  await service.getByRole("link", { name: "Get a ticket" }).click();
+  await expect(page.getByRole("heading", { name: "Get your ticket" })).toBeVisible();
   const joinFlowFitsViewport = await page.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth,
   );
   expect(joinFlowFitsViewport).toBe(true);
   await expect(page.locator("input")).toHaveCount(0);
-  await page.getByRole("button", { name: "Confirm & join queue" }).click();
+  await page.getByRole("button", { name: "Get a ticket" }).click();
   await expect(page).toHaveURL(/\/ticket\//);
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
   await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
@@ -61,7 +60,8 @@ test(
     page.on("pageerror", (error) => errors.push(error.message));
     const organization = info.project.name === "mobile" ? "clinic" : "university";
     const staffUsername = organization === "clinic" ? "demo-staff-clinic" : "demo-staff-university";
-    const serviceName = organization === "clinic" ? "General consultation" : "Student services";
+    const serviceName =
+      organization === "clinic" ? "Primary care consultation" : "Enrollment certificate";
     const firstUrl = await join(page, organization);
     await expect(page.getByText("People ahead of you")).toBeVisible();
     await expect(page.locator("body")).not.toHaveText(/Mock API/);
@@ -104,13 +104,13 @@ test(
     await expect(second.getByRole("link", { name: "Skip to content" })).toBeFocused();
     await tabUntilFocused(
       second,
-      second.getByRole("button", { name: "Cancel Ticket", exact: true }),
+      second.getByRole("button", { name: "Cancel ticket", exact: true }),
     );
     await second.keyboard.press("Enter");
     await expect(second.getByRole("alertdialog")).toBeVisible();
-    await expect(second.getByRole("button", { name: "Go back", exact: true })).toBeFocused();
+    await expect(second.getByRole("button", { name: "Keep ticket", exact: true })).toBeFocused();
     await second.keyboard.press("Tab");
-    await expect(second.getByRole("button", { name: "Confirm", exact: true })).toBeFocused();
+    await expect(second.getByRole("button", { name: "Cancel ticket", exact: true })).toBeFocused();
     await second.keyboard.press("Enter");
     await expect(second.getByRole("heading", { name: "Your ticket is cancelled" })).toBeVisible();
     await expect(staff.getByRole("button", { name: "Call Next", exact: true })).toBeDisabled({

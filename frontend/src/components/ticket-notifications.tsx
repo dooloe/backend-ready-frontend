@@ -24,39 +24,45 @@ function subscriptionPayload(subscription: PushSubscription) {
 
 export function TicketNotifications({ accessToken }: { accessToken: string }) {
   const { t: tr } = useCustomerLocale();
-  const [supported, setSupported] = useState(false);
-  const [enabled, setEnabled] = useState(false);
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [state, setState] = useState<
+    "checking" | "unsupported" | "unavailable" | "denied" | "enabled" | "ready" | "failed"
+  >("checking");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
     if (!("Notification" in window) || !("serviceWorker" in navigator) || !window.isSecureContext) {
+      setState("unsupported");
       return;
     }
-    setPermissionDenied(Notification.permission === "denied");
+    if (Notification.permission === "denied") {
+      setState("denied");
+      return;
+    }
     void api
       .getPushConfig()
       .then(async (config) => {
-        if (!active || !config.enabled || !config.publicKey) return;
+        if (!active) return;
+        if (!config.enabled || !config.publicKey) {
+          setState("unavailable");
+          return;
+        }
         const registration = await navigator.serviceWorker.register("/service-worker.js");
         const subscription = await registration.pushManager.getSubscription();
         if (!active) return;
-        if (subscription) {
-          setEnabled(true);
-        }
         if (subscription && Notification.permission === "granted") {
           try {
             await api.registerTicketPush(accessToken, subscriptionPayload(subscription));
-            if (active) setEnabled(true);
+            if (active) setState("enabled");
           } catch {
-            if (active) setEnabled(false);
+            if (active) setState("failed");
           }
+        } else {
+          setState("ready");
         }
-        if (active) setSupported(true);
       })
       .catch(() => {
-        if (active) setSupported(false);
+        if (active) setState("unavailable");
       });
     return () => {
       active = false;
@@ -67,27 +73,27 @@ export function TicketNotifications({ accessToken }: { accessToken: string }) {
     setBusy(true);
     let newSubscription: PushSubscription | null = null;
     try {
-      if (enabled) {
+      if (state === "enabled") {
         const registration = await navigator.serviceWorker.getRegistration("/");
         const subscription = await registration?.pushManager.getSubscription();
         if (subscription) {
           await api.removeTicketPush(accessToken, subscription.endpoint);
           await subscription.unsubscribe();
         }
-        setEnabled(false);
+        setState("ready");
         toast.success(tr("Browser notifications are off."));
         return;
       }
       const config = await api.getPushConfig();
       if (!config.enabled || !config.publicKey) {
-        setSupported(false);
+        setState("unavailable");
         toast.error(
           tr("Browser notifications are unavailable. Keep this ticket page open for updates."),
         );
         return;
       }
       const permission = await Notification.requestPermission();
-      setPermissionDenied(permission === "denied");
+      if (permission === "denied") setState("denied");
       if (permission !== "granted") {
         toast.error(
           tr("Notification permission was not granted. Keep this ticket page open for updates."),
@@ -100,15 +106,12 @@ export function TicketNotifications({ accessToken }: { accessToken: string }) {
         applicationServerKey: decodeApplicationKey(config.publicKey),
       });
       await api.registerTicketPush(accessToken, subscriptionPayload(newSubscription));
-      setEnabled(true);
+      setState("enabled");
       toast.success(tr("Browser notifications are on for this ticket."));
-    } catch (error) {
+    } catch {
       if (newSubscription) await newSubscription.unsubscribe().catch(() => undefined);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : tr("Notifications could not be updated. Try again."),
-      );
+      setState("failed");
+      toast.error(tr("Notifications could not be updated. Try again."));
     } finally {
       setBusy(false);
     }
@@ -117,7 +120,7 @@ export function TicketNotifications({ accessToken }: { accessToken: string }) {
   return (
     <section className="mt-5 rounded-xl border bg-white p-4 text-left">
       <div className="flex items-start gap-3">
-        {enabled ? (
+        {state === "enabled" ? (
           <Bell className="mt-0.5 text-primary" size={18} />
         ) : (
           <BellOff className="mt-0.5 text-muted-foreground" size={18} />
@@ -125,37 +128,49 @@ export function TicketNotifications({ accessToken }: { accessToken: string }) {
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold">{tr("Turn notifications")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {supported && !permissionDenied
-              ? tr(
-                  "Get a brief alert when staff call you. Your ticket page remains the source for queue details.",
-                )
-              : tr(
-                  "Browser notifications are unavailable. Keep this ticket page open for updates.",
-                )}
+            {state === "checking"
+              ? tr("Checking notification support…")
+              : state === "ready"
+                ? tr(
+                    "If enabled, your browser may show a brief alert when staff call. Keep this page open to follow queue details.",
+                  )
+                : state === "enabled"
+                  ? tr(
+                      "Notifications are enabled for this ticket. Keep this page open to follow queue details.",
+                    )
+                  : state === "denied"
+                    ? tr(
+                        "Notifications are blocked in browser settings. Keep this ticket page open for updates.",
+                      )
+                    : state === "unsupported"
+                      ? tr(
+                          "This browser cannot send ticket notifications. Keep this ticket page open for updates.",
+                        )
+                      : state === "unavailable"
+                        ? tr(
+                            "Ticket notifications are not configured right now. Keep this ticket page open for updates.",
+                          )
+                        : tr(
+                            "Notifications could not be set up. Queue updates still appear on this page.",
+                          )}
           </p>
         </div>
-        {supported && !permissionDenied && (
+        {["ready", "enabled", "failed"].includes(state) && (
           <Button
             type="button"
-            variant={enabled ? "outline" : "default"}
+            variant={state === "enabled" ? "outline" : "default"}
             size="sm"
             disabled={busy}
-            aria-pressed={enabled}
+            aria-pressed={state === "enabled"}
             onClick={() => void toggle()}
           >
-            {busy ? tr("Saving…") : enabled ? tr("Turn off") : tr("Turn on")}
-          </Button>
-        )}
-        {supported && enabled && permissionDenied && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            aria-pressed={enabled}
-            onClick={() => void toggle()}
-          >
-            {busy ? tr("Saving…") : tr("Turn off")}
+            {busy
+              ? tr("Saving…")
+              : state === "enabled"
+                ? tr("Turn off")
+                : state === "failed"
+                  ? tr("Try again")
+                  : tr("Turn on")}
           </Button>
         )}
       </div>

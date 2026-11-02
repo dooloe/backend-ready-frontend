@@ -41,11 +41,29 @@ const demoOrganizations = [
     category: "Universities",
     location: "Almaty, Kazakhstan",
     timezone: "Asia/Almaty",
-    serviceId: "mock-svc-university",
-    serviceName: "Student services",
-    serviceDescription: "Transcripts, enrollment, and student records.",
-    prefix: "U",
-    duration: 6,
+    services: [
+      {
+        id: "mock-svc-university",
+        name: "Enrollment certificate",
+        description: "Request proof of student status.",
+        prefix: "U",
+        duration: 6,
+      },
+      {
+        id: "mock-svc-tuition",
+        name: "Tuition payment questions",
+        description: "Discuss payment options and outstanding balances.",
+        prefix: "T",
+        duration: 8,
+      },
+      {
+        id: "mock-svc-dormitory",
+        name: "Dormitory support",
+        description: "Ask about accommodation and residence procedures.",
+        prefix: "D",
+        duration: 10,
+      },
+    ],
     staffName: "University demo staff",
   },
   {
@@ -55,11 +73,15 @@ const demoOrganizations = [
     category: "Clinics",
     location: "Astana, Kazakhstan",
     timezone: "Asia/Almaty",
-    serviceId: "mock-svc-clinic",
-    serviceName: "General consultation",
-    serviceDescription: "A demonstration clinic queue.",
-    prefix: "H",
-    duration: 12,
+    services: [
+      {
+        id: "mock-svc-clinic",
+        name: "Primary care consultation",
+        description: "Discuss a non-emergency health concern with clinic staff.",
+        prefix: "H",
+        duration: 12,
+      },
+    ],
     staffName: "Clinic demo staff",
   },
   {
@@ -69,11 +91,15 @@ const demoOrganizations = [
     category: "Government Services",
     location: "Shymkent, Kazakhstan",
     timezone: "Asia/Almaty",
-    serviceId: "mock-svc-government",
-    serviceName: "Documents & applications",
-    serviceDescription: "A demonstration document service queue.",
-    prefix: "G",
-    duration: 8,
+    services: [
+      {
+        id: "mock-svc-government",
+        name: "Identity and document services",
+        description: "Explore the sample queue for document requests.",
+        prefix: "G",
+        duration: 8,
+      },
+    ],
     staffName: "Government demo staff",
   },
   {
@@ -83,26 +109,44 @@ const demoOrganizations = [
     category: "Service Centers",
     location: "Karaganda, Kazakhstan",
     timezone: "Asia/Almaty",
-    serviceId: "mock-svc-center",
-    serviceName: "Customer support",
-    serviceDescription: "A demonstration customer service queue.",
-    prefix: "S",
-    duration: 5,
+    services: [
+      {
+        id: "mock-svc-center",
+        name: "Community support",
+        description: "Ask about local services and support.",
+        prefix: "S",
+        duration: 5,
+      },
+    ],
     staffName: "Service center demo staff",
   },
 ] as const;
 
 function ensureDemoDirectory(data: DB): DB {
   for (const organization of demoOrganizations) {
-    if (!data.services.some((service) => service.id === organization.serviceId)) {
-      data.services.push({
-        id: organization.serviceId,
-        name: organization.serviceName,
-        description: organization.serviceDescription,
-        prefix: organization.prefix,
-        isOpen: true,
-        avgServiceMinutes: organization.duration,
-      });
+    for (const service of organization.services) {
+      if (!data.services.some((item) => item.id === service.id)) {
+        data.services.push({
+          id: service.id,
+          name: service.name,
+          description: service.description,
+          prefix: service.prefix,
+          isOpen: true,
+          avgServiceMinutes: service.duration,
+        });
+      } else {
+        const existing = data.services.find((item) => item.id === service.id)!;
+        const legacyDefaults: Record<string, string> = {
+          "mock-svc-university": "Student services",
+          "mock-svc-clinic": "General consultation",
+          "mock-svc-government": "Documents & applications",
+          "mock-svc-center": "Customer support",
+        };
+        if (existing.name === legacyDefaults[service.id]) {
+          existing.name = service.name;
+          existing.description = service.description;
+        }
+      }
     }
     const staffId = `demo-staff-${organization.id.slice("mock-".length)}`;
     if (!data.staff.some((staff) => staff.id === staffId)) {
@@ -119,11 +163,16 @@ function ensureDemoDirectory(data: DB): DB {
       data.counters.push({
         id: counterId,
         name: "Service counter",
-        serviceIds: [organization.serviceId],
+        serviceIds: organization.services.map((service) => service.id),
         isActive: true,
         staffId,
       });
     }
+    const counter = data.counters.find((item) => item.id === counterId);
+    if (counter)
+      counter.serviceIds = [
+        ...new Set([...counter.serviceIds, ...organization.services.map((service) => service.id)]),
+      ];
   }
   return data;
 }
@@ -279,13 +328,17 @@ function view(t: Ticket): TicketView {
 }
 
 function toIssuedTicket(ticket: Ticket): IssuedTicket {
-  const organization = demoOrganizations.find((item) => item.serviceId === ticket.serviceId);
+  const organization = demoOrganizations.find((item) =>
+    item.services.some((service) => service.id === ticket.serviceId),
+  );
   const counter = load().counters.find((item) => item.id === ticket.counterId);
   const ticketView = view(ticket);
   return {
     id: ticket.id,
     queueId: `mock-queue-${ticket.serviceId}`,
     organizationName: organization?.name ?? "Kezek demo organization",
+    organizationLocation: organization?.location ?? null,
+    organizationIsDemo: true,
     ticketNumber: ticket.code,
     serviceName: ticketView.serviceName,
     status: ticket.status,
@@ -323,13 +376,6 @@ export const mockApi: KezekApi = {
   listOrganizations: () => {
     const data = load();
     const organizations = demoOrganizations.map((organization) => {
-      const service = data.services.find((item) => item.id === organization.serviceId)!;
-      const waiting = data.tickets.filter(
-        (ticket) => ticket.serviceId === service.id && ticket.status === "waiting",
-      );
-      const activeCounters = data.counters.filter(
-        (counter) => counter.isActive && counter.serviceIds.includes(service.id),
-      ).length;
       return {
         id: organization.id,
         name: organization.name,
@@ -337,17 +383,28 @@ export const mockApi: KezekApi = {
         category: organization.category,
         location: organization.location,
         timezone: organization.timezone,
-        services: [
-          {
-            ...service,
-            isOpen: service.isOpen && data.queueOverrides[`mock-queue-${service.id}`] !== false,
-            waitingCount: waiting.length,
-            estimatedWaitMinutes: activeCounters
-              ? Math.ceil((waiting.length * service.avgServiceMinutes) / activeCounters)
-              : null,
-            operatingHours: null,
-          },
-        ],
+        isDemo: true,
+        services: organization.services.flatMap(({ id }) => {
+          const service = data.services.find((item) => item.id === id);
+          if (!service) return [];
+          const waiting = data.tickets.filter(
+            (ticket) => ticket.serviceId === id && ticket.status === "waiting",
+          );
+          const activeCounters = data.counters.filter(
+            (counter) => counter.isActive && counter.serviceIds.includes(id),
+          ).length;
+          return [
+            {
+              ...service,
+              isOpen: service.isOpen && data.queueOverrides[`mock-queue-${id}`] !== false,
+              waitingCount: waiting.length,
+              estimatedWaitMinutes: activeCounters
+                ? Math.ceil((waiting.length * service.avgServiceMinutes) / activeCounters)
+                : null,
+              operatingHours: null,
+            },
+          ];
+        }),
       };
     });
     return delay(organizations);
@@ -361,38 +418,40 @@ export const mockApi: KezekApi = {
     const organization = demoOrganizations.find((item) => item.id === organizationId);
     if (!organization) throw new ApiError(404, "Organization not found");
     const data = load();
-    const service = data.services.find((item) => item.id === organization.serviceId);
-    if (!service) return [];
-    const waiting = data.tickets.filter(
-      (ticket) => ticket.serviceId === service.id && ticket.status === "waiting",
-    ).length;
-    const activeCounters = data.counters.filter(
-      (counter) => counter.isActive && counter.serviceIds.includes(service.id),
-    ).length;
-    const queue: QueueSummary = {
-      id: `mock-queue-${service.id}`,
-      serviceId: service.id,
-      queueDate: new Date().toISOString().slice(0, 10),
-      isOpen: service.isOpen && data.queueOverrides[`mock-queue-${service.id}`] !== false,
-      waiting,
-      activeCounters,
-      estimatedWaitMinutes: activeCounters
-        ? Math.ceil((waiting * service.avgServiceMinutes) / activeCounters)
-        : null,
-    };
-    const summary: ServiceSummary = {
-      id: service.id,
-      organizationId,
-      name: service.name,
-      description: service.description,
-      prefix: service.prefix,
-      durationMinutes: service.avgServiceMinutes,
-      opensAt: service.opensAt ?? null,
-      closesAt: service.closesAt ?? null,
-      timezone: organization.timezone,
-      queue,
-    };
-    return [summary];
+    return organization.services.flatMap(({ id }) => {
+      const service = data.services.find((item) => item.id === id);
+      if (!service) return [];
+      const waiting = data.tickets.filter(
+        (ticket) => ticket.serviceId === id && ticket.status === "waiting",
+      ).length;
+      const activeCounters = data.counters.filter(
+        (counter) => counter.isActive && counter.serviceIds.includes(id),
+      ).length;
+      const queue: QueueSummary = {
+        id: `mock-queue-${id}`,
+        serviceId: id,
+        queueDate: new Date().toISOString().slice(0, 10),
+        isOpen: service.isOpen && data.queueOverrides[`mock-queue-${id}`] !== false,
+        waiting,
+        activeCounters,
+        estimatedWaitMinutes: activeCounters
+          ? Math.ceil((waiting * service.avgServiceMinutes) / activeCounters)
+          : null,
+      };
+      const summary: ServiceSummary = {
+        id: service.id,
+        organizationId,
+        name: service.name,
+        description: service.description,
+        prefix: service.prefix,
+        durationMinutes: service.avgServiceMinutes,
+        opensAt: service.opensAt ?? null,
+        closesAt: service.closesAt ?? null,
+        timezone: organization.timezone,
+        queue,
+      };
+      return [summary];
+    });
   },
   listServices: () => delay(load().services),
   listAdminServices() {

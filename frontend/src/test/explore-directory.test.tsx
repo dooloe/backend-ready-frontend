@@ -77,6 +77,38 @@ describe("Explore directory filters", () => {
     expect(screen.getByText("1 organization")).toBeVisible();
   });
 
+  it("combines the city and category filters and explains an empty result", async () => {
+    vi.spyOn(api, "listOrganizations").mockResolvedValue(organizations);
+    await renderExplore();
+    await screen.findByRole("heading", { name: "Almaty University" });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by city" }), {
+      target: { value: "Almaty" },
+    });
+    expect(screen.getByRole("heading", { name: "Almaty University" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Astana Clinic" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clinics" }));
+    expect(await screen.findByText("No matching organizations")).toBeVisible();
+    expect(screen.getByText("Try another search, category, or city.")).toBeVisible();
+  });
+
+  it("explains the visitor journey and flags demo institutions", async () => {
+    vi.spyOn(api, "listOrganizations").mockResolvedValue([{ ...organizations[0]!, isDemo: true }]);
+    await renderExplore();
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Get your ticket online. Wait where it suits you.",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Demonstration organizations. Tickets are not valid at real institutions."),
+    ).toBeVisible();
+    expect(screen.getByText("Demo")).toBeVisible();
+    expect(screen.getByText("Arrive at the service location before you are called.")).toBeVisible();
+  });
+
   it("searches organization names, service details, and locations", async () => {
     vi.spyOn(api, "listOrganizations").mockResolvedValue(organizations);
     await renderExplore();

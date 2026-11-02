@@ -79,6 +79,180 @@ const copy: Record<string, Record<Exclude<CustomerLocale, "en">, string>> = {
     kk: "Ұйымдарды қарап, қажет қызметті таңдаңыз.",
     ru: "Выберите организацию и нужную услугу.",
   },
+  "Get your ticket online. Wait where it suits you.": {
+    kk: "Талоныңызды онлайн алыңыз. Өзіңізге ыңғайлы жерде күтіңіз.",
+    ru: "Получите талон онлайн и ждите там, где вам удобно.",
+  },
+  "Choose an organization and service, get a digital ticket, and follow your queue.": {
+    kk: "Ұйым мен қызметті таңдап, электрондық талон алыңыз және кезегіңізді бақылаңыз.",
+    ru: "Выберите организацию и услугу, получите электронный талон и следите за очередью.",
+  },
+  "Choose an organization and service.": {
+    kk: "Ұйым мен қызметті таңдаңыз.",
+    ru: "Выберите организацию и услугу.",
+  },
+  "Get a ticket and track your position.": {
+    kk: "Талон алып, кезектегі орныңызды бақылаңыз.",
+    ru: "Получите талон и следите за своим местом.",
+  },
+  "Arrive at the service location before you are called.": {
+    kk: "Шақырмас бұрын қызмет көрсетілетін жерге келіңіз.",
+    ru: "Будьте рядом с местом обслуживания до вызова.",
+  },
+  "Demonstration organizations. Tickets are not valid at real institutions.": {
+    kk: "Көрсетілім ұйымдары. Талондар нақты мекемелерде жарамсыз.",
+    ru: "Демонстрационные организации. Талоны не действуют в реальных учреждениях.",
+  },
+  "All cities": { kk: "Барлық қала", ru: "Все города" },
+  "Filter by city": { kk: "Қала бойынша сүзу", ru: "Фильтр по городу" },
+  Demo: { kk: "Демо", ru: "Демо" },
+  "Tickets available": { kk: "Талон алуға болады", ru: "Талоны доступны" },
+  "Tickets unavailable": { kk: "Талон берілмейді", ru: "Выдача талонов недоступна" },
+  "Service hours": { kk: "Қызмет уақыты", ru: "Часы работы услуги" },
+  "Not provided": { kk: "Көрсетілмеген", ru: "Не указано" },
+  "Ticket issuance is unavailable right now. Check the service hours or try again later.": {
+    kk: "Қазір талон берілмейді. Қызмет уақытын тексеріңіз немесе кейінірек қайталап көріңіз.",
+    ru: "Сейчас талоны недоступны. Проверьте часы работы услуги или попробуйте позже.",
+  },
+  "Ticket confirmation": { kk: "Талонды растау", ru: "Подтверждение талона" },
+  "After receiving your ticket, you can track your queue position on the next page.": {
+    kk: "Талон алғаннан кейін келесі бетте кезектегі орныңызды бақылай аласыз.",
+    ru: "После получения талона вы сможете следить за очередью на следующей странице.",
+  },
+  "Waiting times are estimates and may change. Please be near the service location before staff call you.":
+    {
+      kk: "Күту уақыты шамамен көрсетіледі және өзгеруі мүмкін. Қызметкер шақырғанша қызмет орнына жақын болыңыз.",
+      ru: "Время ожидания приблизительное и может измениться. Будьте рядом с местом обслуживания до вызова.",
+    },
+  "Ticket issuance is currently unavailable for this service. Check the service hours or try again later.":
+    {
+      kk: "Бұл қызмет бойынша қазір талон берілмейді. Қызмет уақытын тексеріңіз немесе кейінірек қайталап көріңіз.",
+      ru: "Сейчас талоны для этой услуги недоступны. Проверьте часы работы или попробуйте позже.",
+    },
+  "Get your ticket": { kk: "Талоныңызды алыңыз", ru: "Получить талон" },
+  "Get a ticket": { kk: "Талон алу", ru: "Получить талон" },
+  "Getting your ticket…": { kk: "Талон дайындалуда…", ru: "Готовим талон…" },
+  "You are next. Please wait for the staff call.": {
+    kk: "Сіз келесісіз. Қызметкердің шақыруын күтіңіз.",
+    ru: "Вы следующий. Дождитесь вызова сотрудника.",
+  },
+  "Keep track of your queue and arrive at the service location before you are called.": {
+    kk: "Кезегіңізді бақылап, шақырмас бұрын қызмет орнына келіңіз.",
+    ru: "Следите за очередью и приходите к месту обслуживания до вызова.",
+  },
+  "There are {count} people ahead of you.": {
+    kk: "Алдыңызда {count} адам бар.",
+    ru: "Перед вами {count} человек.",
+  },
+  "Estimated wait: about {minutes} minutes.": {
+    kk: "Күту шамамен {minutes} минут.",
+    ru: "Ожидание около {minutes} минут.",
+  },
+  "Queue information may be out of date. Reconnecting…": {
+    kk: "Кезек ақпараты ескірген болуы мүмкін. Қайта қосылуда…",
+    ru: "Данные очереди могут быть устаревшими. Подключаемся…",
+  },
+  "Status may be out of date. Last checked {time}.": {
+    kk: "Мәртебе ескірген болуы мүмкін. Соңғы тексеру: {time}.",
+    ru: "Статус может быть устаревшим. Последняя проверка: {time}.",
+  },
+  "not yet": { kk: "әлі жоқ", ru: "ещё не было" },
+  "This page checks for updates every 5 seconds. Keep it open to follow the queue.": {
+    kk: "Бұл бет жаңартуларды әр 5 секунд сайын тексереді. Кезекті бақылау үшін бетті ашық ұстаңыз.",
+    ru: "Страница проверяет обновления каждые 5 секунд. Оставьте её открытой, чтобы следить за очередью.",
+  },
+  "Active tickets": { kk: "Белсенді талондар", ru: "Активные талоны" },
+  "Ticket history": { kk: "Талондар тарихы", ru: "История талонов" },
+  "Open ticket": { kk: "Талонды ашу", ru: "Открыть талон" },
+  "You already have an active ticket for this service.": {
+    kk: "Бұл қызмет үшін белсенді талоныңыз бар.",
+    ru: "У вас уже есть активный талон на эту услугу.",
+  },
+  "Some saved tickets are unavailable. Check your connection and retry from the ticket page.": {
+    kk: "Кейбір сақталған талондар қолжетімсіз. Байланысты тексеріп, талон бетінен қайталап көріңіз.",
+    ru: "Некоторые сохранённые талоны недоступны. Проверьте подключение и повторите попытку на странице талона.",
+  },
+  "No active tickets saved on this browser.": {
+    kk: "Бұл браузерде белсенді талондар жоқ.",
+    ru: "В этом браузере нет активных талонов.",
+  },
+  "Completed, cancelled, and missed tickets appear here.": {
+    kk: "Аяқталған, күші жойылған және өткізіп алған талондар осында көрсетіледі.",
+    ru: "Здесь отображаются завершённые, отменённые и пропущенные талоны.",
+  },
+  "Cancel this ticket?": { kk: "Бұл талонның күшін жоясыз ба?", ru: "Отменить этот талон?" },
+  "Cancel this ticket? You will lose your place in the queue.": {
+    kk: "Бұл талонның күшін жоясыз ба? Кезектегі орныңыздан айырыласыз.",
+    ru: "Отменить талон? Вы потеряете место в очереди.",
+  },
+  "Keep ticket": { kk: "Талонды сақтау", ru: "Оставить талон" },
+  "Cancel ticket": { kk: "Талоннан бас тарту", ru: "Отменить талон" },
+  "Cancelling…": { kk: "Талонның күші жойылуда…", ru: "Отменяем талон…" },
+  "Enrollment certificate": { kk: "Оқудан өткені туралы анықтама", ru: "Справка об обучении" },
+  "Request proof of student status.": {
+    kk: "Студент мәртебесін растайтын анықтама алыңыз.",
+    ru: "Получите подтверждение статуса студента.",
+  },
+  "Tuition payment questions": { kk: "Оқу ақысын төлеу мәселелері", ru: "Вопросы оплаты обучения" },
+  "Discuss payment options and outstanding balances.": {
+    kk: "Төлем тәсілдері мен берешек туралы сұраңыз.",
+    ru: "Обсудите способы оплаты и задолженность.",
+  },
+  "Dormitory support": { kk: "Жатақхана мәселелері", ru: "Вопросы общежития" },
+  "Ask about accommodation and residence procedures.": {
+    kk: "Тұру және орналастыру тәртібі туралы сұраңыз.",
+    ru: "Уточните порядок проживания и размещения.",
+  },
+  "Primary care consultation": {
+    kk: "Алғашқы медициналық кеңес",
+    ru: "Консультация первичной помощи",
+  },
+  "Discuss a non-emergency health concern with clinic staff.": {
+    kk: "Шұғыл емес денсаулық мәселесін клиника қызметкерімен талқылаңыз.",
+    ru: "Обсудите с сотрудником клиники вопрос здоровья, не требующий срочной помощи.",
+  },
+  "Identity and document services": {
+    kk: "Жеке куәлік және құжат қызметтері",
+    ru: "Удостоверения и документы",
+  },
+  "Explore the sample queue for document requests.": {
+    kk: "Құжат сұрауларына арналған үлгі кезекті қарап көріңіз.",
+    ru: "Посмотрите пример очереди для запросов документов.",
+  },
+  "Community support": { kk: "Қоғамдық қолдау", ru: "Поддержка сообщества" },
+  "Ask about local services and support.": {
+    kk: "Жергілікті қызметтер мен қолдау туралы сұраңыз.",
+    ru: "Узнайте о местных услугах и поддержке.",
+  },
+  "Checking notification support…": {
+    kk: "Хабарландыру қолдауы тексерілуде…",
+    ru: "Проверяем поддержку уведомлений…",
+  },
+  "If enabled, your browser may show a brief alert when staff call. Keep this page open to follow queue details.":
+    {
+      kk: "Қосылса, қызметкер шақырғанда браузер қысқа хабарлама көрсетуі мүмкін. Кезек туралы толық ақпаратты көру үшін бетті ашық ұстаңыз.",
+      ru: "Если включить, браузер может показать короткое уведомление о вызове. Оставьте страницу открытой для подробностей очереди.",
+    },
+  "Notifications are enabled for this ticket. Keep this page open to follow queue details.": {
+    kk: "Бұл талон үшін хабарландырулар қосылды. Кезек туралы толық ақпаратты көру үшін бетті ашық ұстаңыз.",
+    ru: "Уведомления для этого талона включены. Оставьте страницу открытой для подробностей очереди.",
+  },
+  "Notifications are blocked in browser settings. Keep this ticket page open for updates.": {
+    kk: "Браузер баптауларында хабарландыруларға тыйым салынған. Жаңартулар үшін талон бетін ашық ұстаңыз.",
+    ru: "Уведомления запрещены в настройках браузера. Оставьте страницу талона открытой для обновлений.",
+  },
+  "This browser cannot send ticket notifications. Keep this ticket page open for updates.": {
+    kk: "Бұл браузер талон хабарландыруларын жібере алмайды. Жаңартулар үшін талон бетін ашық ұстаңыз.",
+    ru: "Этот браузер не поддерживает уведомления о талоне. Оставьте страницу талона открытой для обновлений.",
+  },
+  "Ticket notifications are not configured right now. Keep this ticket page open for updates.": {
+    kk: "Қазір талон хабарландырулары бапталмаған. Жаңартулар үшін талон бетін ашық ұстаңыз.",
+    ru: "Уведомления о талоне сейчас не настроены. Оставьте страницу талона открытой для обновлений.",
+  },
+  "Notifications could not be set up. Queue updates still appear on this page.": {
+    kk: "Хабарландыруларды баптау мүмкін болмады. Кезек жаңартулары осы бетте көрсетіледі.",
+    ru: "Не удалось настроить уведомления. Обновления очереди по-прежнему отображаются на этой странице.",
+  },
   organization: { kk: "ұйым", ru: "организация" },
   organizations: { kk: "ұйым", ru: "организации" },
   "No matching organizations": {
@@ -89,10 +263,11 @@ const copy: Record<string, Record<Exclude<CustomerLocale, "en">, string>> = {
     kk: "Әзірге ұйымдар жоқ",
     ru: "Пока нет доступных организаций",
   },
-  "Try another search or category.": {
-    kk: "Басқа сөзді немесе санатты іздеп көріңіз.",
-    ru: "Попробуйте другой запрос или категорию.",
+  "Try another search, category, or city.": {
+    kk: "Басқа сұрауды, санатты немесе қаланы таңдап көріңіз.",
+    ru: "Попробуйте изменить запрос, категорию или город.",
   },
+  available: { kk: "қолжетімді", ru: "доступно" },
   "Please check back soon.": { kk: "Кейінірек қайта кіріңіз.", ru: "Загляните сюда позже." },
   "Reset filters": { kk: "Сүзгілерді тазарту", ru: "Сбросить фильтры" },
   "Couldn’t reach the organization service": {
@@ -273,6 +448,10 @@ const copy: Record<string, Record<Exclude<CustomerLocale, "en">, string>> = {
   "Your place is saved. Keep this page open for updates.": {
     kk: "Орныңыз сақталды. Жаңартулар үшін осы бетті ашық ұстаңыз.",
     ru: "Ваше место сохранено. Не закрывайте страницу, чтобы видеть обновления.",
+  },
+  "Your ticket was cancelled. You no longer hold a place in the queue.": {
+    kk: "Талоныңыздың күші жойылды. Енді кезекте орныңыз жоқ.",
+    ru: "Талон отменён. Вы больше не занимаете место в очереди.",
   },
   "Please make your way to the assigned counter.": {
     kk: "Тағайындалған терезеге өтіңіз.",

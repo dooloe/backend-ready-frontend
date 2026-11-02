@@ -59,7 +59,7 @@ describe("organization service details", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows backend hours, organization timezone and a disabled action for a closed queue", async () => {
+  it("shows service hours without exposing the timezone and disables unavailable ticket issuance", async () => {
     vi.spyOn(api, "getOrganization").mockResolvedValue({
       ...demoOrganization,
       services: [{ ...demoOrganization.services[0]!, isOpen: false }],
@@ -67,10 +67,10 @@ describe("organization service details", () => {
     await renderOrganization();
 
     expect(await screen.findByRole("heading", { name: "Almaty University · Demo" })).toBeVisible();
-    expect(screen.getByText(/Asia\/Almaty/)).toBeInTheDocument();
-    expect(screen.getByText("Hours: 9:00 AM–5:00 PM")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Queue closed" })).toBeDisabled();
-    expect(screen.queryByRole("link", { name: "Join Queue" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Asia\/Almaty/)).not.toBeInTheDocument();
+    expect(screen.getByText("Service hours: 9:00 AM–5:00 PM")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tickets unavailable" })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "Get a ticket" })).not.toBeInTheDocument();
   });
 
   it("shows zero waiting visitors and explains an unavailable wait estimate", async () => {
@@ -119,19 +119,19 @@ describe("organization service details", () => {
     expect(screen.getByText("Almaty University · Demo")).toBeVisible();
   });
 
-  it("formats schedule clocks for the selected locale while keeping organization timezone context", async () => {
+  it("formats service hours for the selected locale without exposing a timezone code", async () => {
     localStorage.setItem("kezek-customer-locale-v1", "ru");
     vi.spyOn(api, "getOrganization").mockResolvedValue(demoOrganization);
     await renderOrganization();
 
-    expect(await screen.findByText("Часы работы: 09:00–17:00")).toBeVisible();
-    expect(screen.getByText(/Asia\/Almaty/)).toBeVisible();
+    expect(await screen.findByText("Часы работы услуги: 09:00–17:00")).toBeVisible();
+    expect(screen.queryByText(/Asia\/Almaty/)).not.toBeInTheDocument();
     expect(screen.getByText("2 человека ожидают")).toBeVisible();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Язык" }), {
       target: { value: "en" },
     });
-    expect(await screen.findByText("Hours: 9:00 AM–5:00 PM")).toBeVisible();
+    expect(await screen.findByText("Service hours: 9:00 AM–5:00 PM")).toBeVisible();
     expect(screen.getByText("2 people waiting")).toBeVisible();
   });
 });

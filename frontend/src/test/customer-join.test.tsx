@@ -87,7 +87,7 @@ describe("anonymous customer joining", () => {
       }));
     await renderJoin();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Confirm & join queue" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Get a ticket" }));
     await waitFor(() => expect(issueTicket).toHaveBeenCalledTimes(1));
     const request = issueTicket.mock.calls[0]![0];
     expect(request.queueId).toBe(queue.id);
@@ -103,7 +103,7 @@ describe("anonymous customer joining", () => {
     localStorage.setItem("kezek-customer-locale-v1", "kk");
     await renderJoin();
 
-    expect(await screen.findByRole("button", { name: "Растау және кезекке қосылу" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Талон алу" })).toBeVisible();
     expect(screen.getByText(organization.name)).toBeVisible();
     expect(screen.getByText(serviceSummary.name)).toBeVisible();
     expect(screen.getByText("2 адам күтуде · шамамен 12 мин күту")).toBeVisible();
@@ -120,8 +120,8 @@ describe("anonymous customer joining", () => {
     );
     await renderJoin();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Confirm & join queue" }));
-    const pendingButton = await screen.findByRole("button", { name: "Issuing your ticket…" });
+    fireEvent.click(await screen.findByRole("button", { name: "Get a ticket" }));
+    const pendingButton = await screen.findByRole("button", { name: "Getting your ticket…" });
     expect(pendingButton).toBeDisabled();
     fireEvent.click(pendingButton);
     expect(issueTicket).toHaveBeenCalledTimes(1);
@@ -138,7 +138,7 @@ describe("anonymous customer joining", () => {
     });
     await renderJoin();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Confirm & join queue" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Get a ticket" }));
     fireEvent.click(await screen.findByRole("button", { name: "Retry ticket request" }));
 
     await waitFor(() => expect(issueTicket).toHaveBeenCalledTimes(2));
@@ -161,7 +161,7 @@ describe("anonymous customer joining", () => {
     await renderJoin();
 
     expect(await screen.findByRole("button", { name: "Recover previous ticket" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Confirm & join queue" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Get a ticket" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Recover previous ticket" }));
 
     await waitFor(() =>

@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api";
-import { Index } from "@/routes/index";
+import { Index } from "@/components/explore-directory";
 
 describe("customer service catalog", () => {
   afterEach(() => vi.restoreAllMocks());
