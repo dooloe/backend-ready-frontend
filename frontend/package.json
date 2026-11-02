@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:production": "VITE_CUSTOMER_ORIGIN= VITE_ADMIN_ORIGIN= npm run build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -14,6 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:production": "npm run build:production && playwright test --config=playwright.production.config.ts",
     "test:postgres": "playwright test --config=playwright.postgres.config.ts",
     "test:compose": "playwright test --config=playwright.compose.config.ts"
   },
