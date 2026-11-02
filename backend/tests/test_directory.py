@@ -143,6 +143,7 @@ def test_demo_directory_seed_is_idempotent_and_can_be_served(client, store):
     demos = [o for o in orgs if o['id'].startswith('demo-')]
     assert len(demos) == 4
     assert all('Demo' in o['name'] for o in demos)
+    assert all(o['isDemo'] is True for o in demos)
     assert len({o['category'] for o in demos}) == 4
     with store.db.session() as session:
         seeded_staff = list(session.scalars(select(UserRow).where(UserRow.username.like("demo-staff-%"))))
@@ -151,10 +152,13 @@ def test_demo_directory_seed_is_idempotent_and_can_be_served(client, store):
         assert session.get(UserRow, "stf-admin").password_hash.startswith("$argon2id$")
         assert all(session.get(OrganizationRow, user.organization_id).timezone == "Asia/Almaty"
                    for user in seeded_staff)
-        assert len(list(session.scalars(select(ServiceRow).where(ServiceRow.organization_id.like("demo-%"))))) == 4
+        demo_services = list(session.scalars(select(ServiceRow).where(ServiceRow.organization_id.like("demo-%"))))
+        assert len(demo_services) == 6
+        university_services = {service.name for service in demo_services if service.organization_id == "demo-university"}
+        assert university_services == {"Enrollment certificate", "Tuition payment questions", "Dormitory support"}
         assert len(list(session.scalars(select(CounterRow).where(CounterRow.organization_id.like("demo-%"))))) == 4
         assert len(list(session.scalars(select(CounterServiceRow).where(
-            CounterServiceRow.organization_id.like("demo-%"))))) == 4
+            CounterServiceRow.organization_id.like("demo-%"))))) == 6
         assert len(list(session.scalars(select(StaffAssignmentRow).where(
             StaffAssignmentRow.organization_id.like("demo-%"))))) == 4
     ticket = client.post('/api/tickets', json={'serviceId': 'demo-svc-university', 'customerName': 'Visitor'}).json()
@@ -171,3 +175,11 @@ def test_demo_directory_seed_is_idempotent_and_can_be_served(client, store):
     assert admin_login.status_code == 200
     assert admin_login.json()['user']['role'] == 'admin'
     assert len(client.get('/api/organizations').json()) == 5
+    tuition = next(item for item in client.get('/api/organizations/demo-university/services').json()
+                   if item['id'] == 'demo-svc-tuition')
+    issued = client.post(f"/api/queues/{tuition['queue']['id']}/tickets",
+                         headers={"Idempotency-Key": proof(42)}, json={"accessToken": proof(43)})
+    assert issued.status_code == 201
+    private_ticket = client.get(f"/api/tickets/{proof(43)}").json()
+    assert private_ticket['organizationLocation'] == "Almaty, Kazakhstan"
+    assert private_ticket['organizationIsDemo'] is True

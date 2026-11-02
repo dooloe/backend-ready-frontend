@@ -41,6 +41,17 @@ def new_id() -> str:
     return secrets.token_urlsafe(18)
 
 
+def is_demo_organization(organization: OrganizationRow | None) -> bool:
+    if organization is None:
+        return False
+    return (
+        organization.id == DEFAULT_ORGANIZATION_ID
+        or organization.id.startswith("demo-")
+        or "demo" in organization.name.casefold()
+        or "demonstration" in organization.description.casefold()
+    )
+
+
 # Unknown usernames still perform the same expensive password verification.
 _DUMMY_PASSWORD_HASH = hash_password(secrets.token_urlsafe(32))
 
@@ -238,7 +249,8 @@ class DatabaseStore:
                         estimatedWaitMinutes=math.ceil(count * row.avgServiceMinutes / capacity) if capacity and is_open else None,
                         operatingHours=f"{row.opensAt:%H:%M}–{row.closesAt:%H:%M}" if row.opensAt and row.closesAt else None))
                 result.append(Organization(id=org.id, name=org.name, slug=org.slug, description=org.description,
-                    category=org.category, location=org.location, timezone=org.timezone, services=services))
+                    category=org.category, location=org.location, timezone=org.timezone,
+                    isDemo=is_demo_organization(org), services=services))
             return result
 
     def list_organization_services(self, organization_id: str) -> list[ServiceSummary]:
@@ -663,6 +675,8 @@ class DatabaseStore:
         item = IssuedTicket(
             id=ticket.id, queueId=ticket.dailyQueueId, ticketNumber=ticket.code,
             organizationName=organization.name if organization else "Unknown organization",
+            organizationLocation=organization.location if organization else None,
+            organizationIsDemo=is_demo_organization(organization),
             serviceName=service.name if service else "Unknown", status=ticket.status,
             position=position, estimatedWaitMinutes=estimate, counterId=ticket.counterId,
             counterName=counter.name if counter else None, createdAt=ticket.createdAt,

@@ -155,6 +155,8 @@ class IssuedTicket(Model):
     id: str
     queueId: str
     organizationName: str
+    organizationLocation: str | None = None
+    organizationIsDemo: bool = False
     ticketNumber: str
     serviceName: str
     status: TicketStatus
@@ -319,4 +321,5 @@ class Organization(Model):
     category: str
     location: str | None
     timezone: str
+    isDemo: bool = False
     services: list[PublicService]

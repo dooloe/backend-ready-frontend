@@ -9,30 +9,58 @@ from app.orm import OrganizationRow, ServiceRow, CounterRow, CounterServiceRow, 
 
 def seed(store):
     with store.db.session(write=True) as session:
-        for key, name, category, city, service, prefix, duration in [
-            ("university", "Almaty University", "Universities", "Almaty", "Student services", "U", 6),
-            ("clinic", "City Health Clinic", "Clinics", "Astana", "General consultation", "H", 12),
-            ("government", "Citizen Service Office", "Government Services", "Shymkent", "Documents & applications", "G", 8),
-            ("center", "Community Service Center", "Service Centers", "Karaganda", "Customer support", "S", 5),
+        for key, name, category, city, services in [
+            ("university", "Almaty University", "Universities", "Almaty", [
+                ("university", "Enrollment certificate", "Request proof of student status.", "U", 6),
+                ("tuition", "Tuition payment questions", "Discuss payment options and outstanding balances.", "T", 8),
+                ("dormitory", "Dormitory support", "Ask about accommodation and residence procedures.", "D", 10),
+            ]),
+            ("clinic", "City Health Clinic", "Clinics", "Astana", [
+                ("clinic", "Primary care consultation", "Discuss a non-emergency health concern with clinic staff.", "H", 12),
+            ]),
+            ("government", "Citizen Service Office", "Government Services", "Shymkent", [
+                ("government", "Identity and document services", "Explore the sample queue for document requests.", "G", 8),
+            ]),
+            ("center", "Community Service Center", "Service Centers", "Karaganda", [
+                ("center", "Community support", "Ask about local services and support.", "S", 5),
+            ]),
         ]:
-            oid, sid, cid = f"demo-{key}", f"demo-svc-{key}", f"demo-counter-{key}"
-            if session.get(OrganizationRow, oid):
-                continue
-            session.add(OrganizationRow(id=oid, name=f"{name} · Demo", slug=oid,
-                category=category, location=f"{city}, Kazakhstan", timezone="Asia/Almaty",
-                description="Demonstration organization. Join a sample queue to explore Kezek; this is not a real provider."))
-            session.flush()
-            session.add(ServiceRow(id=sid, organization_id=oid, name=service, description="Demo service for exploring virtual queues.",
-                prefix=prefix, isOpen=True, avgServiceMinutes=duration, durationMinutes=duration,
-                opensAt=time(0), closesAt=time(23, 59), isActive=True))
+            oid, cid = f"demo-{key}", f"demo-counter-{key}"
+            organization = session.get(OrganizationRow, oid)
+            if organization is None:
+                organization = OrganizationRow(id=oid, name=f"{name} · Demo", slug=oid,
+                    category=category, location=f"{city}, Kazakhstan", timezone="Asia/Almaty",
+                    description="Demonstration organization. Join a sample queue to explore Kezek; this is not a real provider.")
+                session.add(organization)
+                session.flush()
+            service_ids = []
+            for service_key, service_name, description, prefix, duration in services:
+                sid = f"demo-svc-{service_key}"
+                service_ids.append(sid)
+                existing_service = session.get(ServiceRow, sid)
+                if existing_service is None:
+                    session.add(ServiceRow(id=sid, organization_id=oid, name=service_name, description=description,
+                        prefix=prefix, isOpen=True, avgServiceMinutes=duration, durationMinutes=duration,
+                        opensAt=time(0), closesAt=time(23, 59), isActive=True))
+                elif (service_key == "university" and existing_service.name == "Student services"
+                      and existing_service.description == "Demo service for exploring virtual queues."):
+                    existing_service.name = service_name
+                    existing_service.description = description
             uid = f"demo-staff-{key}"
-            session.add(UserRow(id=uid, organization_id=oid, name=f"{name} demo staff", username=uid,
-                email=f"{uid}@example.invalid", role="staff", password_hash=hash_password("staff123"), is_active=True))
+            if session.get(UserRow, uid) is None:
+                session.add(UserRow(id=uid, organization_id=oid, name=f"{name} demo staff", username=uid,
+                    email=f"{uid}@example.invalid", role="staff", password_hash=hash_password("staff123"), is_active=True))
             session.flush()
-            session.add(CounterRow(id=cid, organization_id=oid, name=f"{name} demo counter", isActive=True, staffId=uid))
-            session.flush()
-            session.add(CounterServiceRow(organization_id=oid, counter_id=cid, service_id=sid))
-            session.add(StaffAssignmentRow(organization_id=oid, user_id=uid, counter_id=cid))
+            counter = session.get(CounterRow, cid)
+            if counter is None:
+                counter = CounterRow(id=cid, organization_id=oid, name=f"{name} demo counter", isActive=True, staffId=uid)
+                session.add(counter)
+                session.flush()
+            for sid in service_ids:
+                if session.get(CounterServiceRow, (cid, sid)) is None:
+                    session.add(CounterServiceRow(organization_id=oid, counter_id=cid, service_id=sid))
+            if session.get(StaffAssignmentRow, (uid, cid)) is None:
+                session.add(StaffAssignmentRow(organization_id=oid, user_id=uid, counter_id=cid))
 
         # Keep a single development admin available even for databases that
         # were initialized before the demo directory was added.

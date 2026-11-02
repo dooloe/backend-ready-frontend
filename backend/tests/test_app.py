@@ -21,7 +21,7 @@ def test_default_entry_point_serves_seeded_frontend_data(monkeypatch, tmp_path):
     assert response.status_code == 200
     assert {service["id"] for service in response.json()} == {
         "svc-reg", "svc-fin", "svc-it", "demo-svc-university", "demo-svc-clinic",
-        "demo-svc-government", "demo-svc-center",
+        "demo-svc-tuition", "demo-svc-dormitory", "demo-svc-government", "demo-svc-center",
     }
     assert {organization["category"] for organization in directory.json()} >= {
         "Universities", "Clinics", "Government Services", "Service Centers",
