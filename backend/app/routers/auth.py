@@ -17,6 +17,10 @@ def login(body: LoginRequest, store: Annotated[DatabaseStore, Depends(get_store)
     settings = request.app.state.settings
     own_origin = f"{request.url.scheme}://{request.url.netloc}"
     trusted_origins = set(settings.cors_origins) | {own_origin}
+    if settings.admin_origin is not None and origin is None:
+        raise HTTPException(403, "Origin is required for staff sign-in")
+    if settings.admin_origin is not None and origin.rstrip("/") != settings.admin_origin:
+        raise HTTPException(403, "Sign-in is only available on the staff origin")
     if origin is not None and origin.rstrip("/") not in trusted_origins:
         raise HTTPException(403, "Origin is not allowed")
 

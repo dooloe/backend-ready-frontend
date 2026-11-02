@@ -7,6 +7,7 @@ import {
 import {
   Outlet,
   Link,
+  redirect,
   createRootRouteWithContext,
   useRouter,
   useNavigate,
@@ -108,6 +109,19 @@ function ErrorContent({ error, reset }: ErrorComponentProps) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const customerOrigin = import.meta.env["VITE_CUSTOMER_ORIGIN"];
+    const adminOrigin = import.meta.env["VITE_ADMIN_ORIGIN"];
+    if (!customerOrigin || !adminOrigin) return;
+    const isStaffRoute = /^\/(login|staff|admin)(\/|$)/.test(window.location.pathname);
+    const targetOrigin = isStaffRoute ? adminOrigin : customerOrigin;
+    if (window.location.origin !== targetOrigin) {
+      throw redirect({
+        href: `${targetOrigin}${window.location.pathname}${window.location.search}${window.location.hash}`,
+      });
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -208,12 +222,12 @@ function Nav() {
             {logout.isPending ? "Signing out…" : t("Sign out")}
           </button>
         ) : ready ? (
-          <Link
-            to="/login"
+          <a
+            href={`${import.meta.env["VITE_ADMIN_ORIGIN"] || ""}/login`}
             className="flex items-center gap-1 text-xs font-medium text-muted-foreground sm:text-sm"
           >
             {t("Staff sign in")} <ArrowUpRight size={15} />
-          </Link>
+          </a>
         ) : (
           <span className="text-xs text-muted-foreground" role="status">
             Checking session…

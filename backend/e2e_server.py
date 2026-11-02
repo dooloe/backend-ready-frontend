@@ -15,7 +15,9 @@ if __name__ == '__main__':
     with TemporaryDirectory(prefix='kezek-browser-') as directory:
         os.environ['DATABASE_URL'] = f"sqlite:///{Path(directory) / 'browser.db'}"
         os.environ['SEED_DEMO_DATA'] = 'true'
-        os.environ['CORS_ORIGINS'] = 'http://127.0.0.1:15173'
+        os.environ['CUSTOMER_ORIGIN'] = 'http://127.0.0.1:15173'
+        os.environ['ADMIN_ORIGIN'] = 'http://localhost:15173'
+        os.environ['CORS_ORIGINS'] = 'http://127.0.0.1:15173,http://localhost:15173'
         store = DatabaseStore(seed_tickets=False)
         seed(store)
         with store.db.session(write=True) as session:

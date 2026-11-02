@@ -21,7 +21,10 @@ make install
 make dev
 ```
 
-Open <http://127.0.0.1:5173>. API docs: <http://127.0.0.1:8000/docs>.
+Open the customer site at <http://127.0.0.1:5173>. Staff/admin sign-in is served
+at <http://localhost:5173>. These hostnames resolve to this machine locally but
+use separate browser cookie jars. `make dev` prints both addresses. API docs:
+<http://127.0.0.1:8000/docs>.
 Ctrl+C stops both servers. `make help` lists commands; custom ports work with
 `make dev BACKEND_PORT=8001 FRONTEND_PORT=5174`.
 
@@ -60,8 +63,22 @@ export POSTGRES_PASSWORD='choose-a-long-url-safe-password'
 docker compose up -d --build
 ```
 
-Open <http://127.0.0.1:8000>. FastAPI serves the generated frontend and `/api`
-from the same origin. The named `postgres-data` volume survives app and database
+By default, open the customer site at <http://127.0.0.1:8000> and staff/admin at
+<http://localhost:8000>. For use from other devices, assign two DNS names (or
+host aliases on every client device) to the server's IP, then build with those
+browser-visible origins. For example, if the server IP is `172.22.159.149` and
+the aliases `kezek.local` and `kezek-admin.local` both resolve to it:
+
+```sh
+export CUSTOMER_ORIGIN='http://kezek.local:8000'
+export ADMIN_ORIGIN='http://kezek-admin.local:8000'
+docker compose up -d --build
+```
+
+The frontend origins are build arguments, so rebuild after changing them. Make
+the admin hostname available to intended staff. FastAPI serves the generated
+frontend and `/api` from the same origin. The named `postgres-data` volume
+survives app and database
 container recreation; `docker compose down -v` intentionally deletes it. Set
 `APP_ENV=production` and `SEED_DEMO_DATA=false` for production deployments, and
 provision production accounts through the deployment's approved process.

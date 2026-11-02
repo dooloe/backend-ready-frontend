@@ -708,6 +708,25 @@ def test_login_cookie_is_secure_when_requested_over_https(store):
     assert "Secure" in cookie and "SameSite=lax" in cookie
 
 
+def test_staff_login_is_restricted_to_admin_origin_and_cookie_stays_host_only(store, monkeypatch):
+    monkeypatch.setenv("CUSTOMER_ORIGIN", "http://127.0.0.1:5173")
+    monkeypatch.setenv("ADMIN_ORIGIN", "http://localhost:5173")
+    with TestClient(create_app(store)) as origin_client:
+        payload = {"username": "admin", "password": "admin123"}
+        assert origin_client.post("/api/auth/login", json=payload,
+                                  headers={"Origin": "http://127.0.0.1:5173"}).status_code == 403
+        assert origin_client.post("/api/auth/login", json=payload).status_code == 403
+        response = origin_client.post("/api/auth/login", json=payload,
+                                      headers={"Origin": "http://localhost:5173"})
+
+    assert response.status_code == 200
+    cookies = response.headers.get_list("set-cookie")
+    session_cookie = next(cookie for cookie in cookies if cookie.startswith("kezek_session="))
+    assert "Domain=" not in session_cookie
+    assert "Path=/api" in session_cookie and "HttpOnly" in session_cookie
+    assert "SameSite=lax" in session_cookie and "Secure" not in session_cookie
+
+
 def test_cookie_mutations_require_session_bound_csrf_and_logout_revokes_session(client, store):
     login = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
     assert login.status_code == 200

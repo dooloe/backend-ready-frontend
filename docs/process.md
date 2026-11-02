@@ -1566,3 +1566,25 @@ to each status without reload. Verification: frontend Vitest **111 passed**;
 typecheck passed; lint passed with zero errors and seven existing Fast Refresh
 warnings; targeted desktop/mobile Playwright checks **2 passed**; Prettier and
 `git diff --check` passed. Issue #75 was tracked with the `e2e-test` label.
+
+## 2026-11-02 — Customer/staff session isolation #76
+
+Configured separate customer and staff/admin origins for local development and
+Compose. Frontend navigation routes `/login`, `/staff` and `/admin` to the admin
+origin and customer pages to the customer origin. Backend sign-in requires the
+configured admin `Origin`. The session and CSRF cookies remain host-only; no
+cookie `Domain` was introduced. Added backend coverage for rejected customer
+and missing origins, accepted staff origin, and cookie attributes, plus a real
+browser regression covering login, cookie host isolation and anonymous
+customer access. README now describes local and remote hostname/DNS setup.
+
+Verification: backend suite **214 passed, 2 skipped**; frontend Vitest **111
+passed** and typecheck passed; lint passed with zero errors and seven existing
+Fast Refresh warnings; frontend production build compiled client and server
+bundles but prerender could not
+start because sandbox networking denied the preview server bind (`listen EPERM
+127.0.0.1`). The targeted Playwright test could not start its fixture server on
+`127.0.0.1:18765` for the same sandbox bind restriction. `docker compose config`
+could not run because the installed snap lacks `cap_dac_override`. The new
+browser test is therefore pending a normal local/CI run; issue #76 remains open
+until that test passes. `git diff --check` passed.

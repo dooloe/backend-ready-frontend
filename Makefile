@@ -9,14 +9,16 @@ BACKEND_PYTHON := $(VENV)/bin/python
 HOST ?= 127.0.0.1
 BACKEND_PORT ?= 8000
 FRONTEND_PORT ?= 5173
+CUSTOMER_ORIGIN ?= http://127.0.0.1:$(FRONTEND_PORT)
+ADMIN_ORIGIN ?= http://localhost:$(FRONTEND_PORT)
 API_URL ?=
 CORS_ORIGINS ?= http://localhost:$(FRONTEND_PORT),http://127.0.0.1:$(FRONTEND_PORT),http://172.22.159.149:8080
 DATABASE_URL ?= sqlite:///$(abspath backend/data/kezek.db)
 SEED_DEMO_DATA ?= true
-export DATABASE_URL SEED_DEMO_DATA
+export DATABASE_URL SEED_DEMO_DATA CUSTOMER_ORIGIN ADMIN_ORIGIN
 
 BACKEND_COMMAND = env CORS_ORIGINS="$(CORS_ORIGINS)" "$(BACKEND_PYTHON)" -m uvicorn app.main:app --app-dir backend --host "$(HOST)" --port "$(BACKEND_PORT)" --reload
-FRONTEND_COMMAND = env VITE_API_BASE_URL="$(API_URL)" VITE_API_PROXY_TARGET="http://127.0.0.1:$(BACKEND_PORT)" $(NPM) --prefix frontend run dev -- --host "$(HOST)" --port "$(FRONTEND_PORT)" --strictPort
+FRONTEND_COMMAND = env VITE_API_BASE_URL="$(API_URL)" VITE_API_PROXY_TARGET="http://127.0.0.1:$(BACKEND_PORT)" VITE_CUSTOMER_ORIGIN="$(CUSTOMER_ORIGIN)" VITE_ADMIN_ORIGIN="$(ADMIN_ORIGIN)" $(NPM) --prefix frontend run dev -- --host "$(HOST)" --port "$(FRONTEND_PORT)" --strictPort
 
 .PHONY: help install install-backend install-frontend dev run backend frontend check-backend test test-backend test-frontend build
 
@@ -32,6 +34,7 @@ help:
 	  'make build          Build the frontend' \
 	  '' \
 	  'Example: make dev BACKEND_PORT=8001 FRONTEND_PORT=5174' \
+	  'Separate browser origins: CUSTOMER_ORIGIN (127.0.0.1) and ADMIN_ORIGIN (localhost)' \
 	  'Database: set DATABASE_URL (default: backend/data/kezek.db SQLite file)'
 
 install: install-backend install-frontend
@@ -67,7 +70,7 @@ dev run: check-backend
 	trap cleanup EXIT; \
 	trap 'exit 130' INT; \
 	trap 'exit 143' TERM; \
-	printf '%s\n' 'Frontend: http://$(HOST):$(FRONTEND_PORT)' 'API docs: http://$(HOST):$(BACKEND_PORT)/docs' 'Press Ctrl+C to stop both services.'; \
+	printf '%s\n' 'Customer: $(CUSTOMER_ORIGIN)' 'Staff/admin: $(ADMIN_ORIGIN)' 'API docs: http://$(HOST):$(BACKEND_PORT)/docs' 'Press Ctrl+C to stop both services.'; \
 	setsid $(BACKEND_COMMAND) & backend_pid=$$!; \
 	setsid $(FRONTEND_COMMAND) & frontend_pid=$$!; \
 	wait -n "$$backend_pid" "$$frontend_pid"
