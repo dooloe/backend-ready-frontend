@@ -12,6 +12,7 @@ else
 fi
 export COMPOSE_PROJECT_NAME="$project"
 export KEZEK_TEST_PORT="$port"
+export KEZEK_PORT="$port"
 export POSTGRES_PASSWORD=kezek_test_only
 export KEZEK_REPO_ROOT="$root"
 
