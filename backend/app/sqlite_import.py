@@ -95,8 +95,27 @@ def import_sqlite_database(source_path: str | Path, target_url: str) -> dict[str
         target.create_schema()
         _assert_migration_head(target.engine, "PostgreSQL destination")
         table_names = [table.name for table in Base.metadata.sorted_tables]
-        with target.engine.connect() as target_connection:
+        with target.engine.begin() as target_connection:
             target_counts = _table_counts(target_connection, table_names)
+            occupied = [name for name, count in target_counts.items() if count]
+            if occupied == ["organizations"]:
+                placeholder = target_connection.execute(
+                    text(
+                        "SELECT id, name, slug, description, timezone "
+                        "FROM organizations WHERE id = 'org-demo'"
+                    )
+                ).one_or_none()
+                if placeholder == (
+                    "org-demo",
+                    "Kezek Demo",
+                    "kezek-demo",
+                    "Migrated default organization",
+                    "Asia/Almaty",
+                ):
+                    target_connection.execute(
+                        text("DELETE FROM organizations WHERE id = 'org-demo'")
+                    )
+                    target_counts = _table_counts(target_connection, table_names)
         occupied = [name for name, count in target_counts.items() if count]
         if occupied:
             raise RuntimeError(
