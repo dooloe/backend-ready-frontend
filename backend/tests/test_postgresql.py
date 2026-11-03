@@ -90,14 +90,16 @@ def test_postgresql_import_and_application_persistence_across_restart(
             assert imported_ticket is not None
             assert imported_ticket.customerName == "Imported SQLite ticket"
 
+        queue = first.get("/api/organizations/org-demo/services").json()[0]["queue"]
+        private_ticket_token = _proof(21)
         issued = first.post(
-            "/api/tickets",
-            json={"serviceId": "svc-reg", "customerName": "PostgreSQL integration"},
+            f"/api/queues/{queue['id']}/tickets",
+            headers={"Idempotency-Key": _proof(22)},
+            json={"accessToken": private_ticket_token},
         )
         assert issued.status_code == 201, issued.text
-        ticket = issued.json()
-        private_ticket_token = ticket["id"]
-        assert first.get(f"/api/tickets/{private_ticket_token}").json()["id"] == private_ticket_token
+        ticket = issued.json()["ticket"]
+        assert first.get(f"/api/tickets/{private_ticket_token}").json()["id"] == ticket["id"]
 
         login = first.post(
             "/api/auth/login", json={"username": "admin", "password": "admin123"}
