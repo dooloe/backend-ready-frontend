@@ -95,7 +95,8 @@ def import_sqlite_database(source_path: str | Path, target_url: str) -> dict[str
         target.create_schema()
         _assert_migration_head(target.engine, "PostgreSQL destination")
         table_names = [table.name for table in Base.metadata.sorted_tables]
-        target_counts = _table_counts(target.engine, table_names)
+        with target.engine.connect() as target_connection:
+            target_counts = _table_counts(target_connection, table_names)
         occupied = [name for name, count in target_counts.items() if count]
         if occupied:
             raise RuntimeError(
