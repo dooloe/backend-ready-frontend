@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_mock_engine, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 
@@ -23,6 +24,10 @@ from app.store import DatabaseStore
 
 
 ADMIN_ACTOR = StaffUser(id="stf-admin", name="Admin", username="admin", role="admin")
+
+
+def migration_head():
+    return ScriptDirectory.from_config(Config("backend/alembic.ini")).get_current_head()
 
 
 def _database_worker(url, action, barrier, output):
@@ -205,7 +210,7 @@ def test_fresh_file_database_is_initialized_at_alembic_head(tmp_path):
         names = set(inspect(connection).get_table_names())
         version = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
     assert names == set(Base.metadata.tables) | {"alembic_version"}
-    assert version == "51d968a2c4f0"
+    assert version == migration_head()
     assert {"organizations", "staff_assignments", "daily_queues", "ticket_events"}.issubset(names)
     store.close()
 
@@ -273,7 +278,7 @@ def test_pre_migration_file_database_is_stamped_without_losing_data(tmp_path):
         assert {event.event_type for event in session.scalars(select(TicketEventRow).where(
             TicketEventRow.ticket_id == "legacy-ticket"))} == {"issued", "completed"}
     with migrated.db.engine.connect() as connection:
-        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "51d968a2c4f0"
+        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == migration_head()
     migrated.close()
 
 
