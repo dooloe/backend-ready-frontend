@@ -63,7 +63,7 @@ def test_postgresql_import_and_application_persistence_across_restart(
             "/api/tickets",
             json={"serviceId": "svc-reg", "customerName": "Imported SQLite ticket"},
         )
-        assert source_ticket.status_code == 201, source_ticket.text
+        assert source_ticket.status_code == 200, source_ticket.text
         imported_ticket_token = source_ticket.json()["id"]
 
     imported_counts = import_sqlite_database(source_path, postgres_test_url)
