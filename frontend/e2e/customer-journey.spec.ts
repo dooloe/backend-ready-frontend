@@ -156,7 +156,7 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
-  await page.getByLabel("Search organizations and services").fill("general consultation");
+  await page.getByLabel("Search organizations and services").fill("primary care consultation");
   await expect(page.locator("article")).toHaveCount(1);
   await page.getByLabel("Search organizations and services").fill("nonexistent service");
   await expect(page.getByText("No matching organizations")).toBeVisible();
@@ -194,11 +194,11 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
   await expect(viewServices).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Almaty University · Demo" })).toBeVisible();
-  const joinQueue = page.getByRole("link", { name: "Join Queue" });
+  const joinQueue = page.getByRole("link", { name: "Get a ticket" });
   await joinQueue.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: "Confirm your place" })).toBeVisible();
-  const confirmJoin = page.getByRole("button", { name: "Confirm & join queue" });
+  await expect(page.getByRole("heading", { name: "Get your ticket" })).toBeVisible();
+  const confirmJoin = page.getByRole("button", { name: "Get a ticket" });
   await confirmJoin.press("Enter");
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
   const cancelTicket = page.getByRole("button", { name: "Cancel Ticket" });
@@ -216,7 +216,7 @@ test("queue conflict after availability changes is announced and prevents ticket
   page,
 }) => {
   await page.goto("/join/org-demo/svc-fin");
-  const joinButton = page.getByRole("button", { name: "Confirm & join queue" });
+  const joinButton = page.getByRole("button", { name: "Get a ticket" });
   await expect(joinButton).toBeEnabled();
   const login = await page.request.post("http://127.0.0.1:18765/api/auth/login", {
     data: { username: "admin", password: "admin123" },
@@ -254,7 +254,7 @@ test("staff no-show confirmation and essential admin configuration", async ({
   const browserCounterName = "Browser assigned counter " + info.project.name;
   const renamedBrowserCounterName = "Renamed browser counter " + info.project.name;
   await page.goto("/join/demo-clinic/demo-svc-clinic");
-  await page.getByRole("button", { name: "Confirm & join queue" }).click();
+  await page.getByRole("button", { name: "Get a ticket" }).click();
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
   const context = await browser.newContext({ viewport: page.viewportSize() });
   const staff = await context.newPage();

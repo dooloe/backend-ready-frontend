@@ -13,7 +13,7 @@ test("staff session works on the Render hostname while customer pages stay avail
   await expect(page).toHaveURL(`${appOrigin}/admin`);
   await expect(page.getByRole("heading", { name: /admin/i }).first()).toBeVisible();
 
-  const cookies = await context.cookies(appOrigin);
+  const cookies = await context.cookies(`${appOrigin}/api`);
   expect(cookies.some((cookie) => cookie.name === "kezek_session")).toBe(true);
 
   await page.goto(appOrigin);
