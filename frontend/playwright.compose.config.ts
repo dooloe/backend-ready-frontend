@@ -1,8 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "./e2e",
-  testMatch: "queue-lifecycle.spec.ts",
+  testDir: "./e2e-compose",
   fullyParallel: false,
   workers: 1,
   timeout: 90000,
