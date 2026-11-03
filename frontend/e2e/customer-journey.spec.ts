@@ -200,13 +200,13 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
   const confirmJoin = page.getByRole("button", { name: "Get a ticket" });
   await confirmJoin.press("Enter");
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
-  const cancelTicket = page.getByRole("button", { name: "Cancel Ticket" });
+  const cancelTicket = page.getByRole("button", { name: "Cancel ticket" });
   await cancelTicket.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("alertdialog")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Go back" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Keep ticket" })).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Confirm" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Cancel ticket" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Your ticket is cancelled" })).toBeVisible();
 });
