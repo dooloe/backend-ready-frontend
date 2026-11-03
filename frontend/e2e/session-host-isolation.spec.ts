@@ -21,9 +21,7 @@ test("staff session works on the Render hostname while customer pages stay avail
     page.getByRole("heading", { name: "Get your ticket online. Wait where it suits you." }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: /admin/i })).toBeVisible();
-  const identityStatus = await page.evaluate(
-    async () => (await fetch("/api/auth/me")).status,
-  );
+  const identityStatus = await page.evaluate(async () => (await fetch("/api/auth/me")).status);
   expect(identityStatus).toBe(200);
 
   await page.getByRole("button", { name: "Sign out" }).click();
