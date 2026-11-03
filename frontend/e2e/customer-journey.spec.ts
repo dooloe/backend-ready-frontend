@@ -193,7 +193,7 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
   await tabUntilFocused(page, viewServices);
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Almaty University · Demo" })).toBeVisible();
-  const joinQueue = page.getByRole("link", { name: "Get a ticket" });
+  const joinQueue = page.getByRole("link", { name: "Get a ticket" }).first();
   await joinQueue.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Get your ticket" })).toBeVisible();
