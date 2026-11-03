@@ -1,54 +1,46 @@
 # AWS CloudFormation deployment (prepared, not deployed)
 
-This is a separate, single-EC2 deployment for the existing Docker Compose
-application. It creates its own PostgreSQL container and EBS-backed database
-volume, and a generated database password in AWS Secrets Manager. It does not
-read or modify Render configuration or data. It is a small demo/test setup, not
-a highly available production architecture.
+This is a separate deployment for the existing Docker Compose application in
+`us-east-1`. It runs on one EC2 host with its own PostgreSQL container and
+encrypted EBS volume, and a generated database password in Secrets Manager.
+CloudFront supplies the public HTTPS hostname; the EC2 origin accepts HTTP only
+from the AWS-managed CloudFront origin-facing prefix list. It does not read or
+modify Render configuration or data. This is a demo/test setup, not highly
+available production infrastructure.
 
-No AWS resources have been created from this template. The AWS CLI is not
-installed in the workspace, and no AWS identity/account is available here, so
-the template has not been deployed or validated against an account. Public AWS
-documentation lists the services used here (EC2, EBS, VPC, IAM, Secrets Manager,
-Systems Manager, and CloudFormation) as available on the Free plan for the new
-AWS sign-up experience. That does **not** verify this particular account's
-plan, remaining credits, region access, or quotas. See [AWS's supported-service
-list](https://docs.aws.amazon.com/accounts/latest/reference/supported-services-sign-up-new.html)
-and [Free Tier FAQ](https://aws.amazon.com/free/free-tier-faqs/) for the current
-general program rules.
+No AWS resources have been created. Identity, `us-east-1`, Free plan status,
+and a $100 credit balance expiring 2027-05-03 were verified in the user's
+account through AWS CLI. The app has not been deployed or health-checked. The
+CloudFront flat-rate Free plan is unavailable to Free plan accounts; this
+template therefore does not subscribe to a CloudFront pricing plan. The
+pay-as-you-go CloudFront Free Tier currently lists 1 TB transfer and 10 million
+requests/month, but account-specific service eligibility and quotas must still
+be checked in the console.
 
 ## Application compatibility
 
-The existing `Dockerfile` and `docker-compose.yaml` already build the frontend
-and FastAPI service together, use PostgreSQL, apply migrations on startup, and
-accept separate frontend origins. The bootstrap obtains the EC2 public hostname
-and sets the customer and staff origins to the same host. **No shared application
-changes are needed.** `render.yaml` and Render secrets/database remain untouched.
-
-The endpoint is HTTP only. Browser push notifications require HTTPS, and
-production authentication cookies are Secure only when requests use HTTPS. For
-public use, add a domain and a TLS termination layer before treating this as a
-production deployment. Do not add a TLS load balancer or paid services to the
-Free plan stack.
+The Docker Compose defaults preserve explicitly blank customer/staff origins so
+both roles stay on one CloudFront hostname. The API recognizes CloudFront's
+forwarded HTTPS scheme for same-origin sign-in and sets Secure session cookies.
+CloudFront forwards the viewer Host, cookies, query strings, and
+CloudFront-Forwarded-Proto; API caching is disabled. `render.yaml` and Render
+secrets/database remain untouched.
 
 ## Free plan eligibility check
 
-AWS's current Free plan is account-specific. New customers may receive up to
-$200 in credits and a Free plan that ends after six months or when credits run
-out; existing or previously closed AWS customers may not qualify. AWS says the
-Free plan has no charges unless the account is upgraded or a paid-only service
-is activated, but access is limited to selected services. The account's current
-plan, credits, time remaining, and allowed services can only be checked in that
-AWS account's Billing/Settings console. This workspace cannot establish the
-account's personal eligibility.
+The account plan, status, credits, and expiry were verified through the AWS
+Free Tier API. The API does not confirm every service-specific eligibility
+rule, quota, or current instance availability; those require the signed-in
+Console's Free Tier and service pages. AWS's current supported-service list
+includes the template's core services (CloudFront, EC2/EBS/VPC, CloudFormation,
+IAM, Secrets Manager, and Systems Manager) in the new Free Tier account
+experience. This confirms general service availability, not this account's
+specific quota or feature eligibility. See [AWS supported services](https://docs.aws.amazon.com/accounts/latest/reference/supported-services-sign-up-new.html).
 
-Before creating a stack, sign in to the intended AWS account and check its plan
-and remaining period/credits in Billing and Cost Management. For a project
-account in the new AWS experience, use the home Region shown in AWS Settings;
-do not assume `us-east-1`. Confirm that the intended instance type and region
-are available. The new AWS experience's
-public service list includes the services this template uses, but the signed-in
-console is authoritative for the account. Do **not** select
+Before creating a stack, recheck the account's balance in Billing and Cost
+Management / Free Tier, then confirm the selected instance and CloudFront
+pay-as-you-go service are available for this account. The deployment region is
+the verified home Region `us-east-1`. Do **not** select
 Upgrade, activate advanced features, join AWS Organizations, or create a
 resource/service the account says is unavailable. If any prerequisite is
 unavailable, stop; this prepared template is not eligible for that account as
@@ -101,10 +93,9 @@ Do not use `aws configure` with long-lived access keys unless your AWS
 administrator has no temporary-credential option. Never create root access
 keys, and do not paste credentials or browser authorization codes into chat.
 
-Check the project home Region in **AWS Settings / Project / Overview / Additional
-Info**. Set the CLI deployment Region to that exact value, then verify identity
-and account plan. The Free Tier account-plan API call uses `us-east-1` below;
-this does not select the CloudFormation deployment Region.
+This project's verified home Region is `us-east-1`. Set the CLI deployment
+region to that value, then verify identity and account plan. The Free Tier
+account-plan API also uses `us-east-1`.
 
 ```sh
 aws configure set region YOUR_PROJECT_REGION --profile kezek-free
@@ -113,8 +104,7 @@ aws configure get region --profile kezek-free
 aws freetier get-account-plan-state --region us-east-1 --profile kezek-free --output json
 ```
 
-Replace `YOUR_PROJECT_REGION` with the exact region from AWS Settings (for
-example, `ap-southeast-2` if the project's home Region is Sydney). The identity
+Replace `YOUR_PROJECT_REGION` with `us-east-1`. The identity
 response contains account ID and ARN (safe to share for verification; it
 contains no credentials). The plan-state API returns `accountPlanType`,
 `accountPlanStatus`, remaining credit amount, and expiration date. It requires
@@ -133,9 +123,8 @@ or a plan upgrade is prompted, stop; do not upgrade.
 ## Cost estimate
 
 Indicative US East (N. Virginia), 730 hours/month, on-demand list pricing,
-before any account credits or Free plan restrictions. Prices checked
-2026-11-03. The template defaults to `t3.small`; prices vary by region and date.
-Recalculate for the account's assigned project Region before deployment.
+before account credits or plan-specific limits. Prices checked 2026-11-03.
+The template defaults to `t3.small`; prices and eligibility can change.
 
 | Resource | Estimate per month |
 | --- | ---: |
@@ -143,10 +132,11 @@ Recalculate for the account's assigned project Region before deployment.
 | 30 GiB encrypted gp3 EBS volume | about $2.40 |
 | One in-use public IPv4 address | about $3.65 |
 | One Secrets Manager secret | about $0.40 plus API usage |
+| CloudFront pay-as-you-go | $0 while within eligible 1 TB transfer / 10 million requests monthly; overage varies by viewer location |
 | CloudFormation, IAM role/profile, security group, SSM core | no separate baseline charge |
-| **Estimated total** | **about $21.71/month** |
+| **Estimated total** | **about $21.71/month baseline**, assuming CloudFront free usage applies and is not exceeded |
 
-This template declares exactly these 12 CloudFormation resources:
+This template declares exactly these 13 CloudFormation resources:
 
 | Logical ID | CloudFormation type | Purpose |
 | --- | --- | --- |
@@ -160,29 +150,36 @@ This template declares exactly these 12 CloudFormation resources:
 | `PublicRouteTable` | `AWS::EC2::RouteTable` | Subnet routing table |
 | `PublicRoute` | `AWS::EC2::Route` | Default route through the gateway |
 | `PublicSubnetRouteTableAssociation` | `AWS::EC2::SubnetRouteTableAssociation` | Associates the route table with the subnet |
-| `WebSecurityGroup` | `AWS::EC2::SecurityGroup` | Allows inbound HTTP 80 only; no SSH/database ingress |
+| `WebSecurityGroup` | `AWS::EC2::SecurityGroup` | Allows inbound HTTP 80 only from CloudFront's managed prefix list; no SSH/database ingress |
 | `AppServer` | `AWS::EC2::Instance` | Runs app and PostgreSQL containers; includes an encrypted 30 GiB gp3 root volume and one public IPv4 address |
+| `CloudFrontDistribution` | `AWS::CloudFront::Distribution` | Public HTTPS endpoint, security response headers, disabled caching, global access |
 
-There is no RDS, load balancer, NAT gateway, Route 53 domain, TLS certificate,
-backup schedule, or autoscaling group. Those are intentionally omitted from
-this small Free plan deployment. The PostgreSQL database is a container on the
-EC2 root volume, so this is a single-host availability and backup risk.
+There is no RDS, load balancer, NAT gateway, Route 53 domain, custom ACM
+certificate, backup schedule, WAF rule set, or autoscaling group. CloudFront's
+default certificate provides HTTPS for its assigned hostname. PostgreSQL is a
+container on the EC2 root volume, so this is a single-host availability and
+backup risk. The managed CloudFront prefix list permits origin traffic from
+CloudFront origin-facing servers generally; it does not identify this specific
+distribution. Its weight is 55 security-group rules, close to the default
+inbound quota of 60.
 
-Internet data transfer, backups/snapshots, and any extra usage are not included.
-The Free plan may prevent charges for its eligible usage, but that depends on
-account status and service eligibility. Do not interpret this estimate as a
-guarantee of Free Tier coverage. AWS publishes approximately $0.0209/hour for
+Backups/snapshots, CloudFront usage above the eligible allowance, and other
+extra usage are not included. Account-specific resource eligibility must be
+checked in the Console; this is not a guarantee of Free Tier coverage. AWS
+publishes approximately $0.0209/hour for
 `t3.small`, $0.08/GiB-month for gp3, $0.005/hour per public IPv4 address, and
 $0.40/secret-month for Secrets Manager. See [EC2 pricing](https://aws.amazon.com/ec2/instance-types/t3/),
 [EBS gp3 pricing](https://aws.amazon.com/ebs/general-purpose/),
 [VPC public IPv4 pricing](https://aws.amazon.com/vpc/pricing/), and
 [Secrets Manager pricing](https://aws.amazon.com/secrets-manager/pricing/).
-Check the live [AWS Pricing Calculator](https://calculator.aws/) for the
-selected region/account before using the template.
+Check the live [AWS Pricing Calculator](https://calculator.aws/) and account's
+Free Tier page before using the template. CloudFront's flat-rate Free plan is
+unavailable to AWS Free plan accounts; do not choose a paid CloudFront plan.
 
-At this reference run rate, six months would use about $130.26 of credits,
-before data transfer or backups. A $100 credit balance would run out in roughly
-4.6 months if this workload were left on continuously. AWS states that a Free
+At this reference baseline, six months would use about $130.26 of credits,
+before CloudFront overages or backups. A $100 credit balance would last about
+4.6 months if this workload ran continuously and the estimate applies. This
+is not a spend cap. AWS states that a Free
 plan account closes when credits run out;
 the service will become unavailable unless the account is upgraded. Keep the
 account on Free and plan to stop/delete the stack before the credits are
@@ -195,21 +192,23 @@ exhausted, or do not create it.
 2. Complete the Free plan eligibility check above. If the account's console
    does not explicitly allow every required resource, stop without creating
    the stack.
-3. In the AWS CloudFormation console, in the eligible region, create a stack
+3. Review this resource list, costs, and account-specific eligibility before
+   creating the stack. The template does not enforce a billing cap.
+4. In the AWS CloudFormation console, in `us-east-1`, create a stack
    using `aws/cloudformation.yaml`. Use a distinct stack name such as
    `kezek-aws-demo`. Leave `GitBranch` set to the branch containing the app
    source. The source repository must be public to allow the instance to clone
    it without a GitHub token.
-4. Keep `InstanceType` at `t3.small` unless the selected Free plan explicitly
+5. Keep `InstanceType` at `t3.small` unless the selected Free plan explicitly
    permits another listed type. Do not add SSH access; the security group
    exposes only HTTP port 80. The database password is generated separately in
    Secrets Manager and is not a stack parameter or Render secret.
-5. Wait for the stack to complete, then inspect EC2 **System Log** or connect
+6. Wait for the stack to complete, then inspect EC2 **System Log** or connect
    with Systems Manager Session Manager and check
    `/var/log/kezek-bootstrap.log` and `docker compose ps` in `/opt/kezek`.
    The CloudFormation `ApplicationUrl` output is available after the stack is
    created; the site may need several minutes while Docker builds the app.
-6. Before accepting real traffic, run the production account bootstrap using
+7. Before accepting real traffic, run the production account bootstrap using
    Session Manager. The command runs inside the app container and prompts for
    initial account passwords:
 
@@ -218,24 +217,25 @@ exhausted, or do not create it.
    docker compose exec -it app python provision_production.py
    ```
 
-7. Verify the customer site, staff login, API health at
+8. Verify the customer site, staff login, API health at
    `/api/organizations`, and a disposable queue workflow. These checks must be
    performed on the deployed instance; configuration preparation is not
    deployment verification.
 
-The stack uses one instance and its local PostgreSQL volume. Do not stop/start
-the instance without rebuilding the frontend origins: the public hostname may
-change. If the stack is deleted, the encrypted root volume is retained by
+The stack uses one instance and its local PostgreSQL volume. Stopping and
+starting EC2 can change its public hostname, requiring the CloudFront origin to
+be updated. If the stack is deleted, the encrypted root volume is retained by
 default (`DeleteOnTermination: false`), so detach/archive/delete it deliberately
 after taking any needed backup to avoid orphaned storage and charges. The
 Secrets Manager secret has a recovery window after deletion.
 
 ## Template validation
 
-From the repository root, if `cfn-lint` is available:
+From the repository root:
 
 ```sh
 cfn-lint aws/cloudformation.yaml
+cfn-guard validate --rules aws/cloudformation.guard --data aws/cloudformation.yaml
 ```
 
 Template validation, stack creation, application health, and production

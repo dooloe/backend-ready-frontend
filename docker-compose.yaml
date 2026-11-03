@@ -20,14 +20,15 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_CUSTOMER_ORIGIN: ${CUSTOMER_ORIGIN:-http://127.0.0.1:8000}
-        VITE_ADMIN_ORIGIN: ${ADMIN_ORIGIN:-http://localhost:8000}
+        VITE_CUSTOMER_ORIGIN: ${CUSTOMER_ORIGIN-http://127.0.0.1:8000}
+        VITE_ADMIN_ORIGIN: ${ADMIN_ORIGIN-http://localhost:8000}
     environment:
       APP_ENV: ${APP_ENV:-development}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
       DATABASE_URL: postgresql+psycopg://kezek:${POSTGRES_PASSWORD}@db:5432/kezek
-      CUSTOMER_ORIGIN: ${CUSTOMER_ORIGIN:-http://127.0.0.1:8000}
-      ADMIN_ORIGIN: ${ADMIN_ORIGIN:-http://localhost:8000}
+      CUSTOMER_ORIGIN: ${CUSTOMER_ORIGIN-http://127.0.0.1:8000}
+      ADMIN_ORIGIN: ${ADMIN_ORIGIN-http://localhost:8000}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
     depends_on:
       db:
         condition: service_healthy

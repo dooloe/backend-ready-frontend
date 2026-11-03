@@ -15,7 +15,12 @@ def login(body: LoginRequest, store: Annotated[DatabaseStore, Depends(get_store)
           request: Request, response: Response):
     origin = request.headers.get("origin")
     settings = request.app.state.settings
-    own_origin = f"{request.url.scheme}://{request.url.netloc}"
+    # CloudFront terminates viewer TLS and forwards the viewer host and
+    # CloudFront-Forwarded-Proto to this HTTP-only origin. The origin is
+    # reachable only through CloudFront's managed origin-facing prefix list.
+    forwarded_scheme = request.headers.get("cloudfront-forwarded-proto")
+    own_scheme = forwarded_scheme if forwarded_scheme in {"http", "https"} else request.url.scheme
+    own_origin = f"{own_scheme}://{request.url.netloc}"
     trusted_origins = set(settings.cors_origins) | {own_origin}
     if settings.admin_origin is not None and origin is None:
         raise HTTPException(403, "Origin is required for staff sign-in")
