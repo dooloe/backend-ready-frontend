@@ -184,8 +184,7 @@ describe("admin service form", () => {
       </CustomerLocaleProvider>,
     );
 
-    expect(await screen.findByText("Часы работы: 09:00–17:00 (Asia/Almaty)."))
-      .toBeVisible();
+    expect(await screen.findByText("Часы работы: 09:00–17:00 (Asia/Almaty).")).toBeVisible();
     fireEvent.click(await screen.findByRole("button", { name: "Open queue" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Нельзя открыть очередь вне установленного времени работы услуги.",

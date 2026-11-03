@@ -4,6 +4,8 @@ services:
     runtime: docker
     plan: free
     region: oregon
+    branch: main
+    autoDeployTrigger: checksPass
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/organizations
     envVars:

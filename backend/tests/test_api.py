@@ -669,7 +669,9 @@ def test_login_hashes_tokens_passwords_and_expires_sessions(client, store, clock
     assert "Secure" not in cookie
     result = response.json()
     assert set(result) == {"token", "user"}
-    assert set(result["user"]) == {"id", "name", "username", "role", "isActive"}
+    assert set(result["user"]) == {
+        "id", "name", "username", "role", "isActive", "organizationId", "isPlatformAdmin",
+    }
     assert len(result["token"]) >= 40
     with store.db.session() as session:
         assert session.get(SessionRow, result["token"]) is None
@@ -961,7 +963,7 @@ def test_protected_operations_are_organization_scoped(client, store, admin, staf
     other_staff = {"Authorization": "Bearer " + other_staff_login["token"]}
 
     assert client.get("/api/counters", headers=staff).json() == [
-        {"id": "cnt-1", "name": "Counter 1", "serviceIds": ["svc-reg"],
+        {"id": "cnt-1", "organizationId": "org-demo", "name": "Counter 1", "serviceIds": ["svc-reg"],
          "isActive": True, "staffId": "stf-aigerim"},
     ]
     assert client.get("/api/counters", headers=other_staff).json()[0]["id"] == "other-counter"
