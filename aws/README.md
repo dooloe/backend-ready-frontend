@@ -56,6 +56,72 @@ AWS also says a Free plan account closes when its credits are exhausted or its
 six-month period ends; it retains resources/data for 90 days. Do not depend on
 this deployment as a durable home for data.
 
+## Install AWS CLI and authenticate from WSL
+
+Run these commands in your WSL Ubuntu terminal. The official AWS CLI v2
+installer needs `curl`, `unzip`, and `sudo`; it does not create or store AWS
+credentials:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y curl unzip
+mkdir -p "$HOME/tmp/aws-cli"
+cd "$HOME/tmp/aws-cli"
+curl -fL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+unzip -q awscliv2.zip
+sudo ./aws/install
+aws --version
+```
+
+For ARM64 WSL, use `awscli-exe-linux-aarch64.zip` in the download URL instead.
+The installed CLI version must be 2.32.0 or newer for `aws login`.
+
+Choose the path that matches your account:
+
+* **Personal AWS account using console sign-in (recommended here):** log in to
+  the AWS Console with the account's root user or an IAM user, then in WSL run
+  `aws login --profile kezek-free --region us-east-1`. Complete sign-in in the
+  browser. For an IAM user, AWS requires the `SignInLocalDevelopmentAccess`
+  permission. This obtains temporary credentials. Do not create root access
+  keys. If WSL cannot launch the browser, use
+  `aws login --remote --profile kezek-free --region us-east-1`, open its printed
+  URL in Windows, and enter the one-time authorization code in WSL.
+* **Existing IAM Identity Center access portal:** run
+  `aws configure sso --profile kezek-free`, follow the prompts using the
+  existing start URL/issuer URL, SSO region, account, and assigned role, then
+  run `aws sso login --profile kezek-free`. This also uses temporary credentials
+  and refreshes them during an active SSO session. Do not create/join an AWS
+  Organization to obtain SSO for this deployment; that can automatically
+  upgrade a Free plan account.
+
+Do not use `aws configure` with long-lived access keys unless your AWS
+administrator has no temporary-credential option. Never create root access
+keys, and do not paste credentials or browser authorization codes into chat.
+
+Set/check the deployment region and verify identity and account plan:
+
+```sh
+aws configure set region us-east-1 --profile kezek-free
+aws sts get-caller-identity --profile kezek-free --output json
+aws configure get region --profile kezek-free
+aws freetier get-account-plan-state --region us-east-1 --profile kezek-free --output json
+```
+
+The identity response contains account ID and ARN (safe to share for verification;
+it contains no credentials). The plan-state API returns `accountPlanType`,
+`accountPlanStatus`, remaining credit amount, and expiration date. It requires
+`freetier:GetAccountPlanState`; if the command is denied or unavailable, use the
+AWS Console checks below. Confirm the account ID is the intended AWS account,
+the region is `us-east-1`, plan type is `FREE`, plan status is `ACTIVE`, and
+credits/time remaining are acceptable before proceeding. Do not run CloudFormation
+create/execute commands yet.
+
+In the Console, check **Billing and Cost Management / AWS Settings** for plan
+type, status, credit balance, and expiration. Check **Free Tier** for current
+usage and eligible limits. Account-specific quotas and region access are not
+fully represented by the plan-state API. If any required resource is disallowed
+or a plan upgrade is prompted, stop; do not upgrade.
+
 ## Cost estimate
 
 Indicative US East (N. Virginia), 730 hours/month, on-demand list pricing,
@@ -70,6 +136,28 @@ before any account credits or Free plan restrictions. Prices checked
 | One Secrets Manager secret | about $0.40 plus API usage |
 | CloudFormation, IAM role/profile, security group, SSM core | no separate baseline charge |
 | **Estimated total** | **about $21.71/month** |
+
+This template declares exactly these 12 CloudFormation resources:
+
+| Logical ID | CloudFormation type | Purpose |
+| --- | --- | --- |
+| `DatabaseSecret` | `AWS::SecretsManager::Secret` | Generated, AWS-only PostgreSQL password |
+| `InstanceRole` | `AWS::IAM::Role` | EC2 access to SSM and the one database secret |
+| `InstanceProfile` | `AWS::IAM::InstanceProfile` | Attaches the role to EC2 |
+| `AppVpc` | `AWS::EC2::VPC` | Isolated AWS network |
+| `InternetGateway` | `AWS::EC2::InternetGateway` | Public internet route for the host |
+| `InternetGatewayAttachment` | `AWS::EC2::VPCGatewayAttachment` | Attaches the gateway to the VPC |
+| `PublicSubnet` | `AWS::EC2::Subnet` | One public subnet in one AZ |
+| `PublicRouteTable` | `AWS::EC2::RouteTable` | Subnet routing table |
+| `PublicRoute` | `AWS::EC2::Route` | Default route through the gateway |
+| `PublicSubnetRouteTableAssociation` | `AWS::EC2::SubnetRouteTableAssociation` | Associates the route table with the subnet |
+| `WebSecurityGroup` | `AWS::EC2::SecurityGroup` | Allows inbound HTTP 80 only; no SSH/database ingress |
+| `AppServer` | `AWS::EC2::Instance` | Runs app and PostgreSQL containers; includes an encrypted 30 GiB gp3 root volume and one public IPv4 address |
+
+There is no RDS, load balancer, NAT gateway, Route 53 domain, TLS certificate,
+backup schedule, or autoscaling group. Those are intentionally omitted from
+this small Free plan deployment. The PostgreSQL database is a container on the
+EC2 root volume, so this is a single-host availability and backup risk.
 
 Internet data transfer, backups/snapshots, and any extra usage are not included.
 The Free plan may prevent charges for its eligible usage, but that depends on
