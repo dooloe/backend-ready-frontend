@@ -162,7 +162,7 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
   await expect(page.getByText("No matching organizations")).toBeVisible();
   await page.getByRole("button", { name: "Reset filters" }).click();
   await page.goto("/organizations/org-demo");
-  await expect(page.getByRole("button", { name: "Queue closed" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Tickets unavailable" })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
