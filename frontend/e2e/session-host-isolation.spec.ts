@@ -1,41 +1,35 @@
 import { expect, test } from "@playwright/test";
 
-const customerOrigin = "http://127.0.0.1:15173";
-const adminOrigin = "http://localhost:15173";
+const appOrigin = "http://127.0.0.1:15173";
 
-test("admin session stays on the staff hostname and customer pages remain public", async ({
+test("staff session works on the Render hostname while customer pages stay available", async ({
   page,
   context,
 }) => {
-  await page.goto(`${customerOrigin}/login`);
-  await expect(page).toHaveURL(`${adminOrigin}/login`);
+  await page.goto(`${appOrigin}/login`);
   await page.getByRole("textbox", { name: "Username" }).fill("admin");
   await page.getByLabel("Password").fill("admin123");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(`${adminOrigin}/admin`);
+  await expect(page).toHaveURL(`${appOrigin}/admin`);
   await expect(page.getByRole("heading", { name: /admin/i }).first()).toBeVisible();
 
-  const adminCookies = await context.cookies(adminOrigin);
-  const customerCookies = await context.cookies(customerOrigin);
-  expect(adminCookies.some((cookie) => cookie.name === "kezek_session")).toBe(true);
-  expect(customerCookies.some((cookie) => cookie.name === "kezek_session")).toBe(false);
+  const cookies = await context.cookies(appOrigin);
+  expect(cookies.some((cookie) => cookie.name === "kezek_session")).toBe(true);
 
-  const customerPage = await context.newPage();
-  await customerPage.goto(customerOrigin);
-  await expect(customerPage.getByRole("link", { name: /staff sign in/i })).toBeVisible();
-  await expect(customerPage.getByRole("link", { name: /admin/i })).toHaveCount(0);
-  const identityStatus = await customerPage.evaluate(
+  await page.goto(appOrigin);
+  await expect(
+    page.getByRole("heading", { name: "Get your ticket online. Wait where it suits you." }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /admin/i })).toBeVisible();
+  const identityStatus = await page.evaluate(
     async () => (await fetch("/api/auth/me")).status,
   );
-  expect(identityStatus).toBe(401);
-  const customerLoginStatus = await customerPage.evaluate(async () => {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: "admin", password: "admin123" }),
-    });
-    return response.status;
-  });
-  expect(customerLoginStatus).toBe(403);
-  await customerPage.close();
+  expect(identityStatus).toBe(200);
+
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByRole("link", { name: /staff sign in/i })).toBeVisible();
+  const anonymousIdentityStatus = await page.evaluate(
+    async () => (await fetch("/api/auth/me")).status,
+  );
+  expect(anonymousIdentityStatus).toBe(401);
 });

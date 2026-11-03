@@ -23,8 +23,6 @@ export default defineConfig({
         VITE_API_BASE_URL: "",
         VITE_API_PROXY_TARGET: "http://127.0.0.1:18765",
         VITE_USE_MOCK: "false",
-        VITE_CUSTOMER_ORIGIN: "http://127.0.0.1:15173",
-        VITE_ADMIN_ORIGIN: "http://localhost:15173",
       },
       reuseExistingServer: false,
       timeout: 30000,
