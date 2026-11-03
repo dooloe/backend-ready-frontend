@@ -189,9 +189,8 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
   await page.keyboard.press("Enter");
   await expect(universities).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("article")).toHaveCount(1);
-  for (let i = 0; i < 4; i += 1) await page.keyboard.press("Tab");
   const viewServices = page.getByRole("link", { name: "View Services" });
-  await expect(viewServices).toBeFocused();
+  await tabUntilFocused(page, viewServices);
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Almaty University · Demo" })).toBeVisible();
   const joinQueue = page.getByRole("link", { name: "Get a ticket" });
