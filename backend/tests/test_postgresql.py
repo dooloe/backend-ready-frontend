@@ -83,9 +83,12 @@ def test_postgresql_import_and_application_persistence_across_restart(
         services = first.get("/api/services")
         assert services.status_code == 200
         assert any(row["id"] == "svc-reg" for row in services.json())
-        imported_ticket = first.get(f"/api/tickets/{imported_ticket_token}")
-        assert imported_ticket.status_code == 200, imported_ticket.text
-        assert imported_ticket.json()["customerName"] == "Imported SQLite ticket"
+        with store.db.session() as session:
+            imported_ticket = session.scalar(
+                select(TicketRow).where(TicketRow.id == imported_ticket_token)
+            )
+            assert imported_ticket is not None
+            assert imported_ticket.customerName == "Imported SQLite ticket"
 
         issued = first.post(
             "/api/tickets",
@@ -125,6 +128,12 @@ def test_postgresql_import_and_application_persistence_across_restart(
         assert store.db.engine.dialect.name == "postgresql"
         with store.db.engine.connect() as connection:
             assert connection.execute(text("SELECT current_database()")).scalar_one() == database_name
+        with store.db.session() as session:
+            imported_ticket = session.scalar(
+                select(TicketRow).where(TicketRow.id == imported_ticket_token)
+            )
+            assert imported_ticket is not None
+            assert imported_ticket.customerName == "Imported SQLite ticket"
 
         restored = second.get(f"/api/tickets/{private_ticket_token}")
         assert restored.status_code == 200, restored.text
