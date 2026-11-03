@@ -43,8 +43,10 @@ AWS account's Billing/Settings console. This workspace cannot establish the
 account's personal eligibility.
 
 Before creating a stack, sign in to the intended AWS account and check its plan
-and remaining period/credits in Billing and Cost Management. Confirm that the
-intended instance type and region are available. The new AWS experience's
+and remaining period/credits in Billing and Cost Management. For a project
+account in the new AWS experience, use the home Region shown in AWS Settings;
+do not assume `us-east-1`. Confirm that the intended instance type and region
+are available. The new AWS experience's
 public service list includes the services this template uses, but the signed-in
 console is authoritative for the account. Do **not** select
 Upgrade, activate advanced features, join AWS Organizations, or create a
@@ -80,11 +82,12 @@ Choose the path that matches your account:
 
 * **Personal AWS account using console sign-in (recommended here):** log in to
   the AWS Console with the account's root user or an IAM user, then in WSL run
-  `aws login --profile kezek-free --region us-east-1`. Complete sign-in in the
+  `aws login --profile kezek-free --region YOUR_PROJECT_REGION`, replacing the
+  placeholder with the home Region shown in AWS Settings. Complete sign-in in the
   browser. For an IAM user, AWS requires the `SignInLocalDevelopmentAccess`
   permission. This obtains temporary credentials. Do not create root access
   keys. If WSL cannot launch the browser, use
-  `aws login --remote --profile kezek-free --region us-east-1`, open its printed
+  `aws login --remote --profile kezek-free --region YOUR_PROJECT_REGION`, open its printed
   URL in Windows, and enter the one-time authorization code in WSL.
 * **Existing IAM Identity Center access portal:** run
   `aws configure sso --profile kezek-free`, follow the prompts using the
@@ -98,23 +101,28 @@ Do not use `aws configure` with long-lived access keys unless your AWS
 administrator has no temporary-credential option. Never create root access
 keys, and do not paste credentials or browser authorization codes into chat.
 
-Set/check the deployment region and verify identity and account plan:
+Check the project home Region in **AWS Settings / Project / Overview / Additional
+Info**. Set the CLI deployment Region to that exact value, then verify identity
+and account plan. The Free Tier account-plan API call uses `us-east-1` below;
+this does not select the CloudFormation deployment Region.
 
 ```sh
-aws configure set region us-east-1 --profile kezek-free
+aws configure set region YOUR_PROJECT_REGION --profile kezek-free
 aws sts get-caller-identity --profile kezek-free --output json
 aws configure get region --profile kezek-free
 aws freetier get-account-plan-state --region us-east-1 --profile kezek-free --output json
 ```
 
-The identity response contains account ID and ARN (safe to share for verification;
-it contains no credentials). The plan-state API returns `accountPlanType`,
+Replace `YOUR_PROJECT_REGION` with the exact region from AWS Settings (for
+example, `ap-southeast-2` if the project's home Region is Sydney). The identity
+response contains account ID and ARN (safe to share for verification; it
+contains no credentials). The plan-state API returns `accountPlanType`,
 `accountPlanStatus`, remaining credit amount, and expiration date. It requires
 `freetier:GetAccountPlanState`; if the command is denied or unavailable, use the
 AWS Console checks below. Confirm the account ID is the intended AWS account,
-the region is `us-east-1`, plan type is `FREE`, plan status is `ACTIVE`, and
-credits/time remaining are acceptable before proceeding. Do not run CloudFormation
-create/execute commands yet.
+the configured region matches the project home Region, plan type is `FREE`, plan
+status is `ACTIVE`, and credits/time remaining are acceptable before proceeding.
+Do not run CloudFormation create/execute commands yet.
 
 In the Console, check **Billing and Cost Management / AWS Settings** for plan
 type, status, credit balance, and expiration. Check **Free Tier** for current
@@ -127,6 +135,7 @@ or a plan upgrade is prompted, stop; do not upgrade.
 Indicative US East (N. Virginia), 730 hours/month, on-demand list pricing,
 before any account credits or Free plan restrictions. Prices checked
 2026-11-03. The template defaults to `t3.small`; prices vary by region and date.
+Recalculate for the account's assigned project Region before deployment.
 
 | Resource | Estimate per month |
 | --- | ---: |
@@ -170,6 +179,14 @@ $0.40/secret-month for Secrets Manager. See [EC2 pricing](https://aws.amazon.com
 [Secrets Manager pricing](https://aws.amazon.com/secrets-manager/pricing/).
 Check the live [AWS Pricing Calculator](https://calculator.aws/) for the
 selected region/account before using the template.
+
+At this reference run rate, six months would use about $130.26 of credits,
+before data transfer or backups. A $100 credit balance would run out in roughly
+4.6 months if this workload were left on continuously. AWS states that a Free
+plan account closes when credits run out;
+the service will become unavailable unless the account is upgraded. Keep the
+account on Free and plan to stop/delete the stack before the credits are
+exhausted, or do not create it.
 
 ## Prepare and deploy
 
