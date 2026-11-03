@@ -101,6 +101,11 @@ after 15 minutes without requests, and free Render Postgres is limited to 1 GB,
 has no backups, and expires 30 days after creation. This is suitable for a
 short demo, not durable production data.
 
+The Blueprint targets `main` and sets Render auto-deploy to `checksPass`, so
+Render waits for the GitHub Actions checks on a commit before deploying it. If
+the existing service was created separately from this Blueprint, set its
+Auto-Deploy mode to **After CI Checks Pass** in the Render dashboard.
+
 After the first deploy is healthy, copy the database's **External Database
 URL** from the Render dashboard. Render Free web services do not provide shell
 access, so run the bootstrap from a trusted local checkout, entering that URL
