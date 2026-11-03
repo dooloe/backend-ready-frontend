@@ -22,7 +22,7 @@ test("client ticket updates through staff call, service, and completion", async 
   const staffContext = await browser.newContext();
   try {
     const staff = await staffContext.newPage();
-    await staff.goto("/login");
+    await staff.goto(`${new URL(page.url()).origin}/login`);
     await staff.getByLabel("Username").fill("demo-staff-university");
     await staff.getByLabel("Password").fill("staff123");
     await staff.getByRole("button", { name: "Sign in", exact: true }).click();

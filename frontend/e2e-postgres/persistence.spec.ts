@@ -18,6 +18,20 @@ test("Compose app serves the frontend and migrated, seeded PostgreSQL API", asyn
   ).toBeVisible({ timeout: 30000 });
 });
 
+async function waitForApp(page: import("@playwright/test").Page) {
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await page.request.get("/", { headers: { Accept: "text/html" } });
+      if (response.ok()) return;
+    } catch {
+      // The app can briefly refuse connections while its container starts.
+    }
+    await page.waitForTimeout(500);
+  }
+  throw new Error("Application did not become ready after container recreation");
+}
+
 function recreate(service: "app" | "db") {
   const project = process.env.COMPOSE_PROJECT_NAME;
   if (!project) throw new Error("COMPOSE_PROJECT_NAME must identify this isolated test stack");
@@ -62,6 +76,7 @@ test("PostgreSQL customer writes survive application and database container recr
   const ticketUrl = page.url();
 
   recreate("app");
+  await waitForApp(page);
   await page.goto(ticketUrl);
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible({
     timeout: 30000,
@@ -79,6 +94,7 @@ test("PostgreSQL customer writes survive application and database container recr
   });
 
   recreate("db");
+  await waitForApp(page);
   await page.goto(ticketUrl);
   await expect(page.getByRole("heading", { name: "It’s your turn!" })).toBeVisible({
     timeout: 45000,

@@ -12,6 +12,7 @@ else
 fi
 export COMPOSE_PROJECT_NAME="$project"
 export KEZEK_TEST_PORT="$port"
+export KEZEK_PORT="$port"
 export POSTGRES_PASSWORD=kezek_test_only
 export KEZEK_REPO_ROOT="$root"
 
@@ -22,5 +23,7 @@ cleanup() {
 trap cleanup EXIT
 
 "${compose[@]}" up -d --build --wait
-KEZEK_E2E_BASE_URL="http://127.0.0.1:${port}" npm --prefix frontend run test:compose
+base_url="http://127.0.0.1:${port}"
+curl --fail --silent --show-error --retry 30 --retry-all-errors --retry-delay 2 --header "Accept: text/html" "${base_url}/" --output /dev/null
+KEZEK_E2E_BASE_URL="${base_url}" npm --prefix frontend run test:compose
 KEZEK_E2E_BASE_URL="http://127.0.0.1:${port}" npm --prefix frontend run test:postgres

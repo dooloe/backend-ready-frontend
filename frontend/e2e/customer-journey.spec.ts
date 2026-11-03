@@ -156,13 +156,13 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
-  await page.getByLabel("Search organizations and services").fill("general consultation");
+  await page.getByLabel("Search organizations and services").fill("primary care consultation");
   await expect(page.locator("article")).toHaveCount(1);
   await page.getByLabel("Search organizations and services").fill("nonexistent service");
   await expect(page.getByText("No matching organizations")).toBeVisible();
   await page.getByRole("button", { name: "Reset filters" }).click();
   await page.goto("/organizations/org-demo");
-  await expect(page.getByRole("button", { name: "Queue closed" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Tickets unavailable" })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
@@ -189,25 +189,24 @@ test("search, closed and empty states, keyboard navigation, responsive layout", 
   await page.keyboard.press("Enter");
   await expect(universities).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("article")).toHaveCount(1);
-  for (let i = 0; i < 4; i += 1) await page.keyboard.press("Tab");
   const viewServices = page.getByRole("link", { name: "View Services" });
-  await expect(viewServices).toBeFocused();
+  await tabUntilFocused(page, viewServices);
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Almaty University · Demo" })).toBeVisible();
-  const joinQueue = page.getByRole("link", { name: "Join Queue" });
+  const joinQueue = page.getByRole("link", { name: "Get a ticket" }).first();
   await joinQueue.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: "Confirm your place" })).toBeVisible();
-  const confirmJoin = page.getByRole("button", { name: "Confirm & join queue" });
+  await expect(page.getByRole("heading", { name: "Get your ticket" })).toBeVisible();
+  const confirmJoin = page.getByRole("button", { name: "Get a ticket" });
   await confirmJoin.press("Enter");
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
-  const cancelTicket = page.getByRole("button", { name: "Cancel Ticket" });
+  const cancelTicket = page.getByRole("button", { name: "Cancel ticket" });
   await cancelTicket.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("alertdialog")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Go back" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Keep ticket" })).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Confirm" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Cancel ticket" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Your ticket is cancelled" })).toBeVisible();
 });
@@ -216,7 +215,7 @@ test("queue conflict after availability changes is announced and prevents ticket
   page,
 }) => {
   await page.goto("/join/org-demo/svc-fin");
-  const joinButton = page.getByRole("button", { name: "Confirm & join queue" });
+  const joinButton = page.getByRole("button", { name: "Get a ticket" });
   await expect(joinButton).toBeEnabled();
   const login = await page.request.post("http://127.0.0.1:18765/api/auth/login", {
     data: { username: "admin", password: "admin123" },
@@ -254,7 +253,7 @@ test("staff no-show confirmation and essential admin configuration", async ({
   const browserCounterName = "Browser assigned counter " + info.project.name;
   const renamedBrowserCounterName = "Renamed browser counter " + info.project.name;
   await page.goto("/join/demo-clinic/demo-svc-clinic");
-  await page.getByRole("button", { name: "Confirm & join queue" }).click();
+  await page.getByRole("button", { name: "Get a ticket" }).click();
   await expect(page.getByRole("heading", { name: "You’re in the queue" })).toBeVisible();
   const context = await browser.newContext({ viewport: page.viewportSize() });
   const staff = await context.newPage();

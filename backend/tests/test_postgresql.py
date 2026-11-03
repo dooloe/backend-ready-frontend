@@ -63,7 +63,7 @@ def test_postgresql_import_and_application_persistence_across_restart(
             "/api/tickets",
             json={"serviceId": "svc-reg", "customerName": "Imported SQLite ticket"},
         )
-        assert source_ticket.status_code == 201, source_ticket.text
+        assert source_ticket.status_code == 200, source_ticket.text
         imported_ticket_token = source_ticket.json()["id"]
 
     imported_counts = import_sqlite_database(source_path, postgres_test_url)
@@ -83,18 +83,23 @@ def test_postgresql_import_and_application_persistence_across_restart(
         services = first.get("/api/services")
         assert services.status_code == 200
         assert any(row["id"] == "svc-reg" for row in services.json())
-        imported_ticket = first.get(f"/api/tickets/{imported_ticket_token}")
-        assert imported_ticket.status_code == 200, imported_ticket.text
-        assert imported_ticket.json()["customerName"] == "Imported SQLite ticket"
+        with store.db.session() as session:
+            imported_ticket = session.scalar(
+                select(TicketRow).where(TicketRow.id == imported_ticket_token)
+            )
+            assert imported_ticket is not None
+            assert imported_ticket.customerName == "Imported SQLite ticket"
 
+        queue = first.get("/api/organizations/org-demo/services").json()[0]["queue"]
+        private_ticket_token = _proof(21)
         issued = first.post(
-            "/api/tickets",
-            json={"serviceId": "svc-reg", "customerName": "PostgreSQL integration"},
+            f"/api/queues/{queue['id']}/tickets",
+            headers={"Idempotency-Key": _proof(22)},
+            json={"accessToken": private_ticket_token},
         )
         assert issued.status_code == 201, issued.text
-        ticket = issued.json()
-        private_ticket_token = ticket["id"]
-        assert first.get(f"/api/tickets/{private_ticket_token}").json()["id"] == private_ticket_token
+        ticket = issued.json()["ticket"]
+        assert first.get(f"/api/tickets/{private_ticket_token}").json()["id"] == ticket["id"]
 
         login = first.post(
             "/api/auth/login", json={"username": "admin", "password": "admin123"}
@@ -125,6 +130,12 @@ def test_postgresql_import_and_application_persistence_across_restart(
         assert store.db.engine.dialect.name == "postgresql"
         with store.db.engine.connect() as connection:
             assert connection.execute(text("SELECT current_database()")).scalar_one() == database_name
+        with store.db.session() as session:
+            imported_ticket = session.scalar(
+                select(TicketRow).where(TicketRow.id == imported_ticket_token)
+            )
+            assert imported_ticket is not None
+            assert imported_ticket.customerName == "Imported SQLite ticket"
 
         restored = second.get(f"/api/tickets/{private_ticket_token}")
         assert restored.status_code == 200, restored.text
